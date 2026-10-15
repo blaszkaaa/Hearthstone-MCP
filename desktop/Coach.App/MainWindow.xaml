@@ -62,7 +62,7 @@
                     </StackPanel>
                     <Border Background="{StaticResource AccentTint}" Padding="9,5"
                             CornerRadius="7" Margin="17,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="BETA 0.3" Foreground="{StaticResource Accent}" FontSize="10" FontWeight="SemiBold"/>
+                        <TextBlock Text="BETA 0.4" Foreground="{StaticResource Accent}" FontSize="10" FontWeight="SemiBold"/>
                     </Border>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
@@ -184,6 +184,9 @@
                                 <Button x:Name="SignOutButton" Content="Wyloguj z ChatGPT"
                                         Style="{StaticResource SecondaryButton}"
                                         Click="SignOutClick" Visibility="Collapsed"/>
+                                <Button Content="Otwórz logi diagnostyczne ↗"
+                                        Style="{StaticResource SecondaryButton}" Margin="0,10,0,0"
+                                        Click="OpenLogsClick" ToolTip="Otwórz folder dzienników tej aplikacji"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>

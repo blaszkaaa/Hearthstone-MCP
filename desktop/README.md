@@ -9,7 +9,7 @@ Natywna aplikacja **Windows 10/11, WPF/.NET 8**, ciemny interfejs. Odczytuje ten
 3. Rozpakuj całe archiwum i uruchom `HearthstoneCoach.exe`. Wydanie jest self-contained: nie wymaga osobnej instalacji .NET Runtime.
 4. Kliknij **Połącz przez ChatGPT**. W systemowej przeglądarce wybierz konto, zaakceptuj zakres `ChatGPT plan usage`, wróć do aplikacji. Dostępność zależy od planu i przyznanych uprawnień konta.
 5. Wybierz model z listy dostępnej na Twoim koncie. Włącz **Automatyczna analiza**. Opcjonalnie zaznacz **Przypnij nad grą**.
-6. Rozpocznij partię. Po około 7 sekundach stabilnego stanu na Twojej turze model zaproponuje zagranie (wybory Discover po około 3 sekundach). Przy Discover/wspieranym wyborze przeanalizuje dostępne opcje.
+6. Rozpocznij partię. Po około 4 sekundach stabilnego stanu na Twojej turze model zaproponuje zagranie (mulligan po około 2 sekundach, Odkryj po około 1 sekundzie). Przy Discover/wspieranym wyborze przeanalizuje dostępne opcje.
 
 **Koszty:** aplikacja korzysta z oficjalnego OSS `Sign in with ChatGPT` i `ChatGPT plan usage`, nie z klucza API. Zużycie jest wliczane do dostępnych limitów planu ChatGPT; limit może się wyczerpać. Zarządzaj dostępem i limitami w [ustawieniach ChatGPT](https://chatgpt.com/#settings/Usage). Nigdy nie wprowadzaj klucza API ani hasła do aplikacji — logowanie odbywa się w przeglądarce OpenAI.
 
@@ -17,11 +17,33 @@ Natywna aplikacja **Windows 10/11, WPF/.NET 8**, ciemny interfejs. Odczytuje ten
 
 - Odczyt lokalnego snapshotu HDT co 1 s; plik musi być aktualny (<15 s).
 - AI **nie jest wywoływane** w menu ani bez Twojej tury/aktywnego wyboru.
-- AI czeka ok. 7 s na ustabilizowanie zwykłej tury i 3 s przy aktywnym wyborze kart. Standardowo min. 14 s pomiędzy analizami, maks. 4 na turę. Przy wyborze kart priorytetowo: min. 4 s i do 6 analiz w tej samej turze. Identyczne decyzje nie są analizowane wielokrotnie.
+- AI czeka ok. 4 s na ustabilizowanie zwykłej tury, 2 s na mulligan i 1 s przy wyborze Odkryj. Zwykłe analizy co najmniej co 9 s, maks. 8 w turze (tylko po zmianie decyzji). Wybory otrzymują priorytet. Po błędzie możliwe jest ponowienie próby.
 - Krótkie lub nieistotne wahania odczytu HDT **nie kasują rekomendacji**. Dopiero utrzymująca się przez 4 s istotna zmiana pozwala oznaczyć poradę jako nieaktualną i anulować stare zapytanie. Poprzednia rekomendacja pozostaje widoczna podczas odświeżania (z ostrzeżeniem), a spóźniona odpowiedź nie nadpisuje nowej.
 - Odpowiedź eksponuje **kartę / ruch, cel i kolejność**, a bardzo krótkie uzasadnienie znajduje się na samym końcu. Odpowiedź jest rekomendacją, nie komendą. Bez automatyzacji kliknięć, bez DLL wstrzykiwanej w grę.
 - Obsługuje scenariusze „Co zagrać?” oraz „Którą kartę Odkryj wybrać?”.
 - Panel można przypiąć na wierzchu gry (tryb `Topmost`). Używa własnej ciemnej ramki okna Windows, bez jasnej belki u góry.
+
+## Wybór ręki początkowej (mulligan) i Odkryj
+
+Wtyczka HDT **v0.3** publikuje `phase`, `mulligan_active`, `mulligan_cards` oraz aktywne `choices`. Zaktualizuj **zarówno DLL wtyczki, jak i aplikację**: sama wymiana EXE nie umożliwi odczytu pierwszego wyboru ani poprawnego raportowania Odkrycia.
+
+- **Mulligan:** dla każdej karty w ręce początkowej aplikacja pokazuje osobno `1 ZOSTAW`, `2 ODRZUĆ`, `3 ZOSTAW`, itd. Nawet jeśli nie jest to jeszcze Twoja tura.
+- **Odkryj / inne aktywne wybory:** wybiera konkretną opcję z indeksem i nazwą (`Wybierz 2 — [karta]`). Odczyt nie opiera się na zwykłej ręce gracza.
+- **Tury:** analiza uruchamia się po ok. 4 s stabilności; mulligan po 2 s, Odkryj po ok. 1 s. W miarę możliwości model otrzymuje limit czasu ok. 23 s na zakończenie analizy. Po niepowodzeniu może ponowić odczyt.
+- **Po każdej nowej turze:** harmonogram umożliwia nową analizę; każda zmiana istotna dla decyzji dostaje nowy identyfikator. Starsze odpowiedzi nie nadpisują nowszych.
+
+## Pełne logi do analizy błędów
+
+W aplikacji kliknij **Otwórz logi diagnostyczne**. Pliki JSONL są zapisywane w:
+`%LOCALAPPDATA%\HearthstoneCoach\logs\coach-*.jsonl`.
+
+W logach znajdują się: czas, sesja, stan i faza gry, pełny widoczny stan z HDT (karty Twojej ręki, plansza, wybory), zmiany wykryte przez harmonogram, dane wysyłane do AI (prompt), surowe odpowiedzi AI, czasy analiz, błędy i wyjątkowe sytuacje. Dzięki temu można odtworzyć, dlaczego Discover lub mulligan nie zostały wykryte i kiedy podpowiedź przestała się aktualizować.
+
+Wtyczka HDT zapisuje dodatkowo własną diagnostykę w:
+`%LOCALAPPDATA%\HearthstoneMCP\plugin.log` (oraz `plugin.log.old` po rotacji).
+Dzienniki aplikacji są przechowywane maksymalnie 7 dni i mogą zawierać szczegóły Twoich rozgrywek. **Nie zawierają haseł ani tokenów ChatGPT.** Przed udostępnieniem plików sprawdź, czy nie ma w nich informacji, których nie chcesz ujawniać.
+
+Gdy problem wystąpi, wyślij plik `coach-*.jsonl` z odpowiedniej godziny oraz `plugin.log` — bez potrzeby przepisywania błędów ręcznie.
 
 ## Ochrona danych i logowanie
 

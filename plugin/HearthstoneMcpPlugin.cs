@@ -21,12 +21,14 @@ namespace HearthstoneMcpPlugin
         private bool _enabled;
         private DateTime _lastWriteUtc = DateTime.MinValue;
         private static readonly TimeSpan UpdateEvery = TimeSpan.FromMilliseconds(500);
+        private static readonly object LogLock = new object();
+        private string _lastPhaseSignature;
 
         public string Name => "Hearthstone MCP";
         public string Description => "Udostepnia stan meczu i aktywne wybory kart (Odkryj / Choose One) do MCP.";
         public string ButtonText => "Pokaz plik danych";
         public string Author => "Hearthstone-MCP contributors";
-        public Version Version => new Version(0, 2, 0);
+        public Version Version => new Version(0, 3, 0);
         public MenuItem MenuItem => null;
 
         private static string StatePath
@@ -46,13 +48,14 @@ namespace HearthstoneMcpPlugin
         {
             _enabled = true;
             _lastWriteUtc = DateTime.MinValue;
+            TryDiagnostic("Plugin uruchomiony v0.3");
             OnUpdate();
         }
 
         public void OnUnload()
         {
             _enabled = false;
-            try { WriteSnapshot(false); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine(ex); }
+            try { WriteSnapshot(false); TryDiagnostic("Wtyczka wylaczona"); } catch (Exception ex) { TryDiagnostic("OnUnload " + ex); }
         }
 
         public void OnButtonPress()
@@ -67,17 +70,17 @@ namespace HearthstoneMcpPlugin
                 return;
             _lastWriteUtc = DateTime.UtcNow;
             try { WriteSnapshot(true); }
-            catch (Exception ex) { System.Diagnostics.Debug.WriteLine("Hearthstone MCP: " + ex); }
+            catch (Exception ex) { TryDiagnostic("WriteSnapshot: " + ex); }
         }
 
-        private static object AsCard(Entity entity, bool withCombatData)
+        private static object AsCard(Entity entity, bool withCombatData, bool ownOfferedChoice = false)
         {
             if (entity == null)
                 return null;
 
             // Do not access opponent's hidden card identities. This helper is only
             // called for own hand and public board / played cards.
-            if (entity.Info.Hidden || !entity.HasCardId)
+            if ((entity.Info.Hidden && !ownOfferedChoice) || !entity.HasCardId)
                 return new { entity_id = entity.Id, known = false, position = entity.ZonePosition };
 
             return new
@@ -160,7 +163,29 @@ namespace HearthstoneMcpPlugin
                     .Where(name => !string.IsNullOrWhiteSpace(name))
                     .Take(30).ToArray();
 
-        private static void WriteSnapshot(bool allowGame)
+        private static void TryDiagnostic(string text)
+        {
+            try
+            {
+                string folder = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "HearthstoneMCP");
+                lock(LogLock)
+                {
+                    Directory.CreateDirectory(folder);
+                    string path = Path.Combine(folder, "plugin.log");
+                    if(File.Exists(path) && new FileInfo(path).Length > 4 * 1024 * 1024)
+                    {
+                        if(File.Exists(path + ".old")) File.Delete(path + ".old");
+                        File.Move(path, path + ".old");
+                    }
+                    File.AppendAllText(path, DateTime.UtcNow.ToString("o") + " " + text + Environment.NewLine);
+                }
+            }
+            catch(Exception) { /* Never fail the HDT plugin because of diagnostics. */ }
+        }
+
+        private void WriteSnapshot(bool allowGame)
         {
             var game = Core.Game;
             var inGame = allowGame && game != null && !game.IsInMenu
@@ -200,7 +225,7 @@ namespace HearthstoneMcpPlugin
                 {
                     Entity offered;
                     object card = game.Entities.TryGetValue(id, out offered)
-                        ? AsCard(offered, false)
+                        ? AsCard(offered, false, true)
                         : new { entity_id = id, known = false };
                     return new
                     {
@@ -209,20 +234,42 @@ namespace HearthstoneMcpPlugin
                     };
                 }).ToArray();
 
+                // Do not keep offering mulligan advice after the local player
+                // already confirmed, even if the opponent is still choosing.
+                bool mulligan = !game.IsMulliganDone &&
+                    (playerEntity == null ||
+                     playerEntity.GetTag(GameTag.MULLIGAN_STATE) != (int)HearthDb.Enums.Mulligan.DONE);
+                var mulliganCards = mulligan ? player.Hand.Where(e => !e.IsTheCoin)
+                    .OrderBy(e => e.ZonePosition).Select(e => AsCard(e, false)).ToArray()
+                    : Array.Empty<object>();
+
+                string phase = mulligan ? "mulligan" : offeredIds.Length > 0 ? "choice" : "turn";
+                string signature = phase + " t=" + game.GetTurnNumber()
+                    + " mine=" + (playerEntity != null && playerEntity.GetTag(GameTag.CURRENT_PLAYER) == 1)
+                    + " mulligan=" + mulliganCards.Length + " offered=" + offeredIds.Length
+                    + " hand=" + player.Hand.Count();
+                if(signature != _lastPhaseSignature)
+                {
+                    _lastPhaseSignature = signature;
+                    TryDiagnostic("Stan gry: " + signature);
+                }
                 output = new
                 {
                     schema_version = 1,
                     captured_at_utc = DateTime.UtcNow.ToString("o"),
                     source = "hearthstone-deck-tracker-plugin",
                     in_game = true,
+                    phase = phase,
+                    mulligan_active = mulligan,
+                    mulligan_cards = mulliganCards,
                     turn = game.GetTurnNumber(),
                     my_turn = playerEntity != null && playerEntity.GetTag(GameTag.CURRENT_PLAYER) == 1,
                     // Choice types include Discover, Choose One and other
                     // decision prompts. This is not necessarily Discover.
                     choice_tracking_supported = true,
-                    choice_active = offeredIds.Length > 0,
+                    choice_active = !mulligan && offeredIds.Length > 0,
                     choice_count = offeredIds.Length,
-                    choices = choices,
+                    choices = mulligan ? Array.Empty<object>() : choices,
                     player = new
                     {
                         card_class = player.CurrentClass,
@@ -253,6 +300,11 @@ namespace HearthstoneMcpPlugin
                 };
             }
 
+            if (!inGame && _lastPhaseSignature != "menu")
+            {
+                _lastPhaseSignature = "menu";
+                TryDiagnostic("Menu lub gra nieaktywna");
+            }
             // Atomic replace makes it impossible for MCP to read partial JSON.
             string target = StatePath;
             string folder = Path.GetDirectoryName(target);
