@@ -1,13 +1,218 @@
-<Application x:Class="Coach.App.App" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" StartupUri="MainWindow.xaml"><Application.Resources>
- <SolidColorBrush x:Key="Background" Color="#0A0F15"/>
- <SolidColorBrush x:Key="Panel" Color="#131B25"/>
- <SolidColorBrush x:Key="Panel2" Color="#1B2633"/>
- <SolidColorBrush x:Key="Stroke" Color="#2B3745"/>
- <SolidColorBrush x:Key="White" Color="#F0F6FA"/>
- <SolidColorBrush x:Key="Muted" Color="#96A6B5"/>
- <SolidColorBrush x:Key="Accent" Color="#8BE3BC"/>
- <Style TargetType="TextBlock"><Setter Property="Foreground" Value="{StaticResource White}"/><Setter Property="FontFamily" Value="Segoe UI"/></Style>
- <Style TargetType="Button" x:Key="PrimaryButton"><Setter Property="Foreground" Value="#081713"/><Setter Property="Background" Value="{StaticResource Accent}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="FontSize" Value="13"/><Setter Property="Cursor" Value="Hand"/><Setter Property="Padding" Value="19,12"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="11" Padding="{TemplateBinding Padding}"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Opacity" Value="0.86"/></Trigger><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style>
- <Style TargetType="Button" x:Key="SecondaryButton" BasedOn="{StaticResource PrimaryButton}"><Setter Property="Foreground" Value="{StaticResource White}"/><Setter Property="Background" Value="{StaticResource Panel2}"/></Style>
- <Style TargetType="CheckBox"><Setter Property="Foreground" Value="{StaticResource White}"/><Setter Property="FontSize" Value="13"/><Setter Property="FontFamily" Value="Segoe UI"/></Style>
- </Application.Resources></Application>
+<Application x:Class="Coach.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <!-- Single, consistent dark palette. -->
+        <SolidColorBrush x:Key="Background" Color="#090F17"/>
+        <SolidColorBrush x:Key="Panel" Color="#121D29"/>
+        <SolidColorBrush x:Key="Panel2" Color="#1A2938"/>
+        <SolidColorBrush x:Key="PanelHover" Color="#253649"/>
+        <SolidColorBrush x:Key="Stroke" Color="#293848"/>
+        <SolidColorBrush x:Key="White" Color="#F4F7FA"/>
+        <SolidColorBrush x:Key="Muted" Color="#9DB0C2"/>
+        <SolidColorBrush x:Key="Accent" Color="#77DEBA"/>
+        <SolidColorBrush x:Key="AccentHover" Color="#9BEBCD"/>
+        <SolidColorBrush x:Key="AccentTint" Color="#17362E"/>
+        <SolidColorBrush x:Key="NeutralTint" Color="#202E3B"/>
+        <SolidColorBrush x:Key="Warning" Color="#E8BA77"/>
+
+        <Style TargetType="{x:Type TextBlock}">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="Foreground" Value="{StaticResource White}"/>
+            <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+        </Style>
+
+        <Style x:Key="PrimaryButton" TargetType="{x:Type Button}">
+            <Setter Property="Background" Value="{StaticResource Accent}"/>
+            <Setter Property="Foreground" Value="#0D2620"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="17,11"/>
+            <Setter Property="MinHeight" Value="42"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="Chrome" CornerRadius="11"
+                                Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.86"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.7"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="SecondaryButton" TargetType="{x:Type Button}" BasedOn="{StaticResource PrimaryButton}">
+            <Setter Property="Foreground" Value="{StaticResource White}"/>
+            <Setter Property="Background" Value="{StaticResource Panel2}"/>
+        </Style>
+        <Style x:Key="ChromeButton" TargetType="{x:Type Button}" BasedOn="{StaticResource SecondaryButton}">
+            <Setter Property="MinHeight" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Width" Value="34"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="FontSize" Value="15"/>
+        </Style>
+
+        <!-- Accessible keyboard-focusable switches (standard CheckBox semantics). -->
+        <Style x:Key="SwitchToggle" TargetType="{x:Type CheckBox}">
+            <Setter Property="Foreground" Value="{StaticResource White}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type CheckBox}">
+                        <Grid MinHeight="33">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="42"/>
+                            </Grid.ColumnDefinitions>
+                            <ContentPresenter ContentSource="Content"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True"
+                                              Margin="0,0,12,0"/>
+                            <Border x:Name="Track" Grid.Column="1"
+                                    Width="39" Height="23" CornerRadius="12"
+                                    Background="#344354"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Center">
+                                <Ellipse x:Name="Knob"
+                                         Width="17" Height="17" Fill="#C8D4E0"
+                                         Margin="3" HorizontalAlignment="Left"/>
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Track" Property="Background" Value="{StaticResource Accent}"/>
+                                <Setter TargetName="Knob" Property="Fill" Value="#0D2620"/>
+                                <Setter TargetName="Knob" Property="HorizontalAlignment" Value="Right"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DarkComboBoxItem" TargetType="{x:Type ComboBoxItem}">
+            <Setter Property="Foreground" Value="{StaticResource White}"/>
+            <Setter Property="Background" Value="{StaticResource Panel}"/>
+            <Setter Property="Padding" Value="13,11"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ComboBoxItem}">
+                        <Border x:Name="ItemChrome" Background="{TemplateBinding Background}"
+                                CornerRadius="7" Margin="4,2" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="ItemChrome" Property="Background" Value="{StaticResource PanelHover}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ItemChrome" Property="Background" Value="{StaticResource AccentTint}"/>
+                                <Setter Property="Foreground" Value="{StaticResource Accent}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Replace the Windows white drop-down and selection box entirely. -->
+        <Style x:Key="DarkComboBox" TargetType="{x:Type ComboBox}">
+            <Setter Property="Foreground" Value="{StaticResource White}"/>
+            <Setter Property="Background" Value="{StaticResource Panel2}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Stroke}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="ItemContainerStyle" Value="{StaticResource DarkComboBoxItem}"/>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ComboBox}">
+                        <Grid>
+                            <Border x:Name="SelectionChrome"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="10">
+                                <Grid>
+                                    <ContentPresenter IsHitTestVisible="False"
+                                                      Content="{TemplateBinding SelectionBoxItem}"
+                                                      ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                      ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                                      VerticalAlignment="Center"
+                                                      HorizontalAlignment="Left"
+                                                      Margin="14,0,36,0"/>
+                                    <Path Width="12" Height="7"
+                                          Data="M 1,1 L 6,6 L 11,1"
+                                          Stroke="{StaticResource Muted}" StrokeThickness="1.6"
+                                          VerticalAlignment="Center"
+                                          HorizontalAlignment="Right" Margin="0,0,14,0"/>
+                                </Grid>
+                            </Border>
+                            <ToggleButton x:Name="DropDownToggle" Background="Transparent"
+                                          Focusable="False"
+                                          IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="{x:Type ToggleButton}">
+                                        <Border Background="Transparent"/>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <Popup x:Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   PlacementTarget="{Binding ElementName=SelectionChrome}"
+                                   Placement="Bottom"
+                                   AllowsTransparency="True" StaysOpen="False"
+                                   Focusable="False" PopupAnimation="Fade">
+                                <Border MinWidth="{Binding ActualWidth, ElementName=SelectionChrome}"
+                                        Background="{StaticResource Panel}"
+                                        BorderBrush="{StaticResource Stroke}" BorderThickness="1"
+                                        CornerRadius="10" Padding="4">
+                                    <ScrollViewer MaxHeight="245" CanContentScroll="True">
+                                        <ItemsPresenter/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="SelectionChrome" Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="SelectionChrome" Property="BorderBrush" Value="{StaticResource Accent}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Application.Resources>
+</Application>
