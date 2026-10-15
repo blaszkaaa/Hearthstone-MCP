@@ -33,9 +33,14 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _unavailable(reason: str, age: float | None = None) -> dict[str, Any]:
+def _unavailable(
+    reason: str, age: float | None = None, *,
+    code: str = "UNAVAILABLE", tracker_connected: bool = False,
+) -> dict[str, Any]:
     return {
         "available": False,
+        "tracker_connected": tracker_connected,
+        "code": code,
         "age_seconds": age,
         "reason": reason,
         "state": None,
@@ -47,44 +52,46 @@ def read_snapshot(path: Path | None = None, now: datetime | None = None) -> dict
     reference = now or utc_now()
     try:
         if not target.is_file():
-            return _unavailable("Brak danych. Uruchom HDT, wlacz wtyczke i rozpocznij mecz.")
+            return _unavailable("Brak danych. Uruchom HDT, wlacz wtyczke i rozpocznij mecz.", code="MISSING_STATE")
         if target.stat().st_size > MAX_SNAPSHOT_BYTES:
-            return _unavailable("Plik danych jest zbyt duzy; odczyt zablokowany.")
+            return _unavailable("Plik danych jest zbyt duzy; odczyt zablokowany.", code="OVERSIZED_STATE")
         with target.open("r", encoding="utf-8-sig") as handle:
             state = json.load(handle)
         if not isinstance(state, dict) or state.get("schema_version") != 1:
-            return _unavailable("Nieobslugiwany format danych wtyczki.")
+            return _unavailable("Nieobslugiwany format danych wtyczki.", code="INVALID_SCHEMA")
         when = state.get("captured_at_utc")
         if not isinstance(when, str):
-            return _unavailable("Brak poprawnego znacznika czasu.")
+            return _unavailable("Brak poprawnego znacznika czasu.", code="INVALID_TIMESTAMP")
         captured = datetime.fromisoformat(when.replace("Z", "+00:00"))
         if captured.tzinfo is None:
-            return _unavailable("Znacznik czasu nie ma strefy UTC.")
+            return _unavailable("Znacznik czasu nie ma strefy UTC.", code="INVALID_TIMESTAMP")
         age = round((reference - captured).total_seconds(), 2)
         if age < -5:
-            return _unavailable("Nieprawidlowy zegar systemowy: dane sa z przyszlosci.", age)
+            return _unavailable("Nieprawidlowy zegar systemowy: dane sa z przyszlosci.", age, code="CLOCK_SKEW")
         if age > MAX_AGE_SECONDS:
-            return _unavailable("Dane nieaktualne. Sprawdz czy Hearthstone Deck Tracker dziala.", age)
+            return _unavailable("Dane nieaktualne. Sprawdz czy Hearthstone Deck Tracker dziala.", age, code="STALE_STATE")
         if state.get("in_game") is not True:
-            return _unavailable("Hearthstone jest w menu lub nie ma aktywnego meczu.", age)
+            return _unavailable("Hearthstone jest w menu lub nie ma aktywnego meczu.", age, code="NOT_IN_GAME", tracker_connected=True)
         # Defensive: refuse a malformed game state rather than hallucinate cards.
         if not isinstance(state.get("player"), dict) or not isinstance(state.get("opponent"), dict):
-            return _unavailable("Niekompletny stan rozgrywki.", age)
-        return {"available": True, "age_seconds": age, "reason": None, "state": state}
+            return _unavailable("Niekompletny stan rozgrywki.", age, code="INCOMPLETE_STATE", tracker_connected=True)
+        return {"available": True, "tracker_connected": True, "code": "IN_GAME", "age_seconds": age, "reason": None, "state": state}
     except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
-        return _unavailable("Nie udalo sie odczytac danych: " + type(exc).__name__)
+        return _unavailable("Nie udalo sie odczytac danych: " + type(exc).__name__, code="READ_ERROR")
 
 
 def tool_payload(name: str, snapshot: dict[str, Any]) -> dict[str, Any]:
     if name == "hearthstone_status":
         return {
             "available": snapshot["available"],
+            "tracker_connected": snapshot["tracker_connected"],
+            "code": snapshot["code"],
             "age_seconds": snapshot["age_seconds"],
             "reason": snapshot["reason"],
             "state_path": str(snapshot_path()),
         }
     if not snapshot["available"]:
-        return {k: snapshot[k] for k in ("available", "age_seconds", "reason")}
+        return {k: snapshot[k] for k in ("available", "tracker_connected", "code", "age_seconds", "reason")}
     state = snapshot["state"]
     shared = {
         "available": True,
