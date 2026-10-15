@@ -32,6 +32,14 @@ Wtyczka HDT **v0.3** publikuje `phase`, `mulligan_active`, `mulligan_cards` oraz
 - **Tury:** analiza uruchamia się po ok. 4 s stabilności; mulligan po 2 s, Odkryj po ok. 1 s. W miarę możliwości model otrzymuje limit czasu ok. 23 s na zakończenie analizy. Po niepowodzeniu może ponowić odczyt.
 - **Po każdej nowej turze:** harmonogram umożliwia nową analizę; każda zmiana istotna dla decyzji dostaje nowy identyfikator. Starsze odpowiedzi nie nadpisują nowszych.
 
+## Poprawka wyświetlania po mulliganie (0.4.1)
+
+Jeśli podczas normalnej tury na ekranie pozostawały decyzje `ZOSTAW/ODRZUĆ` z mulliganu, starsza wersja mogła anulować następne zapytanie AI, porównując **nowe zapytanie** z **poprzednio wyświetloną poradą**. Od tej wersji osobno śledzone są: aktualne zapytanie oraz wyświetlona rekomendacja. Zmiana tury/fazy usuwa poprzednią poradę, a nietrwała zmiana danych HDT nie przerywa żądania.
+
+Model GPT-6.1 Sol może zużywać dużo czasu na rozumowanie. Wysyłamy więc żądanie z `reasoning.effort=low` oraz `text.verbosity=low`; limit awaryjny podniesiono z 23 do 45 sekund. Zmiana tury może anulować poprzednie, nieaktualne zapytanie wcześniej. **Nie oznacza to**, że każde zapytanie powinno trwać 45 sekund. Po błędzie harmonogram może ponowić analizę.
+
+W logach `ai.cancel.superseded` oznacza nową turę lub decyzję, natomiast `ai.canceled_or_timeout` zawiera `reason` (np. `timeout_45s`). Będzie można rozróżnić wolny model od poprawnego odrzucenia starej odpowiedzi.
+
 ## Pełne logi do analizy błędów
 
 W aplikacji kliknij **Otwórz logi diagnostyczne**. Pliki JSONL są zapisywane w:
