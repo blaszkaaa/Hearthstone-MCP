@@ -1,0 +1,35 @@
+name: Windows AI Coach build
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'desktop/**'
+      - '.github/workflows/desktop.yml'
+  pull_request:
+    paths:
+      - 'desktop/**'
+      - '.github/workflows/desktop.yml'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Core tests
+        run: dotnet run --project desktop/Coach.Checks/Coach.Checks.csproj -c Release
+      - name: Build Windows desktop UI
+        run: dotnet build desktop/Coach.App/Coach.App.csproj -c Release
+      - name: Publish self-contained Windows app
+        run: dotnet publish desktop/Coach.App/Coach.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o dist/HearthstoneCoach
+      - name: Upload Windows application
+        uses: actions/upload-artifact@v4
+        with:
+          name: Hearthstone-AI-Coach-win-x64
+          path: dist/HearthstoneCoach/**
+          if-no-files-found: error
+          retention-days: 30
