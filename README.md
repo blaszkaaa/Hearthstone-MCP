@@ -57,7 +57,7 @@ Ten projekt udostępnia ChatGPT i innym klientom MCP jawny stan bieżącej rozgr
 
 ## Nowość: Odkryj (Discover), Wybierz jedno (Choose One) i inne wybory kart
 
-Kiedy Hearthstone wyświetli 2, 3 lub więcej kart do wyboru, HDT udostępnia identyfikatory aktywnych ofert gracza. Wtyczka odczytuje je w kolejności wyboru (pole `choices[index]`, indeksy zaczynają się od 1), zapisuje nazwy, identyfikatory, koszt i opis działania karty **o ile HDT zna te dane**.
+Kiedy Hearthstone wyświetli 2, 3 lub więcej kart do wyboru, HDT udostępnia identyfikatory aktywnych ofert gracza. Wtyczka odczytuje je w kolejności wyboru (pole `choices[*].index`, indeksy zaczynają się od 1), zapisuje nazwy, identyfikatory, koszt i opis działania karty **o ile HDT zna te dane**.
 
 Gdy pytasz ChatGPT **„Co wziąć?”**, klient MCP powinien najpierw uruchomić narzędzie `get_hearthstone_choices`. `get_hearthstone_advice_context` również uwzględnia aktywne wybory. Asystent powinien wskazać numer/nazwę wybranej opcji, podać krótkie uzasadnienie i **nie zalecać zakończenia tury, gdy `choice_active=true`**.
 
@@ -77,7 +77,7 @@ Pola:
 3. Rozpakuj DLL, a w folderze projektu uruchom:
 
    ```powershell
-   .\\scripts\\install-plugin.ps1 -DllPath "$env:USERPROFILE\\Downloads\\HearthstoneMcpPlugin.dll"
+   .\scripts\install-plugin.ps1 -DllPath "$env:USERPROFILE\Downloads\HearthstoneMcpPlugin.dll"
    ```
 
 4. Uruchom ponownie HDT, wejdź w `Options → Tracker → Plugins`, upewnij się, że `Hearthstone MCP` jest aktywna.
