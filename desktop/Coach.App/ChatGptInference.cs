@@ -43,7 +43,7 @@ public sealed class ChatGptInference
 
     public async Task<string> AnalyzeAsync(GameSnapshot snapshot, string model, CancellationToken ct)
     {
-        if (!snapshot.InGame || (!snapshot.MyTurn && !snapshot.ChoiceActive))
+        if (!snapshot.Actionable)
             throw new InvalidOperationException("Czekam na Twoją turę lub aktywny wybór kart.");
         if (string.IsNullOrWhiteSpace(model)) throw new InvalidOperationException("Wybierz model ChatGPT.");
         string token = await _auth.AccessTokenAsync(ct);
