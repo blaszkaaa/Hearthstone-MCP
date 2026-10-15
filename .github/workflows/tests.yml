@@ -29,7 +29,8 @@ jobs:
           $folder = Join-Path $env:RUNNER_TEMP "hdt"
           Invoke-WebRequest -Uri "https://github.com/HearthSim/Hearthstone-Deck-Tracker/releases/download/v1.55.6/Hearthstone.Deck.Tracker-v1.55.6.zip" -OutFile $zip
           Expand-Archive -Path $zip -DestinationPath $folder -Force
-          $exe = Get-ChildItem -Path $folder -Filter HearthstoneDeckTracker.exe -File -Recurse | Select-Object -First 1
+          Get-ChildItem -Path $folder -Recurse -File | Select-Object -First 60 -ExpandProperty FullName | Out-String | Write-Host
+          $exe = Get-ChildItem -Path $folder -File -Recurse | Where-Object { $_.Extension -eq ".exe" -and $_.Name -match "Hearthstone" } | Select-Object -First 1
           if (-not $exe) { throw "HDT executable not found in release ZIP" }
           "HDT_PATH=$($exe.Directory.FullName)" >> $env:GITHUB_ENV
       - name: Build HDT plugin against released binaries
