@@ -139,6 +139,8 @@ def tool_payload(name: str, snapshot: dict[str, Any]) -> dict[str, Any]:
         "age_seconds": snapshot["age_seconds"],
         "turn": state.get("turn"),
         "my_turn": state.get("my_turn"),
+        "phase": state.get("phase", "turn"),
+        "mulligan_active": state.get("mulligan_active", False),
     }
     player = state["player"]
     opponent = state["opponent"]
@@ -146,6 +148,9 @@ def tool_payload(name: str, snapshot: dict[str, Any]) -> dict[str, Any]:
         return {**shared, "state": state}
     if name == "get_hearthstone_choices":
         return {**shared, **choice_payload(state)}
+    if name == "get_hearthstone_mulligan":
+        return {**shared, "mulligan_cards": state.get("mulligan_cards", []),
+                "instructions": "Dla kazdej karty po kolei: indeks, ZOSTAW lub ODRZUC, nazwa karty. W mulliganie nie zagrywaj kart."}
     if name == "get_hearthstone_advice_context":
         mana = player.get("mana_available")
         hand = player.get("hand", [])
@@ -182,6 +187,7 @@ def tool_payload(name: str, snapshot: dict[str, Any]) -> dict[str, Any]:
             "played_this_turn": player.get("played_this_turn", []),
             "opponent_played_this_turn": opponent.get("played_this_turn", []),
             "hand": hand,
+            "mulligan_cards": state.get("mulligan_cards", []),
             **choice_payload(state),
             "cards_with_affordable_mana_cost": known_affordable,
             "cards_with_unknown_cost": unknown_cost,
@@ -189,7 +195,8 @@ def tool_payload(name: str, snapshot: dict[str, Any]) -> dict[str, Any]:
             "caveats": [
                 "Koszt karty nie gwarantuje, ze mozna ja zagrac (cele, warunki, efekty).",
                 "Nie znamy ukrytej reki przeciwnika ani wszystkich mozliwych efektow.",
-                "Jesli my_turn=false, nie proponuj natychmiastowego zagrania.",
+                "Jesli mulligan_active=true, podaj dla KAZDEJ karty decyzje ZOSTAW lub ODRZUC.",
+                "Jesli my_turn=false i mulligan_active=false i choice_active=false, nie proponuj zagrania.",
                 "Widoczna moc bohatera i bron nie gwarantuja legalnosci ich uzycia w tej turze.",
                 "Jesli choice_active=true, najpierw wybierz jedna z ofert i nie zalecaj konczenia tury.",
                 "Jesli choice_tracking_supported=false, nie twierdz ze nie ma aktywnego wyboru."
@@ -244,6 +251,10 @@ TOOLS = [
     {
         "name": "get_hearthstone_advice_context",
         "description": "Kontekst pytania 'co zagrac teraz?': reka, mana, stol ORAZ aktywne wybory Odkryj/Choose One. Jesli choice_active=true, wskaz jedna z choices po index i nie polecaj konczenia tury. Koszt nie gwarantuje legalnosci ruchu.",
+    },
+    {
+        "name": "get_hearthstone_mulligan",
+        "description": "Przy pierwszym wyborze kart na start partii odczytaj mulligan_cards i powiedz dla kazdej po kolei 1 ZOSTAW, 2 ODRZUC, 3 ZOSTAW, itp. Bez propozycji zagrywania kart.",
     },
     {
         "name": "get_hearthstone_choices",
