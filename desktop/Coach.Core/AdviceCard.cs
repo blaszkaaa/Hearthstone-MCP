@@ -41,6 +41,12 @@ public sealed record AdviceCard(string Move, string Target, string Next, string 
             reason = reason.Length > 0 ? reason + "  ·  Uwaga: " + caveat : caveat;
         if (reason.Length == 0 && loose.Count > 1)
             reason = string.Join(" ", loose.Skip(1));
-        return new(move, Read("CEL"), next, reason);
+        static string Short(string text, int maxLength) =>
+            text.Length <= maxLength ? text : text[..(maxLength - 1)].TrimEnd() + "…";
+        return new(
+            Short(move, 130),
+            Short(Read("CEL"), 90),
+            Short(next, 160),
+            Short(reason, 200));
     }
 }
