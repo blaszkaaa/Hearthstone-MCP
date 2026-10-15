@@ -94,12 +94,12 @@ try
         "mulligan detected when not my turn");
     Check(AdvicePrompt.Build(openingState).Contains("ZOSTAW lub ODRZUĆ"), "mulligan-specific prompt");
     var mulliganAdvice = AdviceCard.Parse(
-        "WYBORY:\\n1 ZOSTAW — Karta A\\n2 ODRZUĆ — Karta B\\n3 ZOSTAW — Karta C\\nDLACZEGO: Tańsze karty ułatwią start.",
+        "WYBORY:\n1 ZOSTAW — Karta A\n2 ODRZUĆ — Karta B\n3 ZOSTAW — Karta C\nDLACZEGO: Tańsze karty ułatwią start.",
         "mulligan");
     Check(mulliganAdvice.Move.Contains("1 ZOSTAW") &&
           mulliganAdvice.Move.Contains("2 ODRZUĆ") &&
           mulliganAdvice.Move.Contains("3 ZOSTAW"), "all individual mulligan decisions");
-    Check(mulliganAdvice.Move.Split('\\n').Length == 3, "numbered decisions have distinct lines");
+    Check(mulliganAdvice.Move.Split('\n').Length == 3, "numbered decisions have distinct lines");
     var mulliganScheduler = new AnalysisScheduler();
     Check(!mulliganScheduler.ShouldAnalyze(openingState, now, false, true), "mulligan settles");
     Check(mulliganScheduler.ShouldAnalyze(openingState, now.AddSeconds(3), false, true), "mulligan quick advice");
