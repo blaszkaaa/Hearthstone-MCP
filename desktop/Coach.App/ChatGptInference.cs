@@ -68,7 +68,7 @@ public sealed class ChatGptInference
         using var reader = new StreamReader(stream);
         var sb = new StringBuilder();
         bool completed = false;
-        while (!reader.EndOfStream)
+        while (true)
         {
             string? line = await reader.ReadLineAsync(ct);
             if (line is null) break;
