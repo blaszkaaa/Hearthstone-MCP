@@ -69,6 +69,25 @@ class DoctorTests(unittest.TestCase):
         self.assertEqual(report["my_board_count"], 1)
         self.assertNotIn("SECRET TEST CARD", json.dumps(report))
 
+    def test_choice_status_reports_count_without_names(self):
+        state = sample_state()
+        state.update(choice_tracking_supported=True, choice_active=True, choice_count=3,
+                     choices=[{"index": 1, "card": {"name": "PRIVATE CARD NAME"}}])
+        self.put(state)
+        report = build_report(self.path)
+        self.assertTrue(report["choice_tracking_supported"])
+        self.assertTrue(report["choice_active"])
+        self.assertEqual(report["choice_count"], 1)
+        self.assertNotIn("PRIVATE CARD NAME", json.dumps(report))
+        self.assertIn("Co wybrac", report["next_step"])
+
+    def test_old_plugin_is_marked_as_needing_update(self):
+        self.put(sample_state())
+        report = build_report(self.path)
+        self.assertFalse(report["choice_tracking_supported"])
+        self.assertIsNone(report["choice_active"])
+        self.assertIn("DLL", report["next_step"])
+
     def test_stale_file_is_not_marked_connected(self):
         self.put(sample_state(offset_seconds=-60))
         report = build_report(self.path)
