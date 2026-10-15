@@ -18,15 +18,17 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _requestCts;
     private bool _busy;
     private int _analysisNumber;
-    private string? _lastShownDecisionKey;
-    private int _lastShownTurn = -1;
-    private string? _pendingChange;
-    private DateTimeOffset _pendingSince = DateTimeOffset.MinValue;
-    private bool _adviceMarkedOutdated;
+    private GameSnapshot? _shownSnapshot;
+    private GameSnapshot? _activeRequestSnapshot;
+    private readonly SnapshotTransitionGuard _shownGuard = new();
+    private readonly SnapshotTransitionGuard _activeRequestGuard = new();
+    private bool _cancelRequested;
+    private string _cancelReason = "";
+    private bool _closing;
     private string? _lastLoggedSnapshot;
     private DateTimeOffset _lastHeartbeat = DateTimeOffset.MinValue;
     private string _lastSchedulerReason = "";
-    private static readonly TimeSpan ConfirmChangeAfter = TimeSpan.FromSeconds(4);
+
 
     public MainWindow()
     {
@@ -47,9 +49,10 @@ public partial class MainWindow : Window
     private void OnClosing(object? sender, CancelEventArgs e)
     {
         DiagnosticLog.Write("app.close");
+        _closing = true;
         _timer.Stop();
+        _cancelReason = "application_closed";
         _requestCts?.Cancel();
-        _requestCts?.Dispose();
     }
 
     private void Poll(object? sender, EventArgs e)
@@ -78,68 +81,36 @@ public partial class MainWindow : Window
                 game_data = _snapshot.TacticalJson
             });
         }
-        bool actionable = _snapshot.Actionable;
-        var observed = actionable
-            ? _snapshot.Turn + ":" + _snapshot.DecisionKey
-            : (_snapshot.InGame ? "NOT_MY_TURN" : "NO_GAME");
-        bool matches = actionable && _lastShownDecisionKey == _snapshot.DecisionKey &&
-            _lastShownTurn == _snapshot.Turn;
-
-        // Do not drop an answer because HDT briefly reports a different card,
-        // an incomplete frame or no game. Confirm sustained change first.
-        if (_lastShownDecisionKey is not null)
+        if (_shownSnapshot is not null &&
+            _shownGuard.HasChanged(_shownSnapshot, _snapshot, now))
         {
-            if (matches)
+            DiagnosticLog.Write("advice.expired", new
             {
-                _pendingChange = null;
-                if (_adviceMarkedOutdated)
-                {
-                    _adviceMarkedOutdated = false;
-                    AiStatus.Text = "Gotowa rekomendacja";
-                    AdviceMeta.Text = "Dane aktualne • tura " + _snapshot.Turn;
-                }
-            }
-            else
-            {
-                if (_pendingChange != observed)
-                {
-                    _pendingChange = observed;
-                    _pendingSince = now;
-                }
-                else if (now - _pendingSince >= ConfirmChangeAfter && !_adviceMarkedOutdated)
-                {
-                    _adviceMarkedOutdated = true;
-                    if (!actionable)
-                    {
-                        // No actionable move for this phase. Hide the old action
-                        // only after the state has remained stable for 4 seconds.
-                        MoveText.Text = _snapshot.InGame ? "Czekam na Twoją turę" : "Czekam na mecz";
-                        AdviceText.Text = "";
-                        TargetPanel.Visibility = Visibility.Collapsed;
-                        NextPanel.Visibility = Visibility.Collapsed;
-                        WhyPanel.Visibility = Visibility.Collapsed;
-                        AiStatus.Text = "Wstrzymano porady";
-                        AdviceMeta.Text = "Nowa rekomendacja pojawi się w Twojej turze.";
-                        _lastShownDecisionKey = null;
-                        _pendingChange = null;
-                        _adviceMarkedOutdated = false;
-                    }
-                    else
-                    {
-                        // Keep the prior move visible while the new answer loads,
-                        // but clearly identify it as no longer current.
-                        AiStatus.Text = "Aktualizuję po zmianie gry";
-                        AdviceMeta.Text = "Poprzednia wskazówka może być nieaktualna • trwa aktualizacja.";
-                    }
-                }
-            }
+                shown_turn = _shownSnapshot.Turn, shown_phase = _shownSnapshot.Phase,
+                new_turn = _snapshot.Turn, new_phase = _snapshot.Phase,
+                old_key = _shownSnapshot.DecisionKey, new_key = _snapshot.DecisionKey
+            });
+            ClearDisplayedAdvice();
         }
 
-        // Only cancel a long-running request for a confirmed, substantive game
-        // change. A single noisy HDT frame is never enough to cancel it.
-        if (_busy && _pendingChange is not null &&
-            now - _pendingSince >= ConfirmChangeAfter)
+        // Cancellation MUST compare the snapshot for the CURRENT request, not
+        // the already displayed recommendation from an earlier turn/mulligan.
+        if (_busy && !_cancelRequested && _activeRequestSnapshot is not null &&
+            _activeRequestGuard.HasChanged(_activeRequestSnapshot, _snapshot, now))
+        {
+            _cancelRequested = true;
+            _cancelReason = "superseded_by_game_state";
+            DiagnosticLog.Write("ai.cancel.superseded", new
+            {
+                request_turn = _activeRequestSnapshot.Turn,
+                request_phase = _activeRequestSnapshot.Phase,
+                current_turn = _snapshot.Turn,
+                current_phase = _snapshot.Phase,
+                request_key = _activeRequestSnapshot.DecisionKey,
+                current_key = _snapshot.DecisionKey
+            });
             _requestCts?.Cancel();
+        }
 
         if (_auth.SignedIn && ModelPicker.SelectedItem is ChatGptInference.ModelChoice model &&
             _scheduler.ShouldAnalyze(_snapshot, now, _busy, AutoCheck.IsChecked == true))
@@ -152,6 +123,23 @@ public partial class MainWindow : Window
             _lastSchedulerReason = _scheduler.LastDecision;
             DiagnosticLog.Write("scheduler.status", new { reason = _lastSchedulerReason, turn = _snapshot.Turn, phase = _snapshot.Phase });
         }
+    }
+
+    private void ClearDisplayedAdvice()
+    {
+        _shownSnapshot = null;
+        _shownGuard.Reset();
+        MoveText.FontSize = 28;
+        MoveText.Text = !_snapshot.InGame ? "Czekam na mecz" :
+            _snapshot.MulliganActive ? "Co zostawić na ręce?" :
+            _snapshot.ChoiceActive ? "Wybieram najlepszą kartę..." :
+            _snapshot.MyTurn ? "Sprawdzam następny ruch..." : "Czekam na Twoją turę";
+        AdviceText.Text = "";
+        TargetPanel.Visibility = Visibility.Collapsed;
+        NextPanel.Visibility = Visibility.Collapsed;
+        WhyPanel.Visibility = Visibility.Collapsed;
+        AiStatus.Text = _snapshot.Actionable ? "Aktualizuję poradę..." : "Oczekiwanie";
+        AdviceMeta.Text = "Wskazówka z poprzedniej fazy lub ruchu została ukryta.";
     }
 
     private void RefreshState()
@@ -231,6 +219,7 @@ public partial class MainWindow : Window
 
     private async void SignOutClick(object sender, RoutedEventArgs e)
     {
+        _cancelReason = "signout";
         _requestCts?.Cancel();
         SignOutButton.IsEnabled = false;
         try { await _auth.SignOutAsync(); DiagnosticLog.Write("auth.signout"); }
@@ -267,17 +256,23 @@ public partial class MainWindow : Window
         if (_busy) return;
         _busy = true;
         AnalyzeButton.IsEnabled = false;
-        _requestCts = new CancellationTokenSource(TimeSpan.FromSeconds(23));
+        _requestCts = new CancellationTokenSource(TimeSpan.FromSeconds(45));
         var myRequest = _requestCts;
+        _activeRequestSnapshot = original;
+        _activeRequestGuard.Reset();
+        _cancelRequested = false;
+        _cancelReason = "";
         var number = ++_analysisNumber;
-        bool previousAdviceOutdated = _lastShownDecisionKey is not null &&
-            (_lastShownDecisionKey != original.DecisionKey || _lastShownTurn != original.Turn);
+        bool previousAdviceOutdated = _shownSnapshot is not null &&
+            (_shownSnapshot.DecisionKey != original.DecisionKey ||
+             _shownSnapshot.Turn != original.Turn ||
+             _shownSnapshot.Phase != original.Phase);
         AiStatus.Text = previousAdviceOutdated ? "Poprzednia wskazówka nieaktualna" :
             original.MulliganActive ? "Analizuję rękę początkową..." :
             original.ChoiceActive ? "Sprawdzam wybór kart..." : "Analizuję dostępne zagrania...";
         // During a refresh keep the existing suggestion on screen; do not clear
         // it when starting or failing another request.
-        if (_lastShownDecisionKey is null)
+        if (_shownSnapshot is null)
         {
             MoveText.Text = original.MulliganActive ? "Co zostawić?" :
                 original.ChoiceActive ? "Wybieram najlepszą opcję..." : "Sprawdzam karty...";
@@ -318,10 +313,8 @@ public partial class MainWindow : Window
                 NextPanel.Visibility = card.Next.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
                 WhyText.Text = card.Reason;
                 WhyPanel.Visibility = card.Reason.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-                _lastShownDecisionKey = original.DecisionKey;
-                _lastShownTurn = original.Turn;
-                _pendingChange = null;
-                _adviceMarkedOutdated = false;
+                _shownSnapshot = original;
+                _shownGuard.Reset();
                 AiStatus.Text = original.MulliganActive ? "Zostaw / odrzuć karty" :
                     original.ChoiceActive ? "Wybór Odkryj / kart" : "Gotowa rekomendacja";
                 DiagnosticLog.Write("ai.displayed", new { request = number, decision_key = original.DecisionKey, turn = original.Turn });
@@ -333,7 +326,7 @@ public partial class MainWindow : Window
                 // recent recommendation with an outdated one.
                 AiStatus.Text = "Zmieniono stan rozgrywki";
                 AdviceMeta.Text = "Pominięto nieaktualną odpowiedź. Czekam na stabilny stan.";
-                if (_lastShownDecisionKey is null)
+                if (_shownSnapshot is null)
                     MoveText.Text = "Czekam na aktualizację...";
                 DiagnosticLog.Write("ai.discarded", new { request = number, cause = "state_changed", old_key = original.DecisionKey, new_key = _snapshot.DecisionKey, phase = _snapshot.Phase });
             }
@@ -341,9 +334,26 @@ public partial class MainWindow : Window
         catch (OperationCanceledException)
         {
             _scheduler.RecordFailure(original);
-            AiStatus.Text = "Próba analizy przerwana";
-            AdviceMeta.Text = "Upłynął limit 23 s lub zmieniła się gra. Ponowię odczyt.";
-            DiagnosticLog.Write("ai.canceled_or_timeout", new { request = number, elapsed_ms = (int)(DateTimeOffset.UtcNow - started).TotalMilliseconds, phase = original.Phase });
+            bool timedOut = myRequest.IsCancellationRequested && _cancelReason.Length == 0;
+            string reason = timedOut ? "timeout_45s" :
+                _cancelReason.Length > 0 ? _cancelReason : "network_cancelled";
+            DiagnosticLog.Write("ai.canceled_or_timeout", new
+            {
+                request = number, reason,
+                request_turn = original.Turn, current_turn = _snapshot.Turn,
+                elapsed_ms = (int)(DateTimeOffset.UtcNow - started).TotalMilliseconds,
+                phase = original.Phase
+            });
+            if (!_closing)
+            {
+                AiStatus.Text = reason == "superseded_by_game_state"
+                    ? "Zmieniła się sytuacja w grze" : "Nie udało się ukończyć analizy";
+                AdviceMeta.Text = timedOut
+                    ? "AI nie odpowiedziało w 45 s. Możesz wybrać szybszy model lub ponowić analizę."
+                    : reason == "superseded_by_game_state"
+                    ? "Poprzednie zapytanie anulowano. Nowa tura otrzyma osobną analizę."
+                    : "Zapytanie przerwane: " + reason;
+            }
         }
         catch (Exception ex)
         {
@@ -357,6 +367,8 @@ public partial class MainWindow : Window
         finally
         {
             _busy = false;
+            _activeRequestSnapshot = null;
+            _activeRequestGuard.Reset();
             AnalyzeButton.IsEnabled = true;
             if (ReferenceEquals(_requestCts, myRequest)) _requestCts = null;
             myRequest.Dispose();
