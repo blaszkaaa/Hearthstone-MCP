@@ -17,3 +17,22 @@ jobs:
         run: python -m py_compile mcp_server/server.py
       - name: Run tests
         run: python -m unittest discover -s tests -v
+
+  windows-plugin-build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download HDT release for compile smoke test
+        shell: pwsh
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP "hdt.zip"
+          $folder = Join-Path $env:RUNNER_TEMP "hdt"
+          Invoke-WebRequest -Uri "https://github.com/HearthSim/Hearthstone-Deck-Tracker/releases/download/v1.55.6/Hearthstone.Deck.Tracker-v1.55.6.zip" -OutFile $zip
+          Expand-Archive -Path $zip -DestinationPath $folder -Force
+          $exe = Get-ChildItem -Path $folder -Filter HearthstoneDeckTracker.exe -File -Recurse | Select-Object -First 1
+          if (-not $exe) { throw "HDT executable not found in release ZIP" }
+          "HDT_PATH=$($exe.Directory.FullName)" >> $env:GITHUB_ENV
+      - name: Build HDT plugin against released binaries
+        shell: pwsh
+        run: |
+          dotnet build plugin/HearthstoneMcpPlugin.csproj -c Release "-p:HdtPath=$env:HDT_PATH"

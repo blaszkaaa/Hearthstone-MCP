@@ -6,9 +6,9 @@ Ten projekt udostępnia ChatGPT i innym klientom MCP jawny stan bieżącej rozgr
 
 ## Status projektu
 
-**MVP v0.1 — kod źródłowy.** Dostępna jest wtyczka HDT w C# zapisująca snapshot JSON i lokalny serwer MCP po stdio w Pythonie. Python i protokół MCP mają automatyczne testy; kompilacja wtyczki w środowisku Windows z rzeczywistą instalacją HDT wymaga weryfikacji.
+**MVP v0.1 — kod źródłowy.** Dostępna jest wtyczka HDT w C# zapisująca snapshot JSON i lokalny serwer MCP po stdio w Pythonie. Python i protokół MCP mają automatyczne testy. GitHub Actions dodatkowo próbuje skompilować wtyczkę na Windows względem opublikowanego HDT; działanie z aktywną grą trzeba zweryfikować lokalnie.
 
-**Ważne:** lokalny serwer stdio można podłączyć do klienta MCP uruchamianego na tym samym komputerze. **ChatGPT w przeglądarce nie może sam odczytać lokalnego procesu stdio** — osobny etap projektu to bezpieczny most HTTPS / połączenie z aplikacją ChatGPT. Na tym etapie nie twierdzimy, że wtyczka jest już połączona z tą rozmową.
+**Ważne:** lokalny serwer stdio można podłączyć do klienta MCP uruchamianego na tym samym komputerze. **ChatGPT w przeglądarce nie może sam odczytać lokalnego procesu stdio**. Można użyć [Secure MCP Tunnel](docs/chatgpt.md), jeżeli jest dostępny na koncie, albo wdrożyć uwierzytelniony HTTPS MCP. Na tym etapie nie twierdzimy, że wtyczka jest już połączona z tą rozmową.
 
 ## Architektura
 
@@ -92,6 +92,6 @@ python -m unittest discover -s tests -v
 
 1. Skompilować wtyczkę na Windows z faktyczną wersją HDT, a następnie zweryfikować pierwszy odczyt z gry.
 2. Rozbudować dane o rozpoznawanie mechanik i kontekst talii.
-3. Dodać bezpieczny, uwierzytelniany transport zdalny do ChatGPT, bez publicznego wystawiania pliku stanu.
+3. Podłączyć lokalny serwer stdio do ChatGPT za pomocą [Secure MCP Tunnel](docs/chatgpt.md) (jeśli dostępny na koncie) lub osobnego uwierzytelnionego HTTPS MCP.
 
 Źródła: [tworzenie wtyczek HDT](https://github.com/HearthSim/Hearthstone-Deck-Tracker/wiki/Creating-Plugins), [SDK MCP](https://github.com/modelcontextprotocol/csharp-sdk), [zasady dot. trackerów turniejowych](https://assets.blz-contentstack.com/v3/assets/bltc965041283bac56c/blt9947def28df308cb/60f784a52d26525ef67acd49/Hearthstone_Tournament_Player_Handbook_v_2.7.pdf).
