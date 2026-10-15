@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Threading;
 using Coach.Core;
 
@@ -51,14 +52,17 @@ public partial class MainWindow : Window
             !_snapshot.InGame || previous.Fingerprint != _snapshot.Fingerprint))
             _requestCts?.Cancel();
 
-        if (!_snapshot.InGame || (!_snapshot.MyTurn && !_snapshot.ChoiceActive))
+        // Do not leave an old recommendation on screen after the board changes.
+        if (_lastShownFingerprint is not null &&
+            (!_snapshot.InGame || (!_snapshot.MyTurn && !_snapshot.ChoiceActive) ||
+             _snapshot.Fingerprint != _lastShownFingerprint))
         {
-            if (_lastShownFingerprint is not null)
-            {
-                AdviceText.Text = "Czekam na Twoją turę lub wybór kart...";
-                AdviceMeta.Text = "W poprzedniej turze analiza mogła już stracić aktualność.";
-                _lastShownFingerprint = null;
-            }
+            MoveText.Text = _snapshot.InGame && _snapshot.ChoiceActive
+                ? "Nowy wybór kart" : _snapshot.InGame && _snapshot.MyTurn
+                    ? "Sytuacja się zmieniła" : "Czekam na Twoją turę";
+            AdviceText.Text = "Poprzednia wskazówka jest już nieaktualna. Czekam na aktualną analizę.";
+            AdviceMeta.Text = "Rekomendacje odświeżają się po zmianach w grze.";
+            _lastShownFingerprint = null;
         }
 
         if (_auth.SignedIn && ModelPicker.SelectedItem is ChatGptInference.ModelChoice model &&
@@ -71,17 +75,28 @@ public partial class MainWindow : Window
     private void RefreshState()
     {
         _snapshot = GameSnapshot.Read();
-        ConnectionText.Text = _snapshot.Connected ? "●  Połączono z HDT" : "○  Czekam na HDT";
-        ConnectionText.Foreground = _snapshot.Connected ?
-            (System.Windows.Media.Brush)FindResource("Accent") :
-            (System.Windows.Media.Brush)FindResource("Muted");
+        var connected = _snapshot.Connected;
+        var indicator = (Brush)FindResource(connected ? "Accent" : "Muted");
+        ConnectionDot.Fill = indicator;
+        HeaderIndicator.Fill = indicator;
+        ConnectionCard.Background = (Brush)FindResource(connected ? "AccentTint" : "NeutralTint");
+        HeaderStateBadge.Background = (Brush)FindResource(connected ? "AccentTint" : "NeutralTint");
+        ConnectionTitle.Text = connected ? "HDT połączony" : "Brak połączenia";
+        ConnectionTitle.Foreground = (Brush)FindResource(connected ? "Accent" : "White");
+        ConnectionText.Text = _snapshot.Status;
+        HeaderStatusText.Text = !connected ? "HDT rozłączony" :
+            !_snapshot.InGame ? "HDT gotowy" :
+            _snapshot.ChoiceActive ? "Wybór kart" :
+            _snapshot.MyTurn ? "Twoja tura" : "Partia trwa";
+        HeaderStatusText.Foreground = indicator;
         GamePhaseText.Text = _snapshot.Status;
         TurnText.Text = _snapshot.InGame ? _snapshot.Turn.ToString() : "—";
         ManaText.Text = _snapshot.InGame ? _snapshot.Mana?.ToString() ?? "?" : "—";
         HandText.Text = _snapshot.InGame ? $"Ręka: {_snapshot.HandCount} kart" : "Ręka: —";
-        ChoiceText.Text = !_snapshot.ChoiceSupported && _snapshot.InGame ? "Wybory: zaktualizuj DLL HDT" :
-            _snapshot.ChoiceActive ? $"Wybory: {_snapshot.ChoicesCount} opcji" :
-            "Wybory: brak aktywnego";
+        ChoiceText.Text = !_snapshot.InGame ? "Wybory: —" :
+            !_snapshot.ChoiceSupported ? "Wybory: brak obsługi" :
+            _snapshot.ChoiceActive ? $"Wybory: {_snapshot.ChoicesCount}" :
+            "Wybory: brak";
     }
 
     private async void SignInClick(object sender, RoutedEventArgs e)
@@ -92,7 +107,7 @@ public partial class MainWindow : Window
         {
             await _auth.SignInAsync();
             UpdateAccount();
-            AiStatus.Text = "Połączono z ChatGPT";
+            AiStatus.Text = "Gotowy do analizy";
             await LoadModelsAsync();
         }
         catch (OperationCanceledException) { AiStatus.Text = "Przerwano logowanie"; }
@@ -119,9 +134,13 @@ public partial class MainWindow : Window
 
     private void UpdateAccount()
     {
-        AccountText.Text = _auth.SignedIn ? _auth.Email + "\nUżywasz planu ChatGPT" : "Nie połączono";
-        SignInButton.Content = _auth.SignedIn ? "Zaloguj ponownie" : "Połącz przez ChatGPT";
-        SignOutButton.Visibility = _auth.SignedIn ? Visibility.Visible : Visibility.Collapsed;
+        var signedIn = _auth.SignedIn;
+        AccountText.Text = signedIn ? _auth.Email : "Zaloguj się, aby uruchomić analizę.";
+        AccountStateText.Text = signedIn ? "Plan ChatGPT aktywny" : "Nie połączono";
+        AccountStateText.Foreground = (Brush)FindResource(signedIn ? "Accent" : "White");
+        AccountDot.Fill = (Brush)FindResource(signedIn ? "Accent" : "Muted");
+        SignInButton.Visibility = signedIn ? Visibility.Collapsed : Visibility.Visible;
+        SignOutButton.Visibility = signedIn ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private async void SignOutClick(object sender, RoutedEventArgs e)
@@ -164,8 +183,13 @@ public partial class MainWindow : Window
         _requestCts = new CancellationTokenSource();
         var myRequest = _requestCts;
         var number = ++_analysisNumber;
-        AiStatus.Text = original.ChoiceActive ? "Analizuję dostępne opcje..." : "Analizuję Twoją turę...";
-        AdviceMeta.Text = $"Model: {model.DisplayName} • Prośba #{number} • Wysyłane są tylko dane aktualnej partii.";
+        AiStatus.Text = original.ChoiceActive ? "Analizuję wybór kart..." : "Analizuję Twoją turę...";
+        if (_lastShownFingerprint != original.Fingerprint)
+        {
+            MoveText.Text = original.ChoiceActive ? "Którą kartę wybrać?" : "Szukam najlepszego ruchu...";
+            AdviceText.Text = "Sprawdzam dostępne zagrania i aktualną sytuację na planszy.";
+        }
+        AdviceMeta.Text = $"Model: {model.DisplayName} • Analiza #{number} • Dane aktualnej partii.";
         try
         {
             var result = await _inference.AnalyzeAsync(original, model.Slug, myRequest.Token);
@@ -173,13 +197,21 @@ public partial class MainWindow : Window
             if (_snapshot.InGame && _snapshot.Fingerprint == original.Fingerprint &&
                 (_snapshot.MyTurn || _snapshot.ChoiceActive))
             {
-                AiStatus.Text = original.ChoiceActive ? "Wybierz wskazaną kartę" : "Proponowany ruch";
-                AdviceText.Text = result;
+                AiStatus.Text = original.ChoiceActive ? "Wybierz wskazaną kartę" : "Gotowa rekomendacja";
+                var (move, details) = FormatAdvice(result);
+                MoveText.Text = move;
+                AdviceText.Text = details;
                 _lastShownFingerprint = original.Fingerprint;
                 AdviceMeta.Text = "Aktualizacja: " + DateTime.Now.ToString("HH:mm:ss") +
                     " • Tura " + original.Turn + " • Model: " + model.DisplayName;
             }
-            else { AiStatus.Text = "Plansza się zmieniła"; AdviceMeta.Text = "Pominięto nieaktualną odpowiedź AI."; }
+            else
+            {
+                AiStatus.Text = "Plansza się zmieniła";
+                MoveText.Text = "Oczekuję na aktualny stan";
+                AdviceText.Text = "Nowe zagrania lub wybory wymagają ponownej analizy.";
+                AdviceMeta.Text = "Pominięto nieaktualną odpowiedź AI.";
+            }
         }
         catch (OperationCanceledException)
         {
@@ -198,6 +230,27 @@ public partial class MainWindow : Window
             if (ReferenceEquals(_requestCts, myRequest)) _requestCts = null;
             myRequest.Dispose();
         }
+    }
+
+    private static (string Move, string Details) FormatAdvice(string raw)
+    {
+        var lines = raw.Replace("\r", "").Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(line => line.Trim()).Where(line => line.Length > 0).ToArray();
+        if (lines.Length == 0) return ("Brak rekomendacji", "Model nie zwrócił opisu ruchu.");
+
+        // The AI prompt requests RUCH / KOLEJNOŚĆ / DLACZEGO / UWAGA.
+        // Keep fallback for models that answer conversationally.
+        var moveLine = lines.FirstOrDefault(line =>
+            line.StartsWith("RUCH:", StringComparison.OrdinalIgnoreCase));
+        if (moveLine is not null)
+        {
+            var move = moveLine["RUCH:".Length..].Trim();
+            var details = lines.Where(line => !ReferenceEquals(line, moveLine)).ToArray();
+            return (move.Length == 0 ? "Proponowany ruch" : move,
+                details.Length == 0 ? "Brak dodatkowego uzasadnienia." : string.Join("\n\n", details));
+        }
+        return (lines[0], lines.Length == 1 ? "Brak dodatkowego uzasadnienia." :
+            string.Join("\n\n", lines.Skip(1)));
     }
 
     private void AutoChanged(object sender, RoutedEventArgs e)
