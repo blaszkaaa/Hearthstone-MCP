@@ -86,6 +86,8 @@ namespace HearthstoneMcpPlugin
                 known = true,
                 card_id = entity.CardId,
                 name = entity.LocalizedName ?? entity.Name ?? entity.CardId,
+                card_text = entity.Card.Text,
+                card_text_en = entity.Card.EnglishText,
                 position = entity.ZonePosition,
                 cost = entity.Cost,
                 attack = withCombatData ? (int?)entity.Attack : null,
@@ -124,6 +126,8 @@ namespace HearthstoneMcpPlugin
                 name = power.HasCardId && !power.Info.Hidden
                     ? (power.LocalizedName ?? power.Name ?? power.CardId) : null,
                 cost = power.Cost,
+                card_text = power.HasCardId && !power.Info.Hidden ? power.Card.Text : null,
+                card_text_en = power.HasCardId && !power.Info.Hidden ? power.Card.EnglishText : null,
             };
         }
 
@@ -140,6 +144,8 @@ namespace HearthstoneMcpPlugin
                     ? (weapon.LocalizedName ?? weapon.Name ?? weapon.CardId) : null,
                 attack = weapon.Attack,
                 durability_remaining = durability > 0 ? (int?)Math.Max(0, durability - damage) : null,
+                card_text = weapon.HasCardId && !weapon.Info.Hidden ? weapon.Card.Text : null,
+                card_text_en = weapon.HasCardId && !weapon.Info.Hidden ? weapon.Card.EnglishText : null,
             };
         }
 
