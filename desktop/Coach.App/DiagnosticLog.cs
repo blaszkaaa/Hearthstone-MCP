@@ -18,6 +18,8 @@ public static class DiagnosticLog
     private static readonly string Session = Guid.NewGuid().ToString("N")[..10];
     private static readonly string FilePath = Path.Combine(DirectoryPath, "coach-" +
         DateTime.Now.ToString("yyyyMMdd-HHmmss") + "-" + Session + ".jsonl");
+    private static string _currentPath = FilePath;
+    private static int _segment;
     private static DateTimeOffset _lastCleanup;
     private const long MaxFileBytes = 12 * 1024 * 1024;
 
@@ -35,11 +37,15 @@ public static class DiagnosticLog
                     @event = eventType,
                     details
                 }, JsonOptions);
-                string path = FilePath;
-                if (File.Exists(path) && new FileInfo(path).Length + Encoding.UTF8.GetByteCount(record) > MaxFileBytes)
-                    path = Path.Combine(DirectoryPath, "coach-" + DateTime.Now.ToString("yyyyMMdd-HHmmss-fff") +
-                        "-" + Session + "-part.jsonl");
-                File.AppendAllText(path, record + Environment.NewLine, new UTF8Encoding(false));
+                if (File.Exists(_currentPath) &&
+                    new FileInfo(_currentPath).Length + Encoding.UTF8.GetByteCount(record) > MaxFileBytes)
+                {
+                    _segment++;
+                    _currentPath = Path.Combine(DirectoryPath, "coach-" +
+                        DateTime.Now.ToString("yyyyMMdd-HHmmss") + "-" + Session +
+                        "-part" + _segment + ".jsonl");
+                }
+                File.AppendAllText(_currentPath, record + Environment.NewLine, new UTF8Encoding(false));
                 if (DateTimeOffset.UtcNow - _lastCleanup > TimeSpan.FromMinutes(10))
                 {
                     _lastCleanup = DateTimeOffset.UtcNow;
