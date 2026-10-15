@@ -25,13 +25,20 @@ def game_state(captured=None, in_game=True):
         "player": {
             "mana_available": 3, "mana_max": 4,
             "hero": {"health": 25, "armor": 0},
+            "hero_power": {"card_id": "CS2_034", "name": "Fireblast", "cost": 2},
+            "weapon": {"name": "Test Weapon", "attack": 3, "durability_remaining": 2},
+            "deck_count": 18,
             "hand": [{"entity_id": 19, "known": True, "name": "Fireball",
-                      "card_id": "CS2_029", "cost": 4, "position": 1}],
+                      "card_id": "CS2_029", "cost": 4, "position": 1,
+                      "card_text": "Deal 6 damage.", "card_text_en": "Deal 6 damage."}],
             "board": [{"entity_id": 16, "name": "Friendly Minion", "attack": 2, "health": 3}],
             "secrets_count": 0, "played_this_turn": [],
         },
         "opponent": {
             "hero": {"health": 18, "armor": 0},
+            "hero_power": {"name": "Lesser Heal", "cost": 2},
+            "weapon": None,
+            "deck_count": 20,
             "hand_count": 5,
             "board": [{"entity_id": 17, "name": "Enemy Minion", "attack": 4, "health": 2}],
             "secrets_count": 1,
@@ -62,6 +69,7 @@ class SnapshotTests(unittest.TestCase):
         hand = tool_payload("get_hearthstone_hand", result)
         self.assertEqual(hand["hand"][0]["name"], "Fireball")
         self.assertEqual(hand["mana_available"], 3)
+        self.assertEqual(hand["hand"][0]["card_text_en"], "Deal 6 damage.")
         board = tool_payload("get_hearthstone_board", result)
         self.assertEqual(board["opponent"]["secrets_count"], 1)
 
@@ -88,6 +96,19 @@ class SnapshotTests(unittest.TestCase):
         advice = tool_payload("get_hearthstone_advice_context", read_snapshot(self.path))
         self.assertEqual(len(advice["cards_with_unknown_cost"]), 1)
         self.assertEqual(advice["cards_with_affordable_mana_cost"], [])
+
+    def test_hero_power_weapon_and_deck_counts_in_tactical_context(self):
+        self.put(game_state())
+        snapshot = read_snapshot(self.path)
+        advice = tool_payload("get_hearthstone_advice_context", snapshot)
+        self.assertEqual(advice["my_hero_power"]["name"], "Fireblast")
+        self.assertEqual(advice["my_weapon"]["durability_remaining"], 2)
+        self.assertEqual(advice["my_deck_count"], 18)
+        self.assertEqual(advice["opponent_deck_count"], 20)
+        self.assertIsNone(advice["opponent_weapon"])
+        board = tool_payload("get_hearthstone_board", snapshot)
+        self.assertEqual(board["player"]["weapon"]["attack"], 3)
+        self.assertEqual(board["opponent"]["hero_power"]["name"], "Lesser Heal")
 
     def test_stale_game_not_exposed_as_live(self):
         self.put(game_state(datetime.now(timezone.utc) - timedelta(seconds=40)))

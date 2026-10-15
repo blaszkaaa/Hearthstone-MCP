@@ -86,6 +86,8 @@ namespace HearthstoneMcpPlugin
                 known = true,
                 card_id = entity.CardId,
                 name = entity.LocalizedName ?? entity.Name ?? entity.CardId,
+                card_text = entity.Card.Text,
+                card_text_en = entity.Card.EnglishText,
                 position = entity.ZonePosition,
                 cost = entity.Cost,
                 attack = withCombatData ? (int?)entity.Attack : null,
@@ -109,6 +111,41 @@ namespace HearthstoneMcpPlugin
                 armor = hero.GetTag(GameTag.ARMOR),
                 attack = hero.Attack,
                 frozen = hero.GetTag(GameTag.FROZEN) > 0,
+            };
+        }
+
+        private static object AsHeroPower(Entity power)
+        {
+            if (power == null)
+                return null;
+            // Only a visible identity and its observed cost, NOT a claim that the
+            // action is still usable this turn.
+            return new
+            {
+                card_id = power.HasCardId && !power.Info.Hidden ? power.CardId : null,
+                name = power.HasCardId && !power.Info.Hidden
+                    ? (power.LocalizedName ?? power.Name ?? power.CardId) : null,
+                cost = power.Cost,
+                card_text = power.HasCardId && !power.Info.Hidden ? power.Card.Text : null,
+                card_text_en = power.HasCardId && !power.Info.Hidden ? power.Card.EnglishText : null,
+            };
+        }
+
+        private static object AsWeapon(Entity weapon)
+        {
+            if (weapon == null)
+                return null;
+            int durability = weapon.GetTag(GameTag.DURABILITY);
+            int damage = weapon.GetTag(GameTag.DAMAGE);
+            return new
+            {
+                card_id = weapon.HasCardId && !weapon.Info.Hidden ? weapon.CardId : null,
+                name = weapon.HasCardId && !weapon.Info.Hidden
+                    ? (weapon.LocalizedName ?? weapon.Name ?? weapon.CardId) : null,
+                attack = weapon.Attack,
+                durability_remaining = durability > 0 ? (int?)Math.Max(0, durability - damage) : null,
+                card_text = weapon.HasCardId && !weapon.Info.Hidden ? weapon.Card.Text : null,
+                card_text_en = weapon.HasCardId && !weapon.Info.Hidden ? weapon.Card.EnglishText : null,
             };
         }
 
@@ -167,7 +204,10 @@ namespace HearthstoneMcpPlugin
                         mana_available = manaAvailable,
                         hand = player.Hand.OrderBy(e => e.ZonePosition)
                             .Select(e => AsCard(e, false)).ToArray(),
+                        deck_count = player.DeckCount,
                         hero = AsHero(player.Hero),
+                        hero_power = AsHeroPower(player.Board.FirstOrDefault(e => e.IsHeroPower)),
+                        weapon = AsWeapon(player.Board.FirstOrDefault(e => e.IsWeapon)),
                         board = BoardCards(player.Board),
                         secrets_count = player.Secrets.Count(),
                         played_this_turn = PublicPlays(player.CardsPlayedThisTurn),
@@ -176,7 +216,10 @@ namespace HearthstoneMcpPlugin
                     {
                         card_class = opponent.CurrentClass,
                         hand_count = opponent.Hand.Count(),
+                        deck_count = opponent.DeckCount,
                         hero = AsHero(opponent.Hero),
+                        hero_power = AsHeroPower(opponent.Board.FirstOrDefault(e => e.IsHeroPower)),
+                        weapon = AsWeapon(opponent.Board.FirstOrDefault(e => e.IsWeapon)),
                         board = BoardCards(opponent.Board),
                         secrets_count = opponent.Secrets.Count(),
                         played_this_turn = PublicPlays(opponent.CardsPlayedThisTurn),
