@@ -134,6 +134,39 @@ try
     Check(!turnScheduler.ShouldAnalyze(nextTurn, now, false, true), "next turn settles");
     Check(turnScheduler.ShouldAnalyze(nextTurn, now.AddSeconds(5), false, true), "next turn reanalyzes");
 
+    // Regression: an old mulligan recommendation cannot cancel analysis of
+    // turn two merely because its displayed decision key differs.
+    var transition = new SnapshotTransitionGuard();
+    Check(transition.HasChanged(openingState, standard, now),
+        "mulligan to next turn invalidates old advice");
+    transition.Reset();
+    Check(!transition.HasChanged(standard, standard, now.AddSeconds(1)),
+        "current request survives its own unchanged state");
+
+    var changedWithinTurn = new
+    {
+        schema_version = 1, captured_at_utc = now.ToString("O"), in_game = true,
+        phase = "turn", mulligan_active = false, turn = 9, my_turn = true,
+        choice_tracking_supported = true, choice_active = false,
+        choices = Array.Empty<object>(),
+        player = new
+        {
+            mana_available = 3, mana_max = 8, card_class = "MAGE",
+            hand = new[] { new { name = "Fireball", cost = 4 } },
+            board = Array.Empty<object>(), played_this_turn = Array.Empty<object>()
+        },
+        opponent = sample.opponent
+    };
+    File.WriteAllText(path, JsonSerializer.Serialize(changedWithinTurn));
+    var differentMove = GameSnapshot.Read(path, now);
+    Check(!transition.HasChanged(standard, differentMove, now.AddSeconds(2)),
+        "transient HDT jitter does not abort request");
+    Check(transition.HasChanged(standard, differentMove, now.AddSeconds(5)),
+        "sustained changed decision cancels only old request");
+    transition.Reset();
+    Check(!transition.HasChanged(standard, standard, now.AddSeconds(6)),
+        "restored original state works again");
+
     var scheduler = new AnalysisScheduler();
     Check(!scheduler.ShouldAnalyze(snapshot, now, false, true), "debounce");
     Check(scheduler.ShouldAnalyze(snapshot, now.AddSeconds(3), false, true), "first request");
