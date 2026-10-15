@@ -6,7 +6,7 @@ Ten projekt udostępnia ChatGPT i innym klientom MCP jawny stan bieżącej rozgr
 
 ## Status projektu
 
-**MVP v0.1 — kod źródłowy.** Dostępna jest wtyczka HDT w C# zapisująca snapshot JSON i lokalny serwer MCP po stdio w Pythonie. Python i protokół MCP mają automatyczne testy. GitHub Actions dodatkowo próbuje skompilować wtyczkę na Windows względem opublikowanego HDT; działanie z aktywną grą trzeba zweryfikować lokalnie.
+**MVP v0.2 — kod źródłowy.** Dostępna jest wtyczka HDT w C# zapisująca snapshot JSON i lokalny serwer MCP po stdio w Pythonie. Python i protokół MCP mają automatyczne testy. GitHub Actions dodatkowo próbuje skompilować wtyczkę na Windows względem opublikowanego HDT; działanie z aktywną grą trzeba zweryfikować lokalnie.
 
 **Ważne:** lokalny serwer stdio można podłączyć do klienta MCP uruchamianego na tym samym komputerze. **ChatGPT w przeglądarce nie może sam odczytać lokalnego procesu stdio**. Można użyć [Secure MCP Tunnel](docs/chatgpt.md), jeżeli jest dostępny na koncie, albo wdrożyć uwierzytelniony HTTPS MCP. Na tym etapie nie twierdzimy, że wtyczka jest już połączona z tą rozmową.
 
@@ -14,7 +14,7 @@ Ten projekt udostępnia ChatGPT i innym klientom MCP jawny stan bieżącej rozgr
 
 1. **Hearthstone Deck Tracker (HDT)** zbiera dane udostępnione podczas rozgrywki.
 2. **HearthstoneMcpPlugin.dll** (wtyczka HDT, nie gry) zapisuje jawne dane do pliku JSON, co 0,5 sekundy.
-3. **mcp_server/server.py** czyta plik i udostępnia sześć narzędzi MCP przez standardowe wejście/wyjście (stdio).
+3. **mcp_server/server.py** czyta plik i udostępnia siedem narzędzi MCP przez standardowe wejście/wyjście (stdio).
 4. **Asystent MCP** odczytuje stan na żądanie i na jego podstawie formułuje rekomendację; nie ma funkcji zagrywania kart.
 
 ## Wymagania
@@ -55,6 +55,35 @@ Ten projekt udostępnia ChatGPT i innym klientom MCP jawny stan bieżącej rozgr
 
    W czasie partii powinno być `"in_game":true`. W menu: `false`. Brak pliku oznacza, że wtyczka nie działa albo nie ma uprawnień do zapisu.
 
+## Nowość: Odkryj (Discover), Wybierz jedno (Choose One) i inne wybory kart
+
+Kiedy Hearthstone wyświetli 2, 3 lub więcej kart do wyboru, HDT udostępnia identyfikatory aktywnych ofert gracza. Wtyczka odczytuje je w kolejności wyboru (pole `choices[index]`, indeksy zaczynają się od 1), zapisuje nazwy, identyfikatory, koszt i opis działania karty **o ile HDT zna te dane**.
+
+Gdy pytasz ChatGPT **„Co wziąć?”**, klient MCP powinien najpierw uruchomić narzędzie `get_hearthstone_choices`. `get_hearthstone_advice_context` również uwzględnia aktywne wybory. Asystent powinien wskazać numer/nazwę wybranej opcji, podać krótkie uzasadnienie i **nie zalecać zakończenia tury, gdy `choice_active=true`**.
+
+Pola:
+
+- `choice_tracking_supported=true` — najnowsza DLL udostępnia wybory; `false` oznacza starą DLL i konieczność aktualizacji.
+- `choice_active=true` — trwa wybór, `choices` zawiera dostępne opcje. `false` — HDT nie wykrywa obecnie wyboru. `null` — stara DLL, nie da się tego ocenić.
+- `choices` — kolejne opcje z `index` (od 1) i obiektem `card`; gdy `known=false`, nie zgadujemy tożsamości karty.
+- `choice_count` — liczba rozpoznanych ofert.
+
+**Ważne:** HDT raportuje także inne rodzaje wyborów niż Discover. Projekt nie nazywa automatycznie każdego wyboru mechaniką Odkryj. Rozpoznawanie dostępnych opcji zależy od aktualnej wersji i danych logów HDT. Nie odczytuje kart ukrytych przeciwnika i nie steruje myszką.
+
+### Aktualizacja wtyczki, jeśli masz już starszą DLL
+
+1. Zamknij Hearthstone Deck Tracker.
+2. Pobierz nową DLL `HearthstoneMcpPlugin.dll` z **najnowszego pomyślnego** [workflow na main](https://github.com/blaszkaaa/Hearthstone-MCP/actions/workflows/tests.yml), sekcja **Artifacts → HearthstoneMcpPlugin-win**.
+3. Rozpakuj DLL, a w folderze projektu uruchom:
+
+   ```powershell
+   .\\scripts\\install-plugin.ps1 -DllPath "$env:USERPROFILE\\Downloads\\HearthstoneMcpPlugin.dll"
+   ```
+
+4. Uruchom ponownie HDT, wejdź w `Options → Tracker → Plugins`, upewnij się, że `Hearthstone MCP` jest aktywna.
+5. Podczas okna wyboru odpal `python -m mcp_server.doctor`. Powinno być `Odczyt wyborow: obslugiwany`, `Aktywny wybor: True` i liczba opcji. Po dokonaniu wyboru `Aktywny wybor` powinien się zmienić na `False`.
+6. Jeśli klient ChatGPT nadal pokazuje starą listę narzędzi, odśwież jego połączenie MCP. Nowe narzędzie to `get_hearthstone_choices`.
+
 ## Szybki test połączenia
 
 W folderze repozytorium uruchom:
@@ -94,7 +123,8 @@ Dokładny format konfiguracji zależy od klienta. Sam serwer nie otwiera okna an
 | --- | --- |
 | `hearthstone_status` | Wykrycie, czy mecz trwa i jak świeże są dane |
 | `read_hearthstone_state` | Cały widoczny stan meczu |
-| `get_hearthstone_advice_context` | Kontekst do pytania „Co teraz zagrać?”; karty pogrupowane według kosztu many (nie oznacza to gwarancji legalności ruchu) |
+| `get_hearthstone_advice_context` | Kontekst tury i aktywne opcje wyboru (jeśli są widoczne) |
+| `get_hearthstone_choices` | Aktywne opcje Odkryj / Choose One / inne wybory; numer, nazwa i opis, jeśli dostępne |
 | `get_hearthstone_hand` | Nasza ręka oraz mana |
 | `get_hearthstone_board` | Bohaterowie, widoczne moce bohaterów, broń, stół, liczba kart w talii i sekretów |
 | `get_hearthstone_plays` | Karty zagrane w aktualnej turze |
@@ -120,7 +150,7 @@ python -m unittest discover -s tests -v
 ## Kolejne kroki
 
 1. Skompilować wtyczkę na Windows z faktyczną wersją HDT, a następnie zweryfikować pierwszy odczyt z gry.
-2. Rozbudować dane o rozpoznawanie mechanik i kontekst talii.
+2. Sprawdzić wybory Odkryj, Choose One i pozostałe na kilku rzeczywistych kartach; rozbudować kontekst mechanik i talii.
 3. Podłączyć lokalny serwer stdio do ChatGPT za pomocą [Secure MCP Tunnel](docs/chatgpt.md) (jeśli dostępny na koncie) lub osobnego uwierzytelnionego HTTPS MCP.
 
 Źródła: [tworzenie wtyczek HDT](https://github.com/HearthSim/Hearthstone-Deck-Tracker/wiki/Creating-Plugins), [SDK MCP](https://github.com/modelcontextprotocol/csharp-sdk), [zasady dot. trackerów turniejowych](https://assets.blz-contentstack.com/v3/assets/bltc965041283bac56c/blt9947def28df308cb/60f784a52d26525ef67acd49/Hearthstone_Tournament_Player_Handbook_v_2.7.pdf).
