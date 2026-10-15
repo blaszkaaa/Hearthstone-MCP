@@ -36,6 +36,16 @@ jobs:
         shell: pwsh
         run: |
           dotnet build plugin/HearthstoneMcpPlugin.csproj -c Release "-p:HdtPath=$env:HDT_PATH"
+      - name: Smoke-test Windows installer
+        shell: pwsh
+        run: |
+          $pluginsPath = Join-Path $env:RUNNER_TEMP "HdtTestPlugins"
+          .\\scripts\\install-plugin.ps1 -DllPath "plugin\\bin\\Release\\net472\\HearthstoneMcpPlugin.dll" -PluginsPath $pluginsPath
+          $installed = Join-Path $pluginsPath "HearthstoneMcpPlugin.dll"
+          if (-not (Test-Path -LiteralPath $installed)) { throw "Installer did not copy DLL" }
+          $originalHash = (Get-FileHash "plugin\\bin\\Release\\net472\\HearthstoneMcpPlugin.dll").Hash
+          $installedHash = (Get-FileHash $installed).Hash
+          if ($originalHash -ne $installedHash) { throw "Plugin checksum mismatch" }
       - name: Upload built plugin
         uses: actions/upload-artifact@v4
         with:
