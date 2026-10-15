@@ -177,6 +177,27 @@ class SnapshotTests(unittest.TestCase):
         self.assertTrue(result["choice_active"])
         self.assertEqual(result["choices"][0]["card"]["name"], "Test card")
 
+    def test_mulligan_precedes_normal_turn_even_when_my_turn_false(self):
+        state = game_state()
+        state["turn"] = 0
+        state["my_turn"] = False
+        state["phase"] = "mulligan"
+        state["mulligan_active"] = True
+        state["mulligan_cards"] = [
+            {"index": 1, "name": "Pierwsza", "cost": 1},
+            {"index": 2, "name": "Druga", "cost": 7},
+            {"index": 3, "name": "Trzecia", "cost": 2},
+        ]
+        self.put(state)
+        snapshot = read_snapshot(self.path)
+        mulligan = tool_payload("get_hearthstone_mulligan", snapshot)
+        self.assertTrue(mulligan["mulligan_active"])
+        self.assertEqual(mulligan["phase"], "mulligan")
+        self.assertEqual(len(mulligan["mulligan_cards"]), 3)
+        advice = tool_payload("get_hearthstone_advice_context", snapshot)
+        self.assertEqual(len(advice["mulligan_cards"]), 3)
+        self.assertTrue(any("ZOSTAW" in caveat for caveat in advice["caveats"]))
+
     def test_stale_game_not_exposed_as_live(self):
         self.put(game_state(datetime.now(timezone.utc) - timedelta(seconds=40)))
         result = read_snapshot(self.path)
@@ -253,7 +274,7 @@ class SnapshotTests(unittest.TestCase):
         lines = [json.loads(line) for line in process.stdout.splitlines()]
         self.assertEqual(len(lines), 3)
         self.assertEqual(lines[1]["id"], 2)
-        self.assertEqual(len(lines[1]["result"]["tools"]), 7)
+        self.assertEqual(len(lines[1]["result"]["tools"]), 8)
         self.assertEqual(lines[2]["id"], 3)
 
 
