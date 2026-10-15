@@ -20,6 +20,20 @@ tunnel-client init --sample sample_mcp_stdio_local --profile local-stdio --tunne
 
 **Uwaga:** konfiguracja tunelu wymaga dostępu do usługi OpenAI Platform i odpowiednich uprawnień. Samo posiadanie repozytorium nie tworzy połączenia z ChatGPT. Nie przesyłaj klucza API ani pliku stanu publicznie.
 
+## Podpowiedzi przy Odkryciu (Discover)
+
+Po wyświetleniu kart do wyboru napisz w ChatGPT: **„Co wziąć? Sprawdź get_hearthstone_choices i wskaż numer opcji.”**
+
+Asystent powinien:
+
+1. Wywołać `get_hearthstone_choices` (nie opierać się wyłącznie na ręce).
+2. Gdy `choice_active=true`: przeanalizować `choices` w kolejności `index`, opisane efekty i obecną sytuację na planszy (najlepiej odczytać też `get_hearthstone_advice_context`). Podać krótko numer karty i powód.
+3. Gdy `choice_tracking_supported=false`: poprosić o aktualizację DLL i restart HDT; nie twierdzić, że wyboru nie ma.
+4. Gdy `choice_active=false`: powiedzieć, że w tym momencie HDT nie widzi aktywnego wyboru. Jeśli wybór jest widoczny w grze, zacząć od diagnostyki i ewentualnie poprosić o screenshot.
+5. Gdy `known=false`: nie wymyślać nazw kart.
+
+MCP nie wybiera karty w grze za Ciebie. Po podjęciu decyzji musisz samodzielnie ją kliknąć. Aby zaktualizować narzędzia w już podłączonym ChatGPT, może być potrzebne odświeżenie wtyczki lub połączenia.
+
 ## Alternatywa
 
 Zewnętrzny serwer MCP po HTTPS ze sprawdzaniem tożsamości może obsługiwać ChatGPT, ale **nie wystawiaj anonimowo** lokalnego pliku snapshot ani serwera na publiczny adres. W MVP nie dostarczamy publicznego endpointu.
