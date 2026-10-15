@@ -96,7 +96,7 @@ Dokładny format konfiguracji zależy od klienta. Sam serwer nie otwiera okna an
 | `read_hearthstone_state` | Cały widoczny stan meczu |
 | `get_hearthstone_advice_context` | Kontekst do pytania „Co teraz zagrać?”; karty pogrupowane według kosztu many (nie oznacza to gwarancji legalności ruchu) |
 | `get_hearthstone_hand` | Nasza ręka oraz mana |
-| `get_hearthstone_board` | Bohaterowie, stół i liczba sekretów |
+| `get_hearthstone_board` | Bohaterowie, widoczne moce bohaterów, broń, stół, liczba kart w talii i sekretów |
 | `get_hearthstone_plays` | Karty zagrane w aktualnej turze |
 
 Każdy odczyt wymaga aktualizacji z ostatnich 15 sekund. Jeśli dane są stare, narzędzia zwracają `available: false` i **nie przedstawiają starej planszy jako aktualnej**.
@@ -111,6 +111,7 @@ python -m unittest discover -s tests -v
 
 - Odczyt opiera się na stanie **HDT**, którego kompletność zależy od poprawnego rozpoznawania rozgrywki.
 - Nie ma dostępu do ukrytych kart przeciwnika, losowych przyszłych efektów ani gwarancji optymalnego zagrania.
+- Moc bohatera i broń są odczytywane tylko, jeśli HDT widzi odpowiadające im obiekty; samo ich wykrycie nie oznacza, że można ich użyć w tej turze.
 - Wtyczka **nie odczytuje pamięci procesu Hearthstone**, nie wstrzykuje DLL do gry i nie wysyła danych do żadnego zewnętrznego serwera.
 - Snapshot lokalny może zawierać informacje o Twojej rozgrywce; jego udostępnianie klientowi AI będzie zależeć od konfiguracji tego klienta.
 - W turniejach należy dodatkowo przestrzegać regulaminu organizatora i wymagań Blizzard; projekt nie gwarantuje dopuszczalności automatycznego doradztwa w każdym trybie.
