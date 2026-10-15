@@ -110,6 +110,73 @@ class SnapshotTests(unittest.TestCase):
         self.assertEqual(board["player"]["weapon"]["attack"], 3)
         self.assertEqual(board["opponent"]["hero_power"]["name"], "Lesser Heal")
 
+    def test_discover_options_are_read_in_order_and_in_advice(self):
+        state = game_state()
+        state["choice_tracking_supported"] = True
+        state["choice_active"] = True
+        state["choice_count"] = 3
+        state["choices"] = [
+            {"index": 1, "card": {"entity_id": 50, "known": True, "name": "Pierwsza", "card_id": "A", "cost": 1, "card_text": "Efekt 1"}},
+            {"index": 2, "card": {"entity_id": 51, "known": True, "name": "Druga", "card_id": "B", "cost": 2, "card_text": "Efekt 2"}},
+            {"index": 3, "card": {"entity_id": 52, "known": True, "name": "Trzecia", "card_id": "C", "cost": 3, "card_text": "Efekt 3"}},
+        ]
+        self.put(state)
+        snapshot = read_snapshot(self.path)
+        choice = tool_payload("get_hearthstone_choices", snapshot)
+        self.assertTrue(choice["choice_tracking_supported"])
+        self.assertTrue(choice["choice_active"])
+        self.assertEqual([c["card"]["name"] for c in choice["choices"]], ["Pierwsza", "Druga", "Trzecia"])
+        self.assertEqual([c["index"] for c in choice["choices"]], [1, 2, 3])
+        advice = tool_payload("get_hearthstone_advice_context", snapshot)
+        self.assertEqual(advice["choices"], choice["choices"])
+        self.assertTrue(advice["choice_active"])
+        self.assertEqual(advice["choice_count"], 3)
+
+    def test_no_active_choice_means_empty_current_offers(self):
+        state = game_state()
+        state.update(choice_tracking_supported=True, choice_active=False, choice_count=0, choices=[])
+        self.put(state)
+        choice = tool_payload("get_hearthstone_choices", read_snapshot(self.path))
+        self.assertTrue(choice["choice_tracking_supported"])
+        self.assertFalse(choice["choice_active"])
+        self.assertEqual(choice["choices"], [])
+
+    def test_old_plugin_is_not_mistaken_for_no_choice(self):
+        self.put(game_state())
+        choice = tool_payload("get_hearthstone_choices", read_snapshot(self.path))
+        self.assertFalse(choice["choice_tracking_supported"])
+        self.assertIsNone(choice["choice_active"])
+        self.assertIn("DLL", choice["choice_note"])
+
+    def test_unknown_offered_card_is_never_guessed(self):
+        state = game_state()
+        state.update(choice_tracking_supported=True, choice_active=True,
+                     choices=[{"index": 1, "card": {"entity_id": 55, "known": False}}])
+        self.put(state)
+        choice = tool_payload("get_hearthstone_choices", read_snapshot(self.path))
+        self.assertFalse(choice["choices"][0]["card"]["known"])
+        self.assertNotIn("name", choice["choices"][0]["card"])
+
+    def test_stale_choice_cannot_be_presented_as_current(self):
+        state = game_state(datetime.now(timezone.utc) - timedelta(seconds=40))
+        state.update(choice_tracking_supported=True, choice_active=True,
+                     choices=[{"index": 1, "card": {"name": "Stale card"}}])
+        self.put(state)
+        choice = tool_payload("get_hearthstone_choices", read_snapshot(self.path))
+        self.assertFalse(choice["available"])
+        self.assertNotIn("choices", choice)
+
+    def test_choices_tool_json_rpc(self):
+        state = game_state()
+        state.update(choice_tracking_supported=True, choice_active=True,
+                     choices=[{"index": 1, "card": {"name": "Test card"}}])
+        self.put(state)
+        response = dispatch({"jsonrpc": "2.0", "id": 4, "method": "tools/call",
+                             "params": {"name": "get_hearthstone_choices", "arguments": {}}}, self.path)
+        result = json.loads(response["result"]["content"][0]["text"])
+        self.assertTrue(result["choice_active"])
+        self.assertEqual(result["choices"][0]["card"]["name"], "Test card")
+
     def test_stale_game_not_exposed_as_live(self):
         self.put(game_state(datetime.now(timezone.utc) - timedelta(seconds=40)))
         result = read_snapshot(self.path)
@@ -186,7 +253,7 @@ class SnapshotTests(unittest.TestCase):
         lines = [json.loads(line) for line in process.stdout.splitlines()]
         self.assertEqual(len(lines), 3)
         self.assertEqual(lines[1]["id"], 2)
-        self.assertEqual(len(lines[1]["result"]["tools"]), 6)
+        self.assertEqual(len(lines[1]["result"]["tools"]), 7)
         self.assertEqual(lines[2]["id"], 3)
 
 

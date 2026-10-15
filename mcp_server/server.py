@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 SERVER_NAME = "hearthstone-mcp"
-SERVER_VERSION = "0.1.0"
+SERVER_VERSION = "0.2.0"
 PROTOCOL_VERSION = "2025-06-18"
 MAX_SNAPSHOT_BYTES = 512_000
 MAX_AGE_SECONDS = 15.0
@@ -80,6 +80,47 @@ def read_snapshot(path: Path | None = None, now: datetime | None = None) -> dict
         return _unavailable("Nie udalo sie odczytac danych: " + type(exc).__name__, code="READ_ERROR")
 
 
+def choice_payload(state: dict[str, Any]) -> dict[str, Any]:
+    """Expose only the current local player's HDT choice, never inferred cards.
+
+    A legacy HDT plugin has no choice fields. Do not confuse that with a
+    confirmed absence of a choice prompt.
+    """
+    raw = state.get("choices")
+    supported = state.get("choice_tracking_supported") is True and isinstance(raw, list)
+    if not supported:
+        return {
+            "choice_tracking_supported": False,
+            "choice_active": None,
+            "choice_count": None,
+            "choices": [],
+            "choice_note": "Wtyczka HDT nie raportuje wyborow. Zainstaluj nowa DLL HearthstoneMcpPlugin i uruchom ponownie HDT.",
+        }
+
+    active = state.get("choice_active") is True
+    if not active:
+        return {
+            "choice_tracking_supported": True,
+            "choice_active": False,
+            "choice_count": 0,
+            "choices": [],
+            "choice_note": "Aktualnie nie ma aktywnego wyboru kart (Odkryj / Choose One / inny).",
+        }
+
+    choices = [x for x in raw[:20] if isinstance(x, dict)]
+    return {
+        "choice_tracking_supported": True,
+        "choice_active": True,
+        "choice_count": len(choices),
+        "choices": choices,
+        "choice_note": (
+            "To opcje aktualnego wyboru gracza. Uzyj indeksu 1, 2, 3 itd. "
+            "Mechanizm moze byc Odkryj albo innym rodzajem wyboru. "
+            "Jesli karta ma known=false, jej tozsamosc nie zostala odczytana."
+        ) if choices else "Trwa wybor, ale HDT nie podal jeszcze kart. Sprobuj ponowic odczyt.",
+    }
+
+
 def tool_payload(name: str, snapshot: dict[str, Any]) -> dict[str, Any]:
     if name == "hearthstone_status":
         return {
@@ -103,6 +144,8 @@ def tool_payload(name: str, snapshot: dict[str, Any]) -> dict[str, Any]:
     opponent = state["opponent"]
     if name == "read_hearthstone_state":
         return {**shared, "state": state}
+    if name == "get_hearthstone_choices":
+        return {**shared, **choice_payload(state)}
     if name == "get_hearthstone_advice_context":
         mana = player.get("mana_available")
         hand = player.get("hand", [])
@@ -139,6 +182,7 @@ def tool_payload(name: str, snapshot: dict[str, Any]) -> dict[str, Any]:
             "played_this_turn": player.get("played_this_turn", []),
             "opponent_played_this_turn": opponent.get("played_this_turn", []),
             "hand": hand,
+            **choice_payload(state),
             "cards_with_affordable_mana_cost": known_affordable,
             "cards_with_unknown_cost": unknown_cost,
             "cards_above_available_mana": too_expensive,
@@ -146,7 +190,9 @@ def tool_payload(name: str, snapshot: dict[str, Any]) -> dict[str, Any]:
                 "Koszt karty nie gwarantuje, ze mozna ja zagrac (cele, warunki, efekty).",
                 "Nie znamy ukrytej reki przeciwnika ani wszystkich mozliwych efektow.",
                 "Jesli my_turn=false, nie proponuj natychmiastowego zagrania.",
-                "Widoczna moc bohatera i bron nie gwarantuja legalnosci ich uzycia w tej turze."
+                "Widoczna moc bohatera i bron nie gwarantuja legalnosci ich uzycia w tej turze.",
+                "Jesli choice_active=true, najpierw wybierz jedna z ofert i nie zalecaj konczenia tury.",
+                "Jesli choice_tracking_supported=false, nie twierdz ze nie ma aktywnego wyboru."
             ],
         }
     if name == "get_hearthstone_hand":
@@ -197,7 +243,11 @@ TOOLS = [
     },
     {
         "name": "get_hearthstone_advice_context",
-        "description": "Najwazniejsze aktualne informacje do odpowiedzi 'co zagrac teraz?': reka, mana, stol i szacunkowa dostepnosc kart wg kosztu. Koszt nie gwarantuje legalnosci ruchu. Podaj uzasadnienie i zaznacz brakujace informacje.",
+        "description": "Kontekst pytania 'co zagrac teraz?': reka, mana, stol ORAZ aktywne wybory Odkryj/Choose One. Jesli choice_active=true, wskaz jedna z choices po index i nie polecaj konczenia tury. Koszt nie gwarantuje legalnosci ruchu.",
+    },
+    {
+        "name": "get_hearthstone_choices",
+        "description": "Gdy pytam 'co wybrac', 'co wziac', 'ktora z 3 kart', odczytaj AKTUALNE opcje z HDT (Odkryj, Choose One i inne). Zwroc indeks, nazwe, koszt i tekst kazdej opcji. Nigdy nie zgaduj kart, jesli choice_tracking_supported=false albo known=false. Pole choice_active=false znaczy, ze obecnie nie ma wyboru.",
     },
     {
         "name": "get_hearthstone_hand",
