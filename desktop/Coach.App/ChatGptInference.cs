@@ -53,7 +53,11 @@ public sealed class ChatGptInference
             input = new[] { new { role = "user", content = AdvicePrompt.Build(snapshot) } },
             store = false,
             stream = true,
-            max_output_tokens = snapshot.MulliganActive ? 560 : snapshot.ChoiceActive ? 300 : 340
+            // GPT-6.1 Sol defaults to medium. Low reduces latency and prevents
+            // all output budget being spent on hidden reasoning for short turns.
+            reasoning = new { effort = "low" },
+            text = new { verbosity = "low" },
+            max_output_tokens = snapshot.MulliganActive ? 800 : snapshot.ChoiceActive ? 650 : 700
         };
         using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/responses");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
