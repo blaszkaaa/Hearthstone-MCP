@@ -4,6 +4,14 @@
 
 Ten projekt udostępnia ChatGPT i innym klientom MCP jawny stan bieżącej rozgrywki, aby można było zapytać: **„Co teraz zagrać i dlaczego?”**. Nie steruje grą, nie wstrzykuje bibliotek DLL do procesu Hearthstone i nie ujawnia ukrytej ręki przeciwnika.
 
+## Hearthstone AI Coach — nowa aplikacja Windows
+
+Oprócz odczytu przez MCP projekt zawiera teraz samodzielną aplikację Windows z ciemnym motywem i automatycznymi podpowiedziami AI podczas Twojej tury i aktywnych wyborów kart. Silnik używa **oficjalnego Sign in with ChatGPT / ChatGPT plan usage**, bez osobnego klucza API; dostępność i zużycie podlegają limitom Twojego planu. Aplikacja nie wykonuje ruchów za gracza.
+
+- **[Instrukcja i opis](desktop/README.md)**
+- **[Kompilacja Windows i pliki EXE](https://github.com/blaszkaaa/Hearthstone-MCP/actions/workflows/desktop.yml)**
+- Native WPF (.NET 8), bez Pythona w interfejsie ani silniku AI. Istniejący serwer MCP w Pythonie pozostaje dostępny osobno.
+
 ## Status projektu
 
 **MVP v0.2 — kod źródłowy.** Dostępna jest wtyczka HDT w C# zapisująca snapshot JSON i lokalny serwer MCP po stdio w Pythonie. Python i protokół MCP mają automatyczne testy. GitHub Actions dodatkowo próbuje skompilować wtyczkę na Windows względem opublikowanego HDT; działanie z aktywną grą trzeba zweryfikować lokalnie.
