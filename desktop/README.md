@@ -23,6 +23,28 @@ Natywna aplikacja **Windows 10/11, WPF/.NET 8**, ciemny interfejs. Odczytuje ten
 - Obsługuje scenariusze „Co zagrać?” oraz „Którą kartę Odkryj wybrać?”.
 - Panel można przypiąć na wierzchu gry (tryb `Topmost`). Używa własnej ciemnej ramki okna Windows, bez jasnej belki u góry.
 
+## Wybór ręki początkowej (mulligan) i Odkryj
+
+Wtyczka HDT **v0.3** publikuje `phase`, `mulligan_active`, `mulligan_cards` oraz aktywne `choices`. Zaktualizuj **zarówno DLL wtyczki, jak i aplikację**: sama wymiana EXE nie umożliwi odczytu pierwszego wyboru ani poprawnego raportowania Odkrycia.
+
+- **Mulligan:** dla każdej karty w ręce początkowej aplikacja pokazuje osobno `1 ZOSTAW`, `2 ODRZUĆ`, `3 ZOSTAW`, itd. Nawet jeśli nie jest to jeszcze Twoja tura.
+- **Odkryj / inne aktywne wybory:** wybiera konkretną opcję z indeksem i nazwą (`Wybierz 2 — [karta]`). Odczyt nie opiera się na zwykłej ręce gracza.
+- **Tury:** analiza uruchamia się po ok. 4 s stabilności; mulligan po 2 s, Odkryj po ok. 1 s. W miarę możliwości model otrzymuje limit czasu ok. 23 s na zakończenie analizy. Po niepowodzeniu może ponowić odczyt.
+- **Po każdej nowej turze:** harmonogram umożliwia nową analizę; każda zmiana istotna dla decyzji dostaje nowy identyfikator. Starsze odpowiedzi nie nadpisują nowszych.
+
+## Pełne logi do analizy błędów
+
+W aplikacji kliknij **Otwórz logi diagnostyczne**. Pliki JSONL są zapisywane w:
+`%LOCALAPPDATA%\HearthstoneCoach\logs\coach-*.jsonl`.
+
+W logach znajdują się: czas, sesja, stan i faza gry, pełny widoczny stan z HDT (karty Twojej ręki, plansza, wybory), zmiany wykryte przez harmonogram, dane wysyłane do AI (prompt), surowe odpowiedzi AI, czasy analiz, błędy i wyjątkowe sytuacje. Dzięki temu można odtworzyć, dlaczego Discover lub mulligan nie zostały wykryte i kiedy podpowiedź przestała się aktualizować.
+
+Wtyczka HDT zapisuje dodatkowo własną diagnostykę w:
+`%LOCALAPPDATA%\HearthstoneMCP\plugin.log` (oraz `plugin.log.old` po rotacji).
+Dzienniki aplikacji są przechowywane maksymalnie 7 dni i mogą zawierać szczegóły Twoich rozgrywek. **Nie zawierają haseł ani tokenów ChatGPT.** Przed udostępnieniem plików sprawdź, czy nie ma w nich informacji, których nie chcesz ujawniać.
+
+Gdy problem wystąpi, wyślij plik `coach-*.jsonl` z odpowiedniej godziny oraz `plugin.log` — bez potrzeby przepisywania błędów ręcznie.
+
 ## Ochrona danych i logowanie
 
 Rejestracja zgodna z [OpenAI Sign in with ChatGPT dla aplikacji OSS](https://developers.openai.com/siwc/token-sharing-open-source/sign-in): systemowa przeglądarka, OAuth PKCE i losowe state/nonce, callback na `127.0.0.1`, walidacja OIDC JWT przez JWKS; żądania AI do oficjalnego `https://api.openai.com/v1/responses` z `store=false` i `stream=true`. Wysłany tekst zawiera **stan widocznej rozgrywki**, m.in. Twoją rękę i opcje wyboru, ale nie ukrytą rękę przeciwnika.
