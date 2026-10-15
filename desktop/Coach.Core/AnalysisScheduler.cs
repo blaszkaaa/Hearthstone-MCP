@@ -14,8 +14,8 @@ public sealed class AnalysisScheduler
 
     public static readonly TimeSpan TurnSettling = TimeSpan.FromSeconds(7);
     public static readonly TimeSpan ChoiceSettling = TimeSpan.FromSeconds(3);
-    public static readonly TimeSpan MinimumRequestGap = TimeSpan.FromSeconds(20);
-    public const int MaxAutomaticRequestsPerTurn = 3;
+    public static readonly TimeSpan MinimumRequestGap = TimeSpan.FromSeconds(14);
+    public const int MaxAutomaticRequestsPerTurn = 4;
 
     public bool ShouldAnalyze(GameSnapshot snapshot, DateTimeOffset now, bool analyzing, bool enabled)
     {
@@ -42,11 +42,12 @@ public sealed class AnalysisScheduler
         }
         _wasActionable = true;
 
-        if (!enabled || analyzing || _requestsThisTurn >= MaxAutomaticRequestsPerTurn)
+        if (!enabled || analyzing || _requestsThisTurn >= (snapshot.ChoiceActive ? 6 : MaxAutomaticRequestsPerTurn))
             return false;
         if (now - _changedAt < (snapshot.ChoiceActive ? ChoiceSettling : TurnSettling))
             return false;
-        if (now - _lastRequest < MinimumRequestGap)
+        // Do not leave a Discover choice unanswered just because a prior turn analysis ran.
+        if (now - _lastRequest < (snapshot.ChoiceActive ? TimeSpan.FromSeconds(4) : MinimumRequestGap))
             return false;
         if (_lastAnalyzed == snapshot.DecisionKey)
             return false;
