@@ -14,7 +14,7 @@ Ten projekt udostępnia ChatGPT i innym klientom MCP jawny stan bieżącej rozgr
 
 1. **Hearthstone Deck Tracker (HDT)** zbiera dane udostępnione podczas rozgrywki.
 2. **HearthstoneMcpPlugin.dll** (wtyczka HDT, nie gry) zapisuje jawne dane do pliku JSON, co 0,5 sekundy.
-3. **mcp_server/server.py** czyta plik i udostępnia pięć narzędzi MCP przez standardowe wejście/wyjście (stdio).
+3. **mcp_server/server.py** czyta plik i udostępnia sześć narzędzi MCP przez standardowe wejście/wyjście (stdio).
 4. **Asystent MCP** odczytuje stan na żądanie i na jego podstawie formułuje rekomendację; nie ma funkcji zagrywania kart.
 
 ## Wymagania
@@ -72,6 +72,7 @@ Dokładny format konfiguracji zależy od klienta. Sam serwer nie otwiera okna an
 | --- | --- |
 | `hearthstone_status` | Wykrycie, czy mecz trwa i jak świeże są dane |
 | `read_hearthstone_state` | Cały widoczny stan meczu |
+| `get_hearthstone_advice_context` | Kontekst do pytania „Co teraz zagrać?”; karty pogrupowane według kosztu many (nie oznacza to gwarancji legalności ruchu) | 
 | `get_hearthstone_hand` | Nasza ręka oraz mana |
 | `get_hearthstone_board` | Bohaterowie, stół i liczba sekretów |
 | `get_hearthstone_plays` | Karty zagrane w aktualnej turze |
