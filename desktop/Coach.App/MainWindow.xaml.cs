@@ -36,7 +36,7 @@ public partial class MainWindow : Window
         _inference = new ChatGptInference(_auth);
         _timer.Tick += Poll;
         UpdateAccount();
-        DiagnosticLog.Write("app.start", new { version = "0.4", state_path = GameSnapshot.DefaultPath, log_dir = DiagnosticLog.DirectoryPath });
+        DiagnosticLog.Write("app.start", new { version = "0.4.1", state_path = GameSnapshot.DefaultPath, log_dir = DiagnosticLog.DirectoryPath });
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
@@ -361,7 +361,7 @@ public partial class MainWindow : Window
             DiagnosticLog.Error("ai.failure", ex);
             AiStatus.Text = "Błąd analizy";
             AdviceMeta.Text = ex.Message;
-            if (_lastShownDecisionKey is null)
+            if (_shownSnapshot is null)
                 MoveText.Text = "Nie udało się pobrać porady";
         }
         finally
