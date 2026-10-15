@@ -9,7 +9,7 @@ Natywna aplikacja **Windows 10/11, WPF/.NET 8**, ciemny interfejs. Odczytuje ten
 3. Rozpakuj całe archiwum i uruchom `HearthstoneCoach.exe`. Wydanie jest self-contained: nie wymaga osobnej instalacji .NET Runtime.
 4. Kliknij **Połącz przez ChatGPT**. W systemowej przeglądarce wybierz konto, zaakceptuj zakres `ChatGPT plan usage`, wróć do aplikacji. Dostępność zależy od planu i przyznanych uprawnień konta.
 5. Wybierz model z listy dostępnej na Twoim koncie. Włącz **Automatyczna analiza**. Opcjonalnie zaznacz **Przypnij nad grą**.
-6. Rozpocznij partię. Po 2 sekundach stabilnego stanu na Twojej turze model zaproponuje zagranie. Przy Discover/wspieranym wyborze przeanalizuje dostępne opcje.
+6. Rozpocznij partię. Po około 7 sekundach stabilnego stanu na Twojej turze model zaproponuje zagranie (wybory Discover po około 3 sekundach). Przy Discover/wspieranym wyborze przeanalizuje dostępne opcje.
 
 **Koszty:** aplikacja korzysta z oficjalnego OSS `Sign in with ChatGPT` i `ChatGPT plan usage`, nie z klucza API. Zużycie jest wliczane do dostępnych limitów planu ChatGPT; limit może się wyczerpać. Zarządzaj dostępem i limitami w [ustawieniach ChatGPT](https://chatgpt.com/#settings/Usage). Nigdy nie wprowadzaj klucza API ani hasła do aplikacji — logowanie odbywa się w przeglądarce OpenAI.
 
@@ -17,11 +17,11 @@ Natywna aplikacja **Windows 10/11, WPF/.NET 8**, ciemny interfejs. Odczytuje ten
 
 - Odczyt lokalnego snapshotu HDT co 1 s; plik musi być aktualny (<15 s).
 - AI **nie jest wywoływane** w menu ani bez Twojej tury/aktywnego wyboru.
-- Debounce 2 s po zmianie. Minimalnie 12 s między żądaniami, maksymalnie 6 automatycznych żądań na turę; bez duplikatów identycznego stanu.
-- Zmiana planszy podczas analizy anuluje poprzednie żądanie. Spóźniona odpowiedź jest odrzucana.
-- Odpowiedź jest tekstową rekomendacją, nie komendą. Bez automatyzacji kliknięć, bez DLL wstrzykiwanej w grę.
+- AI czeka ok. 7 s na ustabilizowanie zwykłej tury i 3 s przy aktywnym wyborze kart. Standardowo min. 14 s pomiędzy analizami, maks. 4 na turę. Przy wyborze kart priorytetowo: min. 4 s i do 6 analiz w tej samej turze. Identyczne decyzje nie są analizowane wielokrotnie.
+- Krótkie lub nieistotne wahania odczytu HDT **nie kasują rekomendacji**. Dopiero utrzymująca się przez 4 s istotna zmiana pozwala oznaczyć poradę jako nieaktualną i anulować stare zapytanie. Poprzednia rekomendacja pozostaje widoczna podczas odświeżania (z ostrzeżeniem), a spóźniona odpowiedź nie nadpisuje nowej.
+- Odpowiedź eksponuje **kartę / ruch, cel i kolejność**, a bardzo krótkie uzasadnienie znajduje się na samym końcu. Odpowiedź jest rekomendacją, nie komendą. Bez automatyzacji kliknięć, bez DLL wstrzykiwanej w grę.
 - Obsługuje scenariusze „Co zagrać?” oraz „Którą kartę Odkryj wybrać?”.
-- Panel można przypiąć na wierzchu gry (tryb `Topmost`), w przyszłości możliwa kompaktowa nakładka.
+- Panel można przypiąć na wierzchu gry (tryb `Topmost`). Używa własnej ciemnej ramki okna Windows, bez jasnej belki u góry.
 
 ## Ochrona danych i logowanie
 
