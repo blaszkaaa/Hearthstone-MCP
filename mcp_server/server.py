@@ -205,7 +205,7 @@ TOOLS = [
     },
     {
         "name": "get_hearthstone_board",
-        "description": "Pokaz aktualny stol obu graczy, statystyki stronnikow i bohaterow.",
+        "description": "Pokaz aktualny stol obu graczy, bronie, widoczne moce bohaterow, liczby kart w taliach i statystyki bohaterow. Widoczna moc bohatera nie musi byc dostepna do uzycia.",
     },
     {
         "name": "get_hearthstone_plays",
