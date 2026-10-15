@@ -25,6 +25,10 @@ Ten projekt udostępnia ChatGPT i innym klientom MCP jawny stan bieżącej rozgr
 
 ## Instalacja na Windows
 
+**Bez kompilacji:** otwórz [ostatni pomyślny workflow GitHub Actions](https://github.com/blaszkaaa/Hearthstone-MCP/actions/workflows/tests.yml), w sekcji **Artifacts** pobierz archiwum `HearthstoneMcpPlugin-win` i wypakuj DLL. Potem przejdź od razu do kroku 4 instrukcji poniżej. GitHub może wymagać zalogowania.
+
+**Z kompilacją ze źródeł:**
+
 1. Sklonuj repozytorium i uruchom HDT co najmniej raz.
 2. Znajdź katalog **plików programu HDT** — zawierający jednocześnie `Hearthstone Deck Tracker.exe`, `HearthDb.dll` i `Newtonsoft.Json.dll`. Nie chodzi o katalog `Plugins`.
 3. W PowerShell, w katalogu repozytorium, uruchom:

@@ -36,3 +36,10 @@ jobs:
         shell: pwsh
         run: |
           dotnet build plugin/HearthstoneMcpPlugin.csproj -c Release "-p:HdtPath=$env:HDT_PATH"
+      - name: Upload built plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: HearthstoneMcpPlugin-win
+          path: plugin/bin/Release/net472/HearthstoneMcpPlugin.dll
+          if-no-files-found: error
+          retention-days: 30
