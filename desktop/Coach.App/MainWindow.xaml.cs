@@ -232,7 +232,10 @@ public partial class MainWindow : Window
         _requestCts = new CancellationTokenSource();
         var myRequest = _requestCts;
         var number = ++_analysisNumber;
-        AiStatus.Text = original.ChoiceActive ? "Sprawdzam wybór kart..." : "Analizuję dostępne zagrania...";
+        bool previousAdviceOutdated = _lastShownDecisionKey is not null &&
+            (_lastShownDecisionKey != original.DecisionKey || _lastShownTurn != original.Turn);
+        AiStatus.Text = previousAdviceOutdated ? "Poprzednia wskazówka nieaktualna" :
+            original.ChoiceActive ? "Sprawdzam wybór kart..." : "Analizuję dostępne zagrania...";
         // During a refresh keep the existing suggestion on screen; do not clear
         // it when starting or failing another request.
         if (_lastShownDecisionKey is null)
@@ -242,7 +245,9 @@ public partial class MainWindow : Window
             NextPanel.Visibility = Visibility.Collapsed;
             WhyPanel.Visibility = Visibility.Collapsed;
         }
-        AdviceMeta.Text = $"Model: {model.DisplayName} • analiza #{number}";
+        AdviceMeta.Text = previousAdviceOutdated ?
+            "Trwa nowa analiza • nie zagrywaj poprzednio wskazanej karty bez sprawdzenia." :
+            $"Model: {model.DisplayName} • analiza #{number}";
         try
         {
             var result = await _inference.AnalyzeAsync(original, model.Slug, myRequest.Token);
