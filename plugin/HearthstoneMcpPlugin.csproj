@@ -10,7 +10,7 @@
   <!-- Build with: dotnet build plugin/HearthstoneMcpPlugin.csproj -c Release -p:HdtPath="C:\path\to\HDT" -->
   <ItemGroup>
     <Reference Include="HearthstoneDeckTracker">
-      <HintPath>$(HdtPath)\HearthstoneDeckTracker.exe</HintPath>
+      <HintPath>$(HdtPath)\Hearthstone Deck Tracker.exe</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="HearthDb">

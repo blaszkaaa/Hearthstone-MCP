@@ -13,15 +13,15 @@ if (-not $HdtPath) {
         "$env:APPDATA\Hearthstone Deck Tracker"
     )
     $HdtPath = $candidates |
-        Where-Object { Test-Path (Join-Path $_ "HearthstoneDeckTracker.exe") } |
+        Where-Object { Test-Path (Join-Path $_ "Hearthstone Deck Tracker.exe") } |
         Select-Object -First 1
 }
 
 if (-not $HdtPath) {
-    throw "Nie znaleziono folderu z HearthstoneDeckTracker.exe. Uruchom skrypt z -HdtPath 'C:\sciezka\do\programu'."
+    throw "Nie znaleziono folderu z Hearthstone Deck Tracker.exe. Uruchom skrypt z -HdtPath 'C:\sciezka\do\programu'."
 }
 
-$required = @("HearthstoneDeckTracker.exe", "HearthDb.dll", "Newtonsoft.Json.dll")
+$required = @("Hearthstone Deck Tracker.exe", "HearthDb.dll", "Newtonsoft.Json.dll")
 foreach ($filename in $required) {
     if (-not (Test-Path (Join-Path $HdtPath $filename))) {
         throw "Brak $filename w folderze: $HdtPath. Wskaz katalog z plikami aplikacji HDT, nie folder Plugins."

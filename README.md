@@ -26,7 +26,7 @@ Ten projekt udostępnia ChatGPT i innym klientom MCP jawny stan bieżącej rozgr
 ## Instalacja na Windows
 
 1. Sklonuj repozytorium i uruchom HDT co najmniej raz.
-2. Znajdź katalog **plików programu HDT** — zawierający jednocześnie `HearthstoneDeckTracker.exe`, `HearthDb.dll` i `Newtonsoft.Json.dll`. Nie chodzi o katalog `Plugins`.
+2. Znajdź katalog **plików programu HDT** — zawierający jednocześnie `Hearthstone Deck Tracker.exe`, `HearthDb.dll` i `Newtonsoft.Json.dll`. Nie chodzi o katalog `Plugins`.
 3. W PowerShell, w katalogu repozytorium, uruchom:
 
    ```powershell
