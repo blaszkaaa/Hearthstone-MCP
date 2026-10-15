@@ -112,6 +112,7 @@ python -m unittest discover -s tests -v
 - Odczyt opiera się na stanie **HDT**, którego kompletność zależy od poprawnego rozpoznawania rozgrywki.
 - Nie ma dostępu do ukrytych kart przeciwnika, losowych przyszłych efektów ani gwarancji optymalnego zagrania.
 - Moc bohatera i broń są odczytywane tylko, jeśli HDT widzi odpowiadające im obiekty; samo ich wykrycie nie oznacza, że można ich użyć w tej turze.
+- Znane karty mogą zawierać opis działania (`card_text`, `card_text_en`) z bazy HDT, aby asystent nie musiał zgadywać efektów nowych kart. Tekst karty opisuje bazową wersję i nie odzwierciedla wszystkich zmian w trakcie partii.
 - Wtyczka **nie odczytuje pamięci procesu Hearthstone**, nie wstrzykuje DLL do gry i nie wysyła danych do żadnego zewnętrznego serwera.
 - Snapshot lokalny może zawierać informacje o Twojej rozgrywce; jego udostępnianie klientowi AI będzie zależeć od konfiguracji tego klienta.
 - W turniejach należy dodatkowo przestrzegać regulaminu organizatora i wymagań Blizzard; projekt nie gwarantuje dopuszczalności automatycznego doradztwa w każdym trybie.
