@@ -234,7 +234,11 @@ namespace HearthstoneMcpPlugin
                     };
                 }).ToArray();
 
-                bool mulligan = !game.IsMulliganDone;
+                // Do not keep offering mulligan advice after the local player
+                // already confirmed, even if the opponent is still choosing.
+                bool mulligan = !game.IsMulliganDone &&
+                    (playerEntity == null ||
+                     playerEntity.GetTag(GameTag.MULLIGAN_STATE) != (int)HearthDb.Enums.Mulligan.DONE);
                 var mulliganCards = mulligan ? player.Hand.Where(e => !e.IsTheCoin)
                     .OrderBy(e => e.ZonePosition).Select(e => AsCard(e, false)).ToArray()
                     : Array.Empty<object>();
