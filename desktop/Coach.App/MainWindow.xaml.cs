@@ -23,6 +23,9 @@ public partial class MainWindow : Window
     private string? _pendingChange;
     private DateTimeOffset _pendingSince = DateTimeOffset.MinValue;
     private bool _adviceMarkedOutdated;
+    private string? _lastLoggedSnapshot;
+    private DateTimeOffset _lastHeartbeat = DateTimeOffset.MinValue;
+    private string _lastSchedulerReason = "";
     private static readonly TimeSpan ConfirmChangeAfter = TimeSpan.FromSeconds(4);
 
     public MainWindow()
@@ -31,6 +34,7 @@ public partial class MainWindow : Window
         _inference = new ChatGptInference(_auth);
         _timer.Tick += Poll;
         UpdateAccount();
+        DiagnosticLog.Write("app.start", new { version = "0.4", state_path = GameSnapshot.DefaultPath, log_dir = DiagnosticLog.DirectoryPath });
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
@@ -42,6 +46,7 @@ public partial class MainWindow : Window
 
     private void OnClosing(object? sender, CancelEventArgs e)
     {
+        DiagnosticLog.Write("app.close");
         _timer.Stop();
         _requestCts?.Cancel();
         _requestCts?.Dispose();
@@ -51,7 +56,29 @@ public partial class MainWindow : Window
     {
         RefreshState();
         var now = DateTimeOffset.UtcNow;
-        bool actionable = _snapshot.InGame && (_snapshot.MyTurn || _snapshot.ChoiceActive);
+        if (_lastLoggedSnapshot != _snapshot.Fingerprint || now - _lastHeartbeat > TimeSpan.FromSeconds(10))
+        {
+            _lastLoggedSnapshot = _snapshot.Fingerprint;
+            _lastHeartbeat = now;
+            DiagnosticLog.Write("hdt.snapshot", new
+            {
+                connected = _snapshot.Connected,
+                in_game = _snapshot.InGame,
+                turn = _snapshot.Turn,
+                my_turn = _snapshot.MyTurn,
+                phase = _snapshot.Phase,
+                mulligan = _snapshot.MulliganActive,
+                choice = _snapshot.ChoiceActive,
+                offers = _snapshot.ChoicesCount,
+                hand = _snapshot.HandCount,
+                mana = _snapshot.Mana,
+                status = _snapshot.Status,
+                decision_key = _snapshot.DecisionKey,
+                fingerprint = _snapshot.Fingerprint,
+                game_data = _snapshot.TacticalJson
+            });
+        }
+        bool actionable = _snapshot.Actionable;
         var observed = actionable
             ? _snapshot.Turn + ":" + _snapshot.DecisionKey
             : (_snapshot.InGame ? "NOT_MY_TURN" : "NO_GAME");
@@ -117,7 +144,13 @@ public partial class MainWindow : Window
         if (_auth.SignedIn && ModelPicker.SelectedItem is ChatGptInference.ModelChoice model &&
             _scheduler.ShouldAnalyze(_snapshot, now, _busy, AutoCheck.IsChecked == true))
         {
+            DiagnosticLog.Write("ai.scheduled", new { phase = _snapshot.Phase, turn = _snapshot.Turn, key = _snapshot.DecisionKey });
             _ = AnalyzeAsync(_snapshot, model);
+        }
+        if (_lastSchedulerReason != _scheduler.LastDecision)
+        {
+            _lastSchedulerReason = _scheduler.LastDecision;
+            DiagnosticLog.Write("scheduler.status", new { reason = _lastSchedulerReason, turn = _snapshot.Turn, phase = _snapshot.Phase });
         }
     }
 
@@ -135,6 +168,7 @@ public partial class MainWindow : Window
         ConnectionText.Text = _snapshot.Status;
         HeaderStatusText.Text = !connected ? "HDT rozłączony" :
             !_snapshot.InGame ? "HDT gotowy" :
+            _snapshot.MulliganActive ? "Wybór ręki" :
             _snapshot.ChoiceActive ? "Wybór kart" :
             _snapshot.MyTurn ? "Twoja tura" : "Partia trwa";
         HeaderStatusText.Foreground = indicator;
@@ -143,6 +177,7 @@ public partial class MainWindow : Window
         ManaText.Text = _snapshot.InGame ? _snapshot.Mana?.ToString() ?? "?" : "—";
         HandText.Text = _snapshot.InGame ? $"Ręka: {_snapshot.HandCount} kart" : "Ręka: —";
         ChoiceText.Text = !_snapshot.InGame ? "Wybory: —" :
+            _snapshot.MulliganActive ? $"Ręka: {_snapshot.HandCount}" :
             !_snapshot.ChoiceSupported ? "Wybory: brak obsługi" :
             _snapshot.ChoiceActive ? $"Wybory: {_snapshot.ChoicesCount}" :
             "Wybory: brak";
@@ -157,10 +192,11 @@ public partial class MainWindow : Window
             await _auth.SignInAsync();
             UpdateAccount();
             AiStatus.Text = "Gotowy do analizy";
+            DiagnosticLog.Write("auth.signin.success");
             await LoadModelsAsync();
         }
         catch (OperationCanceledException) { AiStatus.Text = "Przerwano logowanie"; }
-        catch (Exception ex) { AiStatus.Text = "Nie udało się zalogować"; AdviceMeta.Text = ex.Message; }
+        catch (Exception ex) { DiagnosticLog.Error("auth.signin.failure", ex); AiStatus.Text = "Nie udało się zalogować"; AdviceMeta.Text = ex.Message; }
         finally { SignInButton.IsEnabled = true; }
     }
 
@@ -175,9 +211,10 @@ public partial class MainWindow : Window
                 x.Slug.Contains("mini", StringComparison.OrdinalIgnoreCase) ||
                 x.Slug.Contains("instant", StringComparison.OrdinalIgnoreCase));
             ModelPicker.SelectedItem = suggested ?? choices.FirstOrDefault();
+            DiagnosticLog.Write("ai.models", new { count = choices.Count, models = choices.Select(x => x.Slug).ToArray() });
             if (choices.Count == 0) AdviceMeta.Text = "Konto nie udostępnia modeli dla tego połączenia.";
         }
-        catch (Exception ex) { AdviceMeta.Text = "Modele niedostępne: " + ex.Message; }
+        catch (Exception ex) { DiagnosticLog.Error("ai.models.failure", ex); AdviceMeta.Text = "Modele niedostępne: " + ex.Message; }
         finally { ModelPicker.IsEnabled = true; }
     }
 
@@ -196,7 +233,7 @@ public partial class MainWindow : Window
     {
         _requestCts?.Cancel();
         SignOutButton.IsEnabled = false;
-        try { await _auth.SignOutAsync(); }
+        try { await _auth.SignOutAsync(); DiagnosticLog.Write("auth.signout"); }
         finally
         {
             ModelPicker.ItemsSource = null;
@@ -209,7 +246,7 @@ public partial class MainWindow : Window
     private async void AnalyzeClick(object sender, RoutedEventArgs e)
     {
         RefreshState();
-        if (!_snapshot.InGame || (!_snapshot.MyTurn && !_snapshot.ChoiceActive))
+        if (!_snapshot.Actionable)
         {
             AiStatus.Text = "Poczekaj na swoją turę";
             return;
@@ -221,6 +258,7 @@ public partial class MainWindow : Window
         }
         if (_busy) return;
         _scheduler.MarkAnalyzed(_snapshot, DateTimeOffset.UtcNow);
+        DiagnosticLog.Write("ai.manual", new { phase = _snapshot.Phase, turn = _snapshot.Turn, key = _snapshot.DecisionKey });
         await AnalyzeAsync(_snapshot, model);
     }
 
@@ -229,18 +267,20 @@ public partial class MainWindow : Window
         if (_busy) return;
         _busy = true;
         AnalyzeButton.IsEnabled = false;
-        _requestCts = new CancellationTokenSource();
+        _requestCts = new CancellationTokenSource(TimeSpan.FromSeconds(23));
         var myRequest = _requestCts;
         var number = ++_analysisNumber;
         bool previousAdviceOutdated = _lastShownDecisionKey is not null &&
             (_lastShownDecisionKey != original.DecisionKey || _lastShownTurn != original.Turn);
         AiStatus.Text = previousAdviceOutdated ? "Poprzednia wskazówka nieaktualna" :
+            original.MulliganActive ? "Analizuję rękę początkową..." :
             original.ChoiceActive ? "Sprawdzam wybór kart..." : "Analizuję dostępne zagrania...";
         // During a refresh keep the existing suggestion on screen; do not clear
         // it when starting or failing another request.
         if (_lastShownDecisionKey is null)
         {
-            MoveText.Text = original.ChoiceActive ? "Wybieram najlepszą opcję..." : "Sprawdzam karty...";
+            MoveText.Text = original.MulliganActive ? "Co zostawić?" :
+                original.ChoiceActive ? "Wybieram najlepszą opcję..." : "Sprawdzam karty...";
             TargetPanel.Visibility = Visibility.Collapsed;
             NextPanel.Visibility = Visibility.Collapsed;
             WhyPanel.Visibility = Visibility.Collapsed;
@@ -248,16 +288,29 @@ public partial class MainWindow : Window
         AdviceMeta.Text = previousAdviceOutdated ?
             "Trwa nowa analiza • nie zagrywaj poprzednio wskazanej karty bez sprawdzenia." :
             $"Model: {model.DisplayName} • analiza #{number}";
+        var started = DateTimeOffset.UtcNow;
+        DiagnosticLog.Write("ai.request", new
+        {
+            request = number, turn = original.Turn, phase = original.Phase, model = model.Slug,
+            decision_key = original.DecisionKey, prompt = AdvicePrompt.Build(original)
+        });
         try
         {
             var result = await _inference.AnalyzeAsync(original, model.Slug, myRequest.Token);
+            DiagnosticLog.Write("ai.response", new
+            {
+                request = number, phase = original.Phase, turn = original.Turn,
+                duration_ms = (int)(DateTimeOffset.UtcNow - started).TotalMilliseconds,
+                response = result
+            });
             RefreshState();
             if (_snapshot.InGame &&
-                (_snapshot.MyTurn || _snapshot.ChoiceActive) &&
+                _snapshot.Actionable &&
                 _snapshot.Turn == original.Turn &&
                 _snapshot.DecisionKey == original.DecisionKey)
             {
-                var card = AdviceCard.Parse(result);
+                var card = AdviceCard.Parse(result, original.Phase);
+                MoveText.FontSize = original.MulliganActive ? 20 : 28;
                 MoveText.Text = card.Move;
                 TargetText.Text = card.Target;
                 TargetPanel.Visibility = card.Target.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -269,7 +322,9 @@ public partial class MainWindow : Window
                 _lastShownTurn = original.Turn;
                 _pendingChange = null;
                 _adviceMarkedOutdated = false;
-                AiStatus.Text = original.ChoiceActive ? "Wybór Odkryj / kart" : "Gotowa rekomendacja";
+                AiStatus.Text = original.MulliganActive ? "Zostaw / odrzuć karty" :
+                    original.ChoiceActive ? "Wybór Odkryj / kart" : "Gotowa rekomendacja";
+                DiagnosticLog.Write("ai.displayed", new { request = number, decision_key = original.DecisionKey, turn = original.Turn });
                 AdviceMeta.Text = $"Tura {original.Turn} • {DateTime.Now:HH:mm:ss} • {model.DisplayName}";
             }
             else
@@ -280,15 +335,20 @@ public partial class MainWindow : Window
                 AdviceMeta.Text = "Pominięto nieaktualną odpowiedź. Czekam na stabilny stan.";
                 if (_lastShownDecisionKey is null)
                     MoveText.Text = "Czekam na aktualizację...";
+                DiagnosticLog.Write("ai.discarded", new { request = number, cause = "state_changed", old_key = original.DecisionKey, new_key = _snapshot.DecisionKey, phase = _snapshot.Phase });
             }
         }
         catch (OperationCanceledException)
         {
-            AiStatus.Text = "Ponawiam po zmianie planszy";
-            AdviceMeta.Text = "Przerwano nieaktualną analizę • czekam na stabilny stan.";
+            _scheduler.RecordFailure(original);
+            AiStatus.Text = "Próba analizy przerwana";
+            AdviceMeta.Text = "Upłynął limit 23 s lub zmieniła się gra. Ponowię odczyt.";
+            DiagnosticLog.Write("ai.canceled_or_timeout", new { request = number, elapsed_ms = (int)(DateTimeOffset.UtcNow - started).TotalMilliseconds, phase = original.Phase });
         }
         catch (Exception ex)
         {
+            _scheduler.RecordFailure(original);
+            DiagnosticLog.Error("ai.failure", ex);
             AiStatus.Text = "Błąd analizy";
             AdviceMeta.Text = ex.Message;
             if (_lastShownDecisionKey is null)
@@ -300,13 +360,14 @@ public partial class MainWindow : Window
             AnalyzeButton.IsEnabled = true;
             if (ReferenceEquals(_requestCts, myRequest)) _requestCts = null;
             myRequest.Dispose();
+            DiagnosticLog.Write("ai.complete", new { request = number, elapsed_ms = (int)(DateTimeOffset.UtcNow - started).TotalMilliseconds, phase = original.Phase });
         }
     }
 
     private void AutoChanged(object sender, RoutedEventArgs e)
     {
         AdviceMeta.Text = AutoCheck.IsChecked == true ?
-            "Automatyczna analiza włączona • maks. 4 analizy na turę, co najmniej 14 s odstępu." :
+            "Automatyczna analiza włączona • szybki wybór kart i ponawianie przy zmianach." :
             "Automatyczna analiza wyłączona • możesz kliknąć „Analizuj teraz”.";
     }
     private void TopmostChanged(object sender, RoutedEventArgs e) => Topmost = TopmostCheck.IsChecked == true;
