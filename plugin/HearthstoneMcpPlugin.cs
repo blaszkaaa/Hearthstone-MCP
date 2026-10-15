@@ -175,7 +175,10 @@ namespace HearthstoneMcpPlugin
                     Directory.CreateDirectory(folder);
                     string path = Path.Combine(folder, "plugin.log");
                     if(File.Exists(path) && new FileInfo(path).Length > 4 * 1024 * 1024)
-                        File.Move(path, path + ".old", true);
+                    {
+                        if(File.Exists(path + ".old")) File.Delete(path + ".old");
+                        File.Move(path, path + ".old");
+                    }
                     File.AppendAllText(path, DateTime.UtcNow.ToString("o") + " " + text + Environment.NewLine);
                 }
             }
