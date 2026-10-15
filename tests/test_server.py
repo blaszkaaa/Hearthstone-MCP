@@ -65,6 +65,30 @@ class SnapshotTests(unittest.TestCase):
         board = tool_payload("get_hearthstone_board", result)
         self.assertEqual(board["opponent"]["secrets_count"], 1)
 
+    def test_advice_context_groups_cards_by_mana_without_claiming_legal_moves(self):
+        state = game_state()
+        state["player"]["hand"].extend([
+            {"entity_id": 20, "name": "Cheap", "cost": 1, "position": 2},
+            {"entity_id": 21, "name": "Unknown", "cost": None, "position": 3},
+        ])
+        self.put(state)
+        snapshot = read_snapshot(self.path)
+        advice = tool_payload("get_hearthstone_advice_context", snapshot)
+        self.assertEqual([c["name"] for c in advice["cards_with_affordable_mana_cost"]], ["Cheap"])
+        self.assertEqual([c["name"] for c in advice["cards_above_available_mana"]], ["Fireball"])
+        self.assertEqual([c["name"] for c in advice["cards_with_unknown_cost"]], ["Unknown"])
+        self.assertEqual(advice["opponent_hand_count"], 5)
+        self.assertNotIn("opponent_hand", advice)
+        self.assertTrue(advice["caveats"])
+
+    def test_advice_context_missing_mana_is_not_assumed_zero(self):
+        state = game_state()
+        state["player"]["mana_available"] = None
+        self.put(state)
+        advice = tool_payload("get_hearthstone_advice_context", read_snapshot(self.path))
+        self.assertEqual(len(advice["cards_with_unknown_cost"]), 1)
+        self.assertEqual(advice["cards_with_affordable_mana_cost"], [])
+
     def test_stale_game_not_exposed_as_live(self):
         self.put(game_state(datetime.now(timezone.utc) - timedelta(seconds=40)))
         result = read_snapshot(self.path)
@@ -141,7 +165,7 @@ class SnapshotTests(unittest.TestCase):
         lines = [json.loads(line) for line in process.stdout.splitlines()]
         self.assertEqual(len(lines), 3)
         self.assertEqual(lines[1]["id"], 2)
-        self.assertEqual(len(lines[1]["result"]["tools"]), 5)
+        self.assertEqual(len(lines[1]["result"]["tools"]), 6)
         self.assertEqual(lines[2]["id"], 3)
 
 
