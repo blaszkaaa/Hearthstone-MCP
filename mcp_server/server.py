@@ -125,6 +125,12 @@ def tool_payload(name: str, snapshot: dict[str, Any]) -> dict[str, Any]:
             "mana_max": player.get("mana_max"),
             "my_hero": player.get("hero"),
             "opponent_hero": opponent.get("hero"),
+            "my_hero_power": player.get("hero_power"),
+            "opponent_hero_power": opponent.get("hero_power"),
+            "my_weapon": player.get("weapon"),
+            "opponent_weapon": opponent.get("weapon"),
+            "my_deck_count": player.get("deck_count"),
+            "opponent_deck_count": opponent.get("deck_count"),
             "my_board": player.get("board", []),
             "opponent_board": opponent.get("board", []),
             "opponent_hand_count": opponent.get("hand_count"),
@@ -140,7 +146,7 @@ def tool_payload(name: str, snapshot: dict[str, Any]) -> dict[str, Any]:
                 "Koszt karty nie gwarantuje, ze mozna ja zagrac (cele, warunki, efekty).",
                 "Nie znamy ukrytej reki przeciwnika ani wszystkich mozliwych efektow.",
                 "Jesli my_turn=false, nie proponuj natychmiastowego zagrania.",
-                "Dane nie zawieraja pelnego stanu atakow i zdolnosci bohatera."
+                "Widoczna moc bohatera i bron nie gwarantuja legalnosci ich uzycia w tej turze."
             ],
         }
     if name == "get_hearthstone_hand":
@@ -156,11 +162,17 @@ def tool_payload(name: str, snapshot: dict[str, Any]) -> dict[str, Any]:
             **shared,
             "player": {
                 "hero": player.get("hero"),
+                "hero_power": player.get("hero_power"),
+                "weapon": player.get("weapon"),
+                "deck_count": player.get("deck_count"),
                 "board": player.get("board", []),
                 "secrets_count": player.get("secrets_count"),
             },
             "opponent": {
                 "hero": opponent.get("hero"),
+                "hero_power": opponent.get("hero_power"),
+                "weapon": opponent.get("weapon"),
+                "deck_count": opponent.get("deck_count"),
                 "board": opponent.get("board", []),
                 "secrets_count": opponent.get("secrets_count"),
             },
