@@ -96,6 +96,46 @@ def tool_payload(name: str, snapshot: dict[str, Any]) -> dict[str, Any]:
     opponent = state["opponent"]
     if name == "read_hearthstone_state":
         return {**shared, "state": state}
+    if name == "get_hearthstone_advice_context":
+        mana = player.get("mana_available")
+        hand = player.get("hand", [])
+        known_affordable = []
+        unknown_cost = []
+        too_expensive = []
+        for card in hand if isinstance(hand, list) else []:
+            if not isinstance(card, dict):
+                continue
+            cost = card.get("cost")
+            if isinstance(cost, bool) or not isinstance(cost, int) or cost < 0:
+                unknown_cost.append(card)
+            elif isinstance(mana, int) and not isinstance(mana, bool):
+                (known_affordable if cost <= mana else too_expensive).append(card)
+            else:
+                unknown_cost.append(card)
+        return {
+            **shared,
+            "mana_available": mana,
+            "mana_max": player.get("mana_max"),
+            "my_hero": player.get("hero"),
+            "opponent_hero": opponent.get("hero"),
+            "my_board": player.get("board", []),
+            "opponent_board": opponent.get("board", []),
+            "opponent_hand_count": opponent.get("hand_count"),
+            "opponent_secrets_count": opponent.get("secrets_count"),
+            "my_secrets_count": player.get("secrets_count"),
+            "played_this_turn": player.get("played_this_turn", []),
+            "opponent_played_this_turn": opponent.get("played_this_turn", []),
+            "hand": hand,
+            "cards_with_affordable_mana_cost": known_affordable,
+            "cards_with_unknown_cost": unknown_cost,
+            "cards_above_available_mana": too_expensive,
+            "caveats": [
+                "Koszt karty nie gwarantuje, ze mozna ja zagrac (cele, warunki, efekty).",
+                "Nie znamy ukrytej reki przeciwnika ani wszystkich mozliwych efektow.",
+                "Jesli my_turn=false, nie proponuj natychmiastowego zagrania.",
+                "Dane nie zawieraja pelnego stanu atakow i zdolnosci bohatera."
+            ],
+        }
     if name == "get_hearthstone_hand":
         return {
             **shared,
@@ -135,6 +175,10 @@ TOOLS = [
     {
         "name": "read_hearthstone_state",
         "description": "Odczytaj dostepny stan aktywnego meczu Hearthstone: tura, mana, reka, stol, bohaterowie, jawne zagrania. Nigdy nie zgaduj ukrytych kart. Jesli available=false, nie polecaj ruchu jako pewnego.",
+    },
+    {
+        "name": "get_hearthstone_advice_context",
+        "description": "Najwazniejsze aktualne informacje do odpowiedzi 'co zagrac teraz?': reka, mana, stol i szacunkowa dostepnosc kart wg kosztu. Koszt nie gwarantuje legalnosci ruchu. Podaj uzasadnienie i zaznacz brakujace informacje.",
     },
     {
         "name": "get_hearthstone_hand",
