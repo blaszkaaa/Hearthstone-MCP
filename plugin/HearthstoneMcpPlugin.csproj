@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>HearthstoneMcpPlugin</AssemblyName>
+    <RootNamespace>HearthstoneMcpPlugin</RootNamespace>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+  </PropertyGroup>
+  <!-- Build with: dotnet build plugin/HearthstoneMcpPlugin.csproj -c Release -p:HdtPath="C:\path\to\HDT" -->
+  <ItemGroup>
+    <Reference Include="HearthstoneDeckTracker">
+      <HintPath>$(HdtPath)\HearthstoneDeckTracker.exe</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="HearthDb">
+      <HintPath>$(HdtPath)\HearthDb.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(HdtPath)\Newtonsoft.Json.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="PresentationFramework" />
+  </ItemGroup>
+</Project>
