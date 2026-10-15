@@ -23,10 +23,10 @@ namespace HearthstoneMcpPlugin
         private static readonly TimeSpan UpdateEvery = TimeSpan.FromMilliseconds(500);
 
         public string Name => "Hearthstone MCP";
-        public string Description => "Udostepnia jawny stan meczu lokalnemu serwerowi MCP.";
+        public string Description => "Udostepnia stan meczu i aktywne wybory kart (Odkryj / Choose One) do MCP.";
         public string ButtonText => "Pokaz plik danych";
         public string Author => "Hearthstone-MCP contributors";
-        public Version Version => new Version(0, 1, 0);
+        public Version Version => new Version(0, 2, 0);
         public MenuItem MenuItem => null;
 
         private static string StatePath
@@ -189,6 +189,26 @@ namespace HearthstoneMcpPlugin
                         + playerEntity.GetTag(GameTag.TEMP_RESOURCES)
                         - playerEntity.GetTag(GameTag.RESOURCES_USED));
 
+                // HDT stores the player's currently offered choices here.
+                // The list gets cleared when the player chooses an option.
+                // Index is the visual offer order; ZonePosition is not reliable
+                // for these choice entities, which are usually SETASIDE.
+                var offeredIds = player.OfferedEntityIds == null
+                    ? Array.Empty<int>()
+                    : player.OfferedEntityIds.Take(20).ToArray();
+                var choices = offeredIds.Select((id, index) =>
+                {
+                    Entity offered;
+                    object card = game.Entities.TryGetValue(id, out offered)
+                        ? AsCard(offered, false)
+                        : new { entity_id = id, known = false };
+                    return new
+                    {
+                        index = index + 1,
+                        card = card,
+                    };
+                }).ToArray();
+
                 output = new
                 {
                     schema_version = 1,
@@ -197,6 +217,12 @@ namespace HearthstoneMcpPlugin
                     in_game = true,
                     turn = game.GetTurnNumber(),
                     my_turn = playerEntity != null && playerEntity.GetTag(GameTag.CURRENT_PLAYER) == 1,
+                    // Choice types include Discover, Choose One and other
+                    // decision prompts. This is not necessarily Discover.
+                    choice_tracking_supported = true,
+                    choice_active = offeredIds.Length > 0,
+                    choice_count = offeredIds.Length,
+                    choices = choices,
                     player = new
                     {
                         card_class = player.CurrentClass,
