@@ -66,7 +66,7 @@ try
     Check(startup.ShouldAnalyze(standard, now.AddSeconds(8), false, true), "stable normal turn");
     Check(!startup.ShouldAnalyze(standard, now.AddSeconds(9), false, true), "no spamming");
 
-    var parsed = AdviceCard.Parse("RUCH: Zagraj Mrocznego jeźdźca\\nCEL: przeciwnik\\nPOTEM: użyj mocy bohatera\\nDLACZEGO: Daje przewagę na planszy.\\nUWAGA: Jeśli cel dostępny");
+    var parsed = AdviceCard.Parse("RUCH: Zagraj Mrocznego jeźdźca\nCEL: przeciwnik\nPOTEM: użyj mocy bohatera\nDLACZEGO: Daje przewagę na planszy.\nUWAGA: Jeśli cel dostępny");
     Check(parsed.Move == "Zagraj Mrocznego jeźdźca", "short prominent move");
     Check(parsed.Target == "przeciwnik", "target separate");
     Check(parsed.Next == "użyj mocy bohatera", "steps before reason");
