@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from .server import read_snapshot, snapshot_path
+from .server import choice_payload, read_snapshot, snapshot_path
 
 
 def build_report(path: Path | None = None, now: datetime | None = None) -> dict[str, Any]:
@@ -46,6 +46,12 @@ def build_report(path: Path | None = None, now: datetime | None = None) -> dict[
     hand = player.get("hand")
     my_board = player.get("board")
     enemy_board = opponent.get("board")
+    choices = choice_payload(state)
+    result.update({
+        "choice_tracking_supported": choices["choice_tracking_supported"],
+        "choice_active": choices["choice_active"],
+        "choice_count": choices["choice_count"],
+    })
     result.update({
         "turn": state.get("turn"),
         "my_turn": state.get("my_turn"),
@@ -60,7 +66,11 @@ def build_report(path: Path | None = None, now: datetime | None = None) -> dict[
         result["warnings"].append("Brak danych o jednostkach na stole.")
     if player.get("mana_available") is None:
         result["warnings"].append("Brak danych o dostepnej manie.")
-    if state.get("my_turn") is not True:
+    if not choices["choice_tracking_supported"]:
+        result["next_step"] = "Odczyt meczu dziala, ale wykrywanie Odkryj wymaga aktualizacji DLL wtyczki HDT."
+    elif choices["choice_active"]:
+        result["next_step"] = "Widoczny wybor kart. Zapytaj MCP: Co wybrac? (get_hearthstone_choices)."
+    elif state.get("my_turn") is not True:
         result["next_step"] = "Odczyt dziala. Poczekaj na swoja ture, by poprosic o zagranie."
     else:
         result["next_step"] = "Dane sa aktualne. Mozna zapytac klienta MCP: Co teraz zagrac?"
@@ -87,6 +97,10 @@ def main(argv: list[str] | None = None) -> int:
             print("Mana: " + str(report["mana_available"]))
             print("Reka: " + str(report["hand_count"]) + " kart; stol: "
                   + str(report["my_board_count"]) + " / " + str(report["opponent_board_count"]))
+            print("Odczyt wyborow: " + ("obslugiwany" if report["choice_tracking_supported"] else "wymaga nowej DLL"))
+            if report["choice_tracking_supported"]:
+                print("Aktywny wybor: " + str(report["choice_active"])
+                      + "; opcji: " + str(report["choice_count"]))
         for warning in report["warnings"]:
             print("Uwaga: " + warning)
         print("Dalej: " + report["next_step"])
