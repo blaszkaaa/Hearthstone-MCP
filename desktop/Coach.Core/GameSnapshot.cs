@@ -11,6 +11,9 @@ public sealed class GameSnapshot
     public bool MyTurn { get; private init; }
     public bool ChoiceActive { get; private init; }
     public bool ChoiceSupported { get; private init; }
+    public bool MulliganActive { get; private init; }
+    public string Phase { get; private init; } = "waiting";
+    public bool Actionable => InGame && (MulliganActive || ChoiceActive || MyTurn);
     public int Turn { get; private init; }
     public int? Mana { get; private init; }
     public int HandCount { get; private init; }
@@ -53,6 +56,8 @@ public sealed class GameSnapshot
             bool supported = ReadBool(root, "choice_tracking_supported");
             bool active = supported && ReadBool(root, "choice_active");
             bool mine = ReadBool(root, "my_turn");
+            bool mulligan = ReadBool(root, "mulligan_active") || ReadString(root, "phase") == "mulligan";
+            string phase = mulligan ? "mulligan" : active ? "choice" : "turn";
             var hand = Get(player, "hand");
             int count = hand.ValueKind == JsonValueKind.Array ? hand.GetArrayLength() : 0;
             int choiceCount = active && choices.ValueKind == JsonValueKind.Array ? choices.GetArrayLength() : 0;
@@ -62,6 +67,9 @@ public sealed class GameSnapshot
             {
                 turn = ReadInt(root, "turn"),
                 my_turn = mine,
+                phase = phase,
+                mulligan_active = mulligan,
+                mulligan_cards = mulligan ? GetRaw(root, "mulligan_cards") : JsonSerializer.SerializeToElement(Array.Empty<object>()),
                 player = new
                 {
                     mana_available = ReadInt(player, "mana_available"),
@@ -101,6 +109,8 @@ public sealed class GameSnapshot
             {
                 turn = ReadInt(root, "turn"),
                 my_turn = mine,
+                phase = phase,
+                mulligan_cards = mulligan ? GetRaw(root, "mulligan_cards") : JsonSerializer.SerializeToElement(Array.Empty<object>()),
                 choice_active = active,
                 choices = active ? GetRaw(root, "choices") : JsonSerializer.SerializeToElement(Array.Empty<object>()),
                 mana = ReadInt(player, "mana_available"),
@@ -119,11 +129,13 @@ public sealed class GameSnapshot
             return new()
             {
                 Connected = true, InGame = true, MyTurn = mine, ChoiceSupported = supported,
+                MulliganActive = mulligan, Phase = phase,
                 ChoiceActive = active, Turn = ReadInt(root, "turn") ?? 0,
                 Mana = ReadInt(player, "mana_available"), HandCount = count,
                 ChoicesCount = choiceCount, TacticalJson = compact, Fingerprint = digest,
                 DecisionKey = decisionKey,
-                Status = active ? "Wybór kart • potrzebna decyzja" :
+                Status = mulligan ? "Mulligan • zdecyduj, co zostawić" :
+                    active ? "Odkryj • wybierz kartę" :
                     mine ? "Twoja tura • analiza aktywna" : "Tura przeciwnika • obserwuję"
             };
         }
