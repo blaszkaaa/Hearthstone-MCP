@@ -30,7 +30,7 @@ public sealed record AdviceCard(string Move, string Target, string Next, string 
         }
 
         string Read(params string[] keys) => string.Join(" ", keys.SelectMany(k =>
-            fields.TryGetValue(k, out var v) ? v : []).Where(s => s.Length > 0));
+            fields.TryGetValue(k, out var v) ? (IEnumerable<string>)v : Array.Empty<string>()).Where(s => s.Length > 0));
 
         string move = Read("RUCH", "KARTA");
         if (move.Length == 0) move = loose.FirstOrDefault() ?? "Sprawdź dostępne zagrania";
