@@ -371,6 +371,20 @@ public partial class MainWindow : Window
             "Automatyczna analiza wyłączona • możesz kliknąć „Analizuj teraz”.";
     }
     private void TopmostChanged(object sender, RoutedEventArgs e) => Topmost = TopmostCheck.IsChecked == true;
+    private void OpenLogsClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            System.IO.Directory.CreateDirectory(DiagnosticLog.DirectoryPath);
+            Process.Start(new ProcessStartInfo("explorer.exe", "\"" + DiagnosticLog.DirectoryPath + "\"") { UseShellExecute = true });
+            DiagnosticLog.Write("logs.opened");
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("logs.open.failure", ex);
+            AdviceMeta.Text = "Folder logów: " + DiagnosticLog.DirectoryPath;
+        }
+    }
     private void UsageClick(object sender, RoutedEventArgs e) =>
         Process.Start(new ProcessStartInfo("https://chatgpt.com/#settings/Usage") { UseShellExecute = true });
     private void MinimizeClick(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
