@@ -16,6 +16,8 @@ public sealed class GameSnapshot
     public int HandCount { get; private init; }
     public int ChoicesCount { get; private init; }
     public string Fingerprint { get; private init; } = "";
+    // Tactical state only: no HDT timestamps, opponent hand count or tracker metadata.
+    public string DecisionKey { get; private init; } = "";
     public string Status { get; private init; } = "Oczekiwanie na Hearthstone";
     public string TacticalJson { get; private init; } = "{}";
 
@@ -92,12 +94,35 @@ public sealed class GameSnapshot
             };
             var compact = JsonSerializer.Serialize(payload);
             var digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(compact)));
+            // The entire prompt can change due to bookkeeping fields while the
+            // player's actual decision remains the same. Avoid flickering/canceling
+            // a recommendation for such non-actionable updates.
+            var decision = JsonSerializer.Serialize(new
+            {
+                turn = ReadInt(root, "turn"),
+                my_turn = mine,
+                choice_active = active,
+                choices = active ? GetRaw(root, "choices") : JsonSerializer.SerializeToElement(Array.Empty<object>()),
+                mana = ReadInt(player, "mana_available"),
+                hand = GetRaw(player, "hand"),
+                player_board = GetRaw(player, "board"),
+                enemy_board = GetRaw(opponent, "board"),
+                player_hero = GetRaw(player, "hero"),
+                enemy_hero = GetRaw(opponent, "hero"),
+                player_weapon = GetRaw(player, "weapon"),
+                enemy_weapon = GetRaw(opponent, "weapon"),
+                player_secrets = ReadInt(player, "secrets_count"),
+                enemy_secrets = ReadInt(opponent, "secrets_count")
+            });
+            var decisionKey = Convert.ToHexString(
+                SHA256.HashData(Encoding.UTF8.GetBytes(decision)));
             return new()
             {
                 Connected = true, InGame = true, MyTurn = mine, ChoiceSupported = supported,
                 ChoiceActive = active, Turn = ReadInt(root, "turn") ?? 0,
                 Mana = ReadInt(player, "mana_available"), HandCount = count,
                 ChoicesCount = choiceCount, TacticalJson = compact, Fingerprint = digest,
+                DecisionKey = decisionKey,
                 Status = active ? "Wybór kart • potrzebna decyzja" :
                     mine ? "Twoja tura • analiza aktywna" : "Tura przeciwnika • obserwuję"
             };
