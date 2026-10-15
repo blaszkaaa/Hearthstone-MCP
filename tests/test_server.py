@@ -29,7 +29,8 @@ def game_state(captured=None, in_game=True):
             "weapon": {"name": "Test Weapon", "attack": 3, "durability_remaining": 2},
             "deck_count": 18,
             "hand": [{"entity_id": 19, "known": True, "name": "Fireball",
-                      "card_id": "CS2_029", "cost": 4, "position": 1}],
+                      "card_id": "CS2_029", "cost": 4, "position": 1,
+                      "card_text": "Deal 6 damage.", "card_text_en": "Deal 6 damage."}],
             "board": [{"entity_id": 16, "name": "Friendly Minion", "attack": 2, "health": 3}],
             "secrets_count": 0, "played_this_turn": [],
         },
@@ -68,6 +69,7 @@ class SnapshotTests(unittest.TestCase):
         hand = tool_payload("get_hearthstone_hand", result)
         self.assertEqual(hand["hand"][0]["name"], "Fireball")
         self.assertEqual(hand["mana_available"], 3)
+        self.assertEqual(hand["hand"][0]["card_text_en"], "Deal 6 damage.")
         board = tool_payload("get_hearthstone_board", result)
         self.assertEqual(board["opponent"]["secrets_count"], 1)
 
