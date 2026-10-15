@@ -301,7 +301,7 @@ public partial class MainWindow : Window
     private void AutoChanged(object sender, RoutedEventArgs e)
     {
         AdviceMeta.Text = AutoCheck.IsChecked == true ?
-            "Automatyczna analiza włączona • maks. 3 analizy na turę, minimum 20 s odstępu." :
+            "Automatyczna analiza włączona • maks. 4 analizy na turę, co najmniej 14 s odstępu." :
             "Automatyczna analiza wyłączona • możesz kliknąć „Analizuj teraz”.";
     }
     private void TopmostChanged(object sender, RoutedEventArgs e) => Topmost = TopmostCheck.IsChecked == true;
