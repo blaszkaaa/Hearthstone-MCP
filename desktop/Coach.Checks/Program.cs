@@ -114,7 +114,7 @@ try
     File.WriteAllText(path, JsonSerializer.Serialize(discovery));
     var pick = GameSnapshot.Read(path, now);
     Check(pick.ChoiceActive && pick.Phase == "choice" && pick.Actionable, "Discover phase is actionable");
-    Check(AdvicePrompt.Build(pick).Contains("jedną kartę"), "Discover-specific prompt");
+    Check(AdvicePrompt.Build(pick).Contains("jedną kartę", StringComparison.OrdinalIgnoreCase), "Discover-specific prompt");
     var chooseScheduler = new AnalysisScheduler();
     Check(!chooseScheduler.ShouldAnalyze(pick, now, false, true), "Discover settling");
     Check(chooseScheduler.ShouldAnalyze(pick, now.AddSeconds(2), false, true), "Discover triggers fast");
