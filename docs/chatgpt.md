@@ -4,7 +4,7 @@ ChatGPT nie uruchamia serwerów stdio na Twoim komputerze ani nie odczytuje loka
 
 ## Secure MCP Tunnel (jeśli jest dostępny dla konta i organizacji)
 
-1. Upewnij się, że wtyczka Hearthstone MCP działa w HDT, a plik `%LOCALAPPDATA%\HearthstoneMCP\state.json` powstaje podczas partii.
+1. Upewnij się, że wtyczka Hearthstone MCP działa w HDT. W katalogu repozytorium uruchom `python -m mcp_server.doctor`. W menu powinien pojawić się status `waiting_for_match`, a podczas partii `ready`. Jeśli test lokalny nie działa, najpierw napraw wtyczkę, nie konfiguruj tunelu.
 2. Otwórz [dokumentację Secure MCP Tunnel](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels). W ustawieniach Platform utwórz tunel i uzyskaj `tunnel_id` oraz klucz wymagany przez klienta tunelu. Dodatkowe uprawnienia organizacji mogą być wymagane.
 3. Pobierz `tunnel-client` z linku w ustawieniach tuneli OpenAI. Wykonaj `tunnel-client help quickstart`, aby sprawdzić opcje właściwe dla pobranej wersji.
 4. W PowerShell ustaw wymagany klucz w sesji, **bez zapisywania go w repozytorium**.

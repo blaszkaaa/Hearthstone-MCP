@@ -37,7 +37,15 @@ Ten projekt udostępnia ChatGPT i innym klientom MCP jawny stan bieżącej rozgr
    .\scripts\build-plugin.ps1 -HdtPath "C:\sciezka\do\HDT"
    ```
 
-4. Otwórz w HDT `Options → Tracker → Plugins → Plugins Folder`. Przekopiuj tam `plugin\bin\Release\net472\HearthstoneMcpPlugin.dll` i ponownie uruchom HDT.
+4. Zamknij HDT i uruchom instalator w PowerShell:
+
+   ```powershell
+   .\scripts\install-plugin.ps1
+   ```
+
+   Jeśli masz gotowy plik DLL z GitHub Actions, uruchom ` .\scripts\install-plugin.ps1 -DllPath "C:\pobrane\HearthstoneMcpPlugin.dll" `. Możesz też skompilować i zainstalować wtyczkę jedną komendą: ` .\scripts\install-plugin.ps1 -Build -HdtPath "C:\sciezka\do\HDT" `.
+
+   Instalator domyślnie instaluje do katalogu `Plugins` w katalogu danych HDT w `%APPDATA%`, weryfikuje sumę SHA-256 i nie ingeruje w proces gry. Możesz wskazać katalog przez `-PluginsPath`. Uruchom ponownie HDT.
 5. W `Options → Tracker → Plugins` włącz **Hearthstone MCP**.
 6. Rozpocznij partię i sprawdź plik stanu:
 
@@ -46,6 +54,20 @@ Ten projekt udostępnia ChatGPT i innym klientom MCP jawny stan bieżącej rozgr
    ```
 
    W czasie partii powinno być `"in_game":true`. W menu: `false`. Brak pliku oznacza, że wtyczka nie działa albo nie ma uprawnień do zapisu.
+
+## Szybki test połączenia
+
+W folderze repozytorium uruchom:
+
+```powershell
+python -m mcp_server.doctor
+```
+
+Raport odróżnia: brak pliku, nieaktualne dane, aktywną wtyczkę w menu i aktywny mecz. Podaje wiek danych, liczbę kart na ręce, manę i liczbę jednostek na stole. **Nie drukuje nazw kart ani ukrytych danych przeciwnika.**
+
+Możesz sprawdzić inny plik danych komendą `python -m mcp_server.doctor --state-path "C:\sciezka\state.json" --json`. Kody wyjścia: `0` — mecz i świeże dane, `2` — plugin działa, lecz brak meczu, `1` — wymagana diagnoza błędu.
+
+`hearthstone_status` w MCP zwraca też stabilne pole `code` oraz `tracker_connected`, dzięki czemu klient odróżnia poprawną pracę w menu od niedziałającej integracji.
 
 ## Serwer MCP
 
@@ -72,7 +94,7 @@ Dokładny format konfiguracji zależy od klienta. Sam serwer nie otwiera okna an
 | --- | --- |
 | `hearthstone_status` | Wykrycie, czy mecz trwa i jak świeże są dane |
 | `read_hearthstone_state` | Cały widoczny stan meczu |
-| `get_hearthstone_advice_context` | Kontekst do pytania „Co teraz zagrać?”; karty pogrupowane według kosztu many (nie oznacza to gwarancji legalności ruchu) | 
+| `get_hearthstone_advice_context` | Kontekst do pytania „Co teraz zagrać?”; karty pogrupowane według kosztu many (nie oznacza to gwarancji legalności ruchu) |
 | `get_hearthstone_hand` | Nasza ręka oraz mana |
 | `get_hearthstone_board` | Bohaterowie, stół i liczba sekretów |
 | `get_hearthstone_plays` | Karty zagrane w aktualnej turze |
