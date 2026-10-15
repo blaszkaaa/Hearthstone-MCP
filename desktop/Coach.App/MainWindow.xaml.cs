@@ -18,7 +18,12 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _requestCts;
     private bool _busy;
     private int _analysisNumber;
-    private string? _lastShownFingerprint;
+    private string? _lastShownDecisionKey;
+    private int _lastShownTurn = -1;
+    private string? _pendingChange;
+    private DateTimeOffset _pendingSince = DateTimeOffset.MinValue;
+    private bool _adviceMarkedOutdated;
+    private static readonly TimeSpan ConfirmChangeAfter = TimeSpan.FromSeconds(4);
 
     public MainWindow()
     {
@@ -44,29 +49,73 @@ public partial class MainWindow : Window
 
     private void Poll(object? sender, EventArgs e)
     {
-        var previous = _snapshot;
         RefreshState();
+        var now = DateTimeOffset.UtcNow;
+        bool actionable = _snapshot.InGame && (_snapshot.MyTurn || _snapshot.ChoiceActive);
+        var observed = actionable
+            ? _snapshot.Turn + ":" + _snapshot.DecisionKey
+            : (_snapshot.InGame ? "NOT_MY_TURN" : "NO_GAME");
+        bool matches = actionable && _lastShownDecisionKey == _snapshot.DecisionKey &&
+            _lastShownTurn == _snapshot.Turn;
 
-        // Superseded game states cannot produce advice for the next situation.
-        if (_busy && (!(_snapshot.MyTurn || _snapshot.ChoiceActive) ||
-            !_snapshot.InGame || previous.Fingerprint != _snapshot.Fingerprint))
-            _requestCts?.Cancel();
-
-        // Do not leave an old recommendation on screen after the board changes.
-        if (_lastShownFingerprint is not null &&
-            (!_snapshot.InGame || (!_snapshot.MyTurn && !_snapshot.ChoiceActive) ||
-             _snapshot.Fingerprint != _lastShownFingerprint))
+        // Do not drop an answer because HDT briefly reports a different card,
+        // an incomplete frame or no game. Confirm sustained change first.
+        if (_lastShownDecisionKey is not null)
         {
-            MoveText.Text = _snapshot.InGame && _snapshot.ChoiceActive
-                ? "Nowy wybór kart" : _snapshot.InGame && _snapshot.MyTurn
-                    ? "Sytuacja się zmieniła" : "Czekam na Twoją turę";
-            AdviceText.Text = "Poprzednia wskazówka jest już nieaktualna. Czekam na aktualną analizę.";
-            AdviceMeta.Text = "Rekomendacje odświeżają się po zmianach w grze.";
-            _lastShownFingerprint = null;
+            if (matches)
+            {
+                _pendingChange = null;
+                if (_adviceMarkedOutdated)
+                {
+                    _adviceMarkedOutdated = false;
+                    AiStatus.Text = "Gotowa rekomendacja";
+                    AdviceMeta.Text = "Dane aktualne • tura " + _snapshot.Turn;
+                }
+            }
+            else
+            {
+                if (_pendingChange != observed)
+                {
+                    _pendingChange = observed;
+                    _pendingSince = now;
+                }
+                else if (now - _pendingSince >= ConfirmChangeAfter && !_adviceMarkedOutdated)
+                {
+                    _adviceMarkedOutdated = true;
+                    if (!actionable)
+                    {
+                        // No actionable move for this phase. Hide the old action
+                        // only after the state has remained stable for 4 seconds.
+                        MoveText.Text = _snapshot.InGame ? "Czekam na Twoją turę" : "Czekam na mecz";
+                        AdviceText.Text = "";
+                        TargetPanel.Visibility = Visibility.Collapsed;
+                        NextPanel.Visibility = Visibility.Collapsed;
+                        WhyPanel.Visibility = Visibility.Collapsed;
+                        AiStatus.Text = "Wstrzymano porady";
+                        AdviceMeta.Text = "Nowa rekomendacja pojawi się w Twojej turze.";
+                        _lastShownDecisionKey = null;
+                        _pendingChange = null;
+                        _adviceMarkedOutdated = false;
+                    }
+                    else
+                    {
+                        // Keep the prior move visible while the new answer loads,
+                        // but clearly identify it as no longer current.
+                        AiStatus.Text = "Aktualizuję po zmianie gry";
+                        AdviceMeta.Text = "Poprzednia wskazówka może być nieaktualna • trwa aktualizacja.";
+                    }
+                }
+            }
         }
 
+        // Only cancel a long-running request for a confirmed, substantive game
+        // change. A single noisy HDT frame is never enough to cancel it.
+        if (_busy && _pendingChange is not null &&
+            now - _pendingSince >= ConfirmChangeAfter)
+            _requestCts?.Cancel();
+
         if (_auth.SignedIn && ModelPicker.SelectedItem is ChatGptInference.ModelChoice model &&
-            _scheduler.ShouldAnalyze(_snapshot, DateTimeOffset.UtcNow, _busy, AutoCheck.IsChecked == true))
+            _scheduler.ShouldAnalyze(_snapshot, now, _busy, AutoCheck.IsChecked == true))
         {
             _ = AnalyzeAsync(_snapshot, model);
         }
@@ -183,45 +232,67 @@ public partial class MainWindow : Window
         _requestCts = new CancellationTokenSource();
         var myRequest = _requestCts;
         var number = ++_analysisNumber;
-        AiStatus.Text = original.ChoiceActive ? "Analizuję wybór kart..." : "Analizuję Twoją turę...";
-        if (_lastShownFingerprint != original.Fingerprint)
+        bool previousAdviceOutdated = _lastShownDecisionKey is not null &&
+            (_lastShownDecisionKey != original.DecisionKey || _lastShownTurn != original.Turn);
+        AiStatus.Text = previousAdviceOutdated ? "Poprzednia wskazówka nieaktualna" :
+            original.ChoiceActive ? "Sprawdzam wybór kart..." : "Analizuję dostępne zagrania...";
+        // During a refresh keep the existing suggestion on screen; do not clear
+        // it when starting or failing another request.
+        if (_lastShownDecisionKey is null)
         {
-            MoveText.Text = original.ChoiceActive ? "Którą kartę wybrać?" : "Szukam najlepszego ruchu...";
-            AdviceText.Text = "Sprawdzam dostępne zagrania i aktualną sytuację na planszy.";
+            MoveText.Text = original.ChoiceActive ? "Wybieram najlepszą opcję..." : "Sprawdzam karty...";
+            TargetPanel.Visibility = Visibility.Collapsed;
+            NextPanel.Visibility = Visibility.Collapsed;
+            WhyPanel.Visibility = Visibility.Collapsed;
         }
-        AdviceMeta.Text = $"Model: {model.DisplayName} • Analiza #{number} • Dane aktualnej partii.";
+        AdviceMeta.Text = previousAdviceOutdated ?
+            "Trwa nowa analiza • nie zagrywaj poprzednio wskazanej karty bez sprawdzenia." :
+            $"Model: {model.DisplayName} • analiza #{number}";
         try
         {
             var result = await _inference.AnalyzeAsync(original, model.Slug, myRequest.Token);
             RefreshState();
-            if (_snapshot.InGame && _snapshot.Fingerprint == original.Fingerprint &&
-                (_snapshot.MyTurn || _snapshot.ChoiceActive))
+            if (_snapshot.InGame &&
+                (_snapshot.MyTurn || _snapshot.ChoiceActive) &&
+                _snapshot.Turn == original.Turn &&
+                _snapshot.DecisionKey == original.DecisionKey)
             {
-                AiStatus.Text = original.ChoiceActive ? "Wybierz wskazaną kartę" : "Gotowa rekomendacja";
-                var (move, details) = FormatAdvice(result);
-                MoveText.Text = move;
-                AdviceText.Text = details;
-                _lastShownFingerprint = original.Fingerprint;
-                AdviceMeta.Text = "Aktualizacja: " + DateTime.Now.ToString("HH:mm:ss") +
-                    " • Tura " + original.Turn + " • Model: " + model.DisplayName;
+                var card = AdviceCard.Parse(result);
+                MoveText.Text = card.Move;
+                TargetText.Text = card.Target;
+                TargetPanel.Visibility = card.Target.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+                AdviceText.Text = card.Next;
+                NextPanel.Visibility = card.Next.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+                WhyText.Text = card.Reason;
+                WhyPanel.Visibility = card.Reason.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+                _lastShownDecisionKey = original.DecisionKey;
+                _lastShownTurn = original.Turn;
+                _pendingChange = null;
+                _adviceMarkedOutdated = false;
+                AiStatus.Text = original.ChoiceActive ? "Wybór Odkryj / kart" : "Gotowa rekomendacja";
+                AdviceMeta.Text = $"Tura {original.Turn} • {DateTime.Now:HH:mm:ss} • {model.DisplayName}";
             }
             else
             {
-                AiStatus.Text = "Plansza się zmieniła";
-                MoveText.Text = "Oczekuję na aktualny stan";
-                AdviceText.Text = "Nowe zagrania lub wybory wymagają ponownej analizy.";
-                AdviceMeta.Text = "Pominięto nieaktualną odpowiedź AI.";
+                // State changed while AI was responding: never overwrite a more
+                // recent recommendation with an outdated one.
+                AiStatus.Text = "Zmieniono stan rozgrywki";
+                AdviceMeta.Text = "Pominięto nieaktualną odpowiedź. Czekam na stabilny stan.";
+                if (_lastShownDecisionKey is null)
+                    MoveText.Text = "Czekam na aktualizację...";
             }
         }
         catch (OperationCanceledException)
         {
-            AiStatus.Text = "Nowy stan rozgrywki";
-            AdviceMeta.Text = "Poprzednia analiza została anulowana.";
+            AiStatus.Text = "Ponawiam po zmianie planszy";
+            AdviceMeta.Text = "Przerwano nieaktualną analizę • czekam na stabilny stan.";
         }
         catch (Exception ex)
         {
-            AiStatus.Text = "Analiza niedostępna";
+            AiStatus.Text = "Błąd analizy";
             AdviceMeta.Text = ex.Message;
+            if (_lastShownDecisionKey is null)
+                MoveText.Text = "Nie udało się pobrać porady";
         }
         finally
         {
@@ -232,31 +303,10 @@ public partial class MainWindow : Window
         }
     }
 
-    private static (string Move, string Details) FormatAdvice(string raw)
-    {
-        var lines = raw.Replace("\r", "").Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Select(line => line.Trim()).Where(line => line.Length > 0).ToArray();
-        if (lines.Length == 0) return ("Brak rekomendacji", "Model nie zwrócił opisu ruchu.");
-
-        // The AI prompt requests RUCH / KOLEJNOŚĆ / DLACZEGO / UWAGA.
-        // Keep fallback for models that answer conversationally.
-        var moveLine = lines.FirstOrDefault(line =>
-            line.StartsWith("RUCH:", StringComparison.OrdinalIgnoreCase));
-        if (moveLine is not null)
-        {
-            var move = moveLine["RUCH:".Length..].Trim();
-            var details = lines.Where(line => !ReferenceEquals(line, moveLine)).ToArray();
-            return (move.Length == 0 ? "Proponowany ruch" : move,
-                details.Length == 0 ? "Brak dodatkowego uzasadnienia." : string.Join("\n\n", details));
-        }
-        return (lines[0], lines.Length == 1 ? "Brak dodatkowego uzasadnienia." :
-            string.Join("\n\n", lines.Skip(1)));
-    }
-
     private void AutoChanged(object sender, RoutedEventArgs e)
     {
         AdviceMeta.Text = AutoCheck.IsChecked == true ?
-            "Automatyczna analiza włączona • co najwyżej 6 zapytań na turę, minimum 12 s odstępu." :
+            "Automatyczna analiza włączona • maks. 4 analizy na turę, co najmniej 14 s odstępu." :
             "Automatyczna analiza wyłączona • możesz kliknąć „Analizuj teraz”.";
     }
     private void TopmostChanged(object sender, RoutedEventArgs e) => Topmost = TopmostCheck.IsChecked == true;

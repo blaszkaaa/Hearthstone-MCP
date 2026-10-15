@@ -1,12 +1,19 @@
 <Window x:Class="Coach.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Hearthstone AI Coach"
         Width="1090" Height="760" MinWidth="850" MinHeight="590"
         WindowStartupLocation="CenterScreen"
-        WindowStyle="None" ResizeMode="CanResizeWithGrip"
+        WindowStyle="None" ResizeMode="CanResize"
         Background="{StaticResource Background}" FontFamily="Segoe UI"
         Loaded="OnLoaded" Closing="OnClosing">
+    <!-- Remove the native white top frame; keep Windows resize hit-testing. -->
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="0" ResizeBorderThickness="6"
+                            GlassFrameThickness="0" CornerRadius="0" NonClientFrameEdges="None"
+                            UseAeroCaptionButtons="False"/>
+    </shell:WindowChrome.WindowChrome>
     <Window.Resources>
         <Style x:Key="Kicker" TargetType="{x:Type TextBlock}">
             <Setter Property="FontSize" Value="11"/>
@@ -55,7 +62,7 @@
                     </StackPanel>
                     <Border Background="{StaticResource AccentTint}" Padding="9,5"
                             CornerRadius="7" Margin="17,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="BETA 0.2" Foreground="{StaticResource Accent}" FontSize="10" FontWeight="SemiBold"/>
+                        <TextBlock Text="BETA 0.3" Foreground="{StaticResource Accent}" FontSize="10" FontWeight="SemiBold"/>
                     </Border>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
@@ -187,21 +194,21 @@
             <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="0,2,9,2">
-                    <TextBlock Text="ASYSTENT W CZASIE GRY"
+                    <TextBlock Text="ASYSTENT GRY"
                                Foreground="{StaticResource Accent}" FontSize="11"
                                FontWeight="SemiBold" Margin="2,0,0,8"/>
-                    <TextBlock Text="Twoja kolej. Twój najlepszy ruch."
-                               FontWeight="Bold" FontSize="25" Margin="0,0,0,7"
+                    <TextBlock Text="Co teraz zagrać?"
+                               FontWeight="Bold" FontSize="25" Margin="0,0,0,6"
                                TextWrapping="Wrap"/>
-                    <TextBlock Text="Analiza ręki, planszy i wyborów kart — bez przełączania okien."
-                               FontSize="13" Foreground="{StaticResource Muted}"
-                               Margin="1,0,0,23" TextWrapping="Wrap"/>
+                    <TextBlock Text="Konkretny ruch na pierwszym miejscu. Reszta — tylko gdy potrzebna."
+                               FontSize="12" Foreground="{StaticResource Muted}"
+                               Margin="1,0,0,19" TextWrapping="Wrap"/>
 
-                    <Border Style="{StaticResource Card}" Padding="23" MinHeight="272">
+                    <Border Style="{StaticResource Card}" Padding="21" MinHeight="234">
                         <Border.Background>
                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                                 <GradientStop Color="#1A332D" Offset="0"/>
-                                <GradientStop Color="#16252C" Offset="0.37"/>
+                                <GradientStop Color="#14222B" Offset="0.45"/>
                                 <GradientStop Color="#121D29" Offset="1"/>
                             </LinearGradientBrush>
                         </Border.Background>
@@ -211,38 +218,67 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal">
                                     <Border CornerRadius="9" Background="{StaticResource AccentTint}"
-                                            Width="35" Height="35" Margin="0,0,11,0">
+                                            Width="32" Height="32" Margin="0,0,11,0">
                                         <TextBlock Text="✦" Foreground="{StaticResource Accent}"
                                                    FontSize="21" VerticalAlignment="Center"
                                                    HorizontalAlignment="Center"/>
                                     </Border>
                                     <StackPanel VerticalAlignment="Center">
-                                        <TextBlock Text="REKOMENDACJA" Style="{StaticResource Kicker}"/>
+                                        <TextBlock Text="TWÓJ NASTĘPNY RUCH" Style="{StaticResource Kicker}"/>
                                         <TextBlock x:Name="AiStatus" Text="Oczekiwanie na rozgrywkę"
                                                    Foreground="{StaticResource Accent}"
-                                                   FontSize="12" Margin="0,3,0,0"/>
+                                                   FontSize="11" Margin="0,3,0,0"/>
                                     </StackPanel>
                                 </StackPanel>
                                 <Border Grid.Column="1" Background="{StaticResource AccentTint}"
-                                        CornerRadius="8" Padding="11,6" VerticalAlignment="Top">
+                                        CornerRadius="8" Padding="10,6" VerticalAlignment="Top">
                                     <TextBlock Text="AI COACH" Foreground="{StaticResource Accent}"
                                                FontSize="10" FontWeight="SemiBold"/>
                                 </Border>
                             </Grid>
-                            <TextBlock x:Name="MoveText" Text="Czekam na dane z gry"
-                                       FontSize="23" FontWeight="SemiBold" TextWrapping="Wrap"
-                                       Margin="0,24,0,14" LineHeight="32"/>
-                            <Border Height="1" Background="{StaticResource Stroke}" Margin="0,0,0,15"/>
-                            <TextBlock x:Name="AdviceText"
-                                       Text="Gdy nadejdzie Twoja tura, zobaczysz tutaj proponowane zagranie i jego uzasadnienie."
-                                       Foreground="#C3D0DD" FontSize="13" LineHeight="22"
-                                       TextWrapping="Wrap" MinHeight="70"/>
+                            <TextBlock x:Name="MoveText" Text="Czekam na swoją turę"
+                                       Foreground="{StaticResource White}"
+                                       FontSize="28" FontWeight="Bold" TextWrapping="Wrap"
+                                       Margin="0,23,0,10" LineHeight="36"/>
+                            <Border x:Name="TargetPanel" Visibility="Collapsed"
+                                    Background="{StaticResource AccentTint}" Padding="12,9"
+                                    CornerRadius="9" Margin="0,0,0,12">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="CEL  →" Foreground="{StaticResource Accent}"
+                                               FontWeight="Bold" FontSize="12" Margin="0,0,12,0"/>
+                                    <TextBlock x:Name="TargetText" Grid.Column="1" Foreground="{StaticResource White}"
+                                               FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                </Grid>
+                            </Border>
+                            <Border x:Name="NextPanel" Visibility="Collapsed"
+                                    BorderBrush="{StaticResource Stroke}" BorderThickness="0,1,0,0"
+                                    Padding="0,12,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="NASTĘPNIE" Style="{StaticResource Kicker}" Margin="0,0,0,7"/>
+                                    <TextBlock x:Name="AdviceText"
+                                               Text="" Foreground="#D4E3EE" FontSize="13"
+                                               LineHeight="21" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+                            <Border x:Name="WhyPanel" Visibility="Collapsed"
+                                    BorderBrush="{StaticResource Stroke}" BorderThickness="0,1,0,0"
+                                    Padding="0,12,0,0" Margin="0,13,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="DLACZEGO?" Style="{StaticResource Kicker}" Margin="0,0,0,5"/>
+                                    <TextBlock x:Name="WhyText" Foreground="{StaticResource Muted}"
+                                               FontSize="12" LineHeight="20" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
                             <TextBlock x:Name="AdviceMeta"
-                                       Text="Podpowiedzi wykorzystują wyłącznie aktualne dane HDT."
+                                       Text="Poczekaj na stabilny początek tury, aby otrzymać poradę."
                                        Foreground="{StaticResource Muted}" FontSize="11"
-                                       TextWrapping="Wrap" Margin="0,17,0,0"/>
+                                       TextWrapping="Wrap" Margin="0,15,0,0"/>
                         </StackPanel>
                     </Border>
 

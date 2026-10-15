@@ -33,6 +33,46 @@ try
         "hand must be an array, not string");
     Check(tactical.RootElement.GetProperty("choices").GetArrayLength() == 2, "choice payload");
 
+    // Stable tactical decisions must not be invalidated by unrelated HDT
+    // bookkeeping (opponent's estimated hand count / turn history).
+    var noisy = new
+    {
+        schema_version = 1, captured_at_utc = now.ToString("O"), in_game = true,
+        turn = 8, my_turn = true, choice_tracking_supported = true, choice_active = true,
+        choices = sample.choices, player = sample.player,
+        opponent = new
+        {
+            card_class = "PRIEST", hand_count = 99,
+            board = Array.Empty<object>(), played_this_turn = new[] { "Irrelevant event" }
+        }
+    };
+    File.WriteAllText(path, JsonSerializer.Serialize(noisy));
+    var noisySnapshot = GameSnapshot.Read(path, now);
+    Check(noisySnapshot.DecisionKey == snapshot.DecisionKey, "ignore non-tactical metadata");
+    Check(noisySnapshot.Fingerprint != snapshot.Fingerprint, "full prompt can change");
+
+    // No analysis in the first seconds of a standard turn; Discover is faster.
+    var standardTurn = new
+    {
+        schema_version = 1, captured_at_utc = now.ToString("O"), in_game = true,
+        turn = 9, my_turn = true, choice_tracking_supported = true, choice_active = false,
+        choices = Array.Empty<object>(), player = sample.player, opponent = sample.opponent
+    };
+    File.WriteAllText(path, JsonSerializer.Serialize(standardTurn));
+    var standard = GameSnapshot.Read(path, now);
+    var startup = new AnalysisScheduler();
+    Check(!startup.ShouldAnalyze(standard, now, false, true), "initial settling");
+    Check(!startup.ShouldAnalyze(standard, now.AddSeconds(5), false, true), "not too fast at start");
+    Check(startup.ShouldAnalyze(standard, now.AddSeconds(8), false, true), "stable normal turn");
+    Check(!startup.ShouldAnalyze(standard, now.AddSeconds(9), false, true), "no spamming");
+
+    var parsed = AdviceCard.Parse("RUCH: Zagraj Mrocznego jeźdźca\nCEL: przeciwnik\nPOTEM: użyj mocy bohatera\nDLACZEGO: Daje przewagę na planszy.\nUWAGA: Jeśli cel dostępny");
+    Check(parsed.Move == "Zagraj Mrocznego jeźdźca", "short prominent move");
+    Check(parsed.Target == "przeciwnik", "target separate");
+    Check(parsed.Next == "użyj mocy bohatera", "steps before reason");
+    Check(parsed.Reason.Contains("Daje przewagę") && parsed.Reason.Contains("Uwaga"), "reason last");
+    Check(AdviceCard.Parse("Zagraj monetę").Move == "Zagraj monetę", "fallback model reply");
+
     var scheduler = new AnalysisScheduler();
     Check(!scheduler.ShouldAnalyze(snapshot, now, false, true), "debounce");
     Check(scheduler.ShouldAnalyze(snapshot, now.AddSeconds(3), false, true), "first request");
