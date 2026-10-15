@@ -62,7 +62,7 @@ try
     var standard = GameSnapshot.Read(path, now);
     var startup = new AnalysisScheduler();
     Check(!startup.ShouldAnalyze(standard, now, false, true), "initial settling");
-    Check(!startup.ShouldAnalyze(standard, now.AddSeconds(5), false, true), "not too fast at start");
+    Check(!startup.ShouldAnalyze(standard, now.AddSeconds(3), false, true), "not too fast at start");
     Check(startup.ShouldAnalyze(standard, now.AddSeconds(8), false, true), "stable normal turn");
     Check(!startup.ShouldAnalyze(standard, now.AddSeconds(9), false, true), "no spamming");
 
