@@ -287,14 +287,18 @@
                     <Border CornerRadius="11" BorderBrush="{StaticResource Stroke}"
                             BorderThickness="1" Background="#111B27"
                             Padding="15,13" Margin="0,16,0,0">
-                        <StackPanel Orientation="Horizontal">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
                             <TextBlock Text="ⓘ" Foreground="{StaticResource Muted}"
                                        FontSize="16" Margin="0,0,10,0" VerticalAlignment="Top"/>
-                            <TextBlock Text="AI nie wykonuje ruchów. Rekomendacje mogą być niedokładne, jeśli tracker nie widzi wszystkich efektów kart."
+                            <TextBlock Grid.Column="1"
+                                       Text="AI nie wykonuje ruchów. Rekomendacje mogą być niedokładne, jeśli tracker nie widzi wszystkich efektów kart."
                                        Foreground="{StaticResource Muted}" FontSize="12"
-                                       TextWrapping="Wrap" VerticalAlignment="Center"
-                                       MaxWidth="600"/>
-                        </StackPanel>
+                                       TextWrapping="Wrap" VerticalAlignment="Center"/>
+                        </Grid>
                     </Border>
                 </StackPanel>
             </ScrollViewer>
