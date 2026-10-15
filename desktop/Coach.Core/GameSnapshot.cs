@@ -88,7 +88,7 @@ public sealed class GameSnapshot
                 },
                 choice_tracking_supported = supported,
                 choice_active = active,
-                choices = active ? GetRaw(root, "choices") : "[]"
+                choices = active ? GetRaw(root, "choices") : JsonSerializer.SerializeToElement(Array.Empty<object>())
             };
             var compact = JsonSerializer.Serialize(payload);
             var digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(compact)));
@@ -109,7 +109,7 @@ public sealed class GameSnapshot
 
     static JsonElement Get(JsonElement obj, string key) =>
         obj.ValueKind == JsonValueKind.Object && obj.TryGetProperty(key, out var item) ? item : default;
-    static string GetRaw(JsonElement obj, string key) { var v = Get(obj, key); return v.ValueKind == JsonValueKind.Undefined ? "null" : v.GetRawText(); }
+    static JsonElement GetRaw(JsonElement obj, string key) { var v = Get(obj, key); return v.ValueKind == JsonValueKind.Undefined ? JsonSerializer.SerializeToElement<object?>(null) : v; }
     static string? ReadString(JsonElement obj, string key) { var v = Get(obj, key); return v.ValueKind == JsonValueKind.String ? v.GetString() : null; }
     static bool ReadBool(JsonElement obj, string key) { var v = Get(obj, key); return v.ValueKind == JsonValueKind.True; }
     static int? ReadInt(JsonElement obj, string key) { var v = Get(obj, key); return v.ValueKind == JsonValueKind.Number && v.TryGetInt32(out var n) ? n : null; }
