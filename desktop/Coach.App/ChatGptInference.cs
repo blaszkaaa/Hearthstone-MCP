@@ -52,12 +52,14 @@ public sealed class ChatGptInference
             model,
             input = new[] { new { role = "user", content = AdvicePrompt.Build(snapshot) } },
             store = false,
-            stream = true
+            stream = true,
+            max_output_tokens = snapshot.MulliganActive ? 560 : snapshot.ChoiceActive ? 300 : 340
         };
         using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/responses");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         request.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
         using var response = await Http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+        DiagnosticLog.Write("api.response_status", new { status = (int)response.StatusCode, phase = snapshot.Phase, model });
         if (!response.IsSuccessStatusCode)
         {
             if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
