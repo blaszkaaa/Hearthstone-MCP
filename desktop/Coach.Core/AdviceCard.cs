@@ -37,7 +37,7 @@ public sealed record AdviceCard(string Move, string Target, string Next, string 
             // Preserve one decision per card on separate lines in the main move box.
             var offered = fields.GetValueOrDefault("WYBORY") ?? new List<string>();
             var decisions = offered.Where(x => System.Text.RegularExpressions.Regex.IsMatch(
-                x, @"^\\d+[.)]?\\s+(ZOSTAW|ODRZUĆ|ODRZUC)", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                x, @"^\d+[.)]?\s+(ZOSTAW|ODRZUĆ|ODRZUC)", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
                 .Select(x => x.Trim()).ToArray();
             string moveText = decisions.Length > 0 ? string.Join("\n", decisions) :
                 loose.Count > 0 ? string.Join("\n", loose) : "Nie rozpoznano decyzji mulliganu";
