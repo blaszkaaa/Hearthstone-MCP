@@ -81,7 +81,8 @@ public static class CardKnowledge
     private static bool Bool(JsonElement e, string name) =>
         Has(e, name) && e.GetProperty(name).ValueKind == JsonValueKind.True;
     private static int? Integer(JsonElement e, string key) =>
-        Has(e, key) && e.GetProperty(key).TryGetInt32(out var n) ? n : null;
+        Has(e, key) && e.GetProperty(key).ValueKind == JsonValueKind.Number &&
+        e.GetProperty(key).TryGetInt32(out var n) ? n : null;
     private static string? Text(JsonElement e, string key) =>
         Has(e, key) && e.GetProperty(key).ValueKind == JsonValueKind.String
             ? e.GetProperty(key).GetString() : null;
