@@ -47,6 +47,20 @@ Ten projekt udostępnia ChatGPT i innym klientom MCP jawny stan bieżącej rozgr
 
    W czasie partii powinno być `"in_game":true`. W menu: `false`. Brak pliku oznacza, że wtyczka nie działa albo nie ma uprawnień do zapisu.
 
+## Szybki test połączenia
+
+W folderze repozytorium uruchom:
+
+```powershell
+python -m mcp_server.doctor
+```
+
+Raport odróżnia: brak pliku, nieaktualne dane, aktywną wtyczkę w menu i aktywny mecz. Podaje wiek danych, liczbę kart na ręce, manę i liczbę jednostek na stole. **Nie drukuje nazw kart ani ukrytych danych przeciwnika.**
+
+Możesz sprawdzić inny plik danych komendą `python -m mcp_server.doctor --state-path "C:\\sciezka\\state.json" --json`. Kody wyjścia: `0` — mecz i świeże dane, `2` — plugin działa, lecz brak meczu, `1` — wymagana diagnoza błędu.
+
+`hearthstone_status` w MCP zwraca też stabilne pole `code` oraz `tracker_connected`, dzięki czemu klient odróżnia poprawną pracę w menu od niedziałającej integracji.
+
 ## Serwer MCP
 
 Nie trzeba go uruchamiać ręcznie, jeśli klient MCP wspiera konfigurację lokalnych serwerów stdio; klient sam startuje proces Pythona.
