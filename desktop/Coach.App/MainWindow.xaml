@@ -631,6 +631,23 @@
                         </StackPanel>
                     </Border>
 
+                    <TextBlock Text="AKTUALIZACJE APLIKACJI" Style="{StaticResource Kicker}" Margin="2,0,0,12"/>
+                    <Border Style="{StaticResource Card}" Padding="21" Margin="0,0,0,20">
+                        <StackPanel>
+                            <TextBlock Text="Hearthstone AI Coach"
+                                       FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                            <TextBlock x:Name="AppVersionText"
+                                       Text="Wersja: sprawdzanie..." Style="{StaticResource BodyMuted}"
+                                       Margin="0,0,0,12"/>
+                            <Button x:Name="UpdateAppButton" Content="Sprawdź aktualizacje ↻"
+                                    Style="{StaticResource PrimaryButton}" Click="UpdateAppClick"
+                                    ToolTip="Pobierz nowe wydanie programu z GitHuba i uruchom aplikację ponownie"/>
+                            <TextBlock x:Name="AppUpdateStatus"
+                                       Text="Sprawdzam dostępność nowej wersji. Aktualizacja jest możliwa poza meczem."
+                                       Style="{StaticResource BodyMuted}" TextWrapping="Wrap" Margin="0,11,0,0"/>
+                        </StackPanel>
+                    </Border>
+
                     <TextBlock Text="WŁĄCZENIE HDT" Style="{StaticResource Kicker}" Margin="2,0,0,12"/>
                     <Border Style="{StaticResource Card}" Padding="21" Margin="0,0,0,20">
                         <StackPanel>

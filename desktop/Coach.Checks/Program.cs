@@ -1,6 +1,25 @@
 using System.Text.Json;
 using Coach.Core;
 
+// Desktop release manifest must never redirect updates to arbitrary files or accept bad digests.
+var version = new string('a', 40);
+var checksum = new string('b', 64);
+var validUpdate = AppReleaseManifest.Parse(
+    JsonSerializer.Serialize(new { version, sha256 = checksum, asset = AppReleaseManifest.PackageName }));
+Check(validUpdate.IsNewerThan(new string('c', 40)), "new desktop release recognized");
+Check(!validUpdate.IsNewerThan(version), "same desktop commit never reinstalls");
+foreach (var bad in new[] {
+    JsonSerializer.Serialize(new { version = "v2", sha256 = checksum, asset = AppReleaseManifest.PackageName }),
+    JsonSerializer.Serialize(new { version, sha256 = "not-a-digest", asset = AppReleaseManifest.PackageName }),
+    JsonSerializer.Serialize(new { version, sha256 = checksum, asset = "../unauthorized.exe" })
+})
+{
+    bool rejected = false;
+    try { AppReleaseManifest.Parse(bad); }
+    catch (InvalidDataException) { rejected = true; }
+    Check(rejected, "invalid desktop release manifest rejected");
+}
+
 var path = Path.Combine(Path.GetTempPath(), "hscoach-test-" + Guid.NewGuid().ToString("N") + ".json");
 try
 {
