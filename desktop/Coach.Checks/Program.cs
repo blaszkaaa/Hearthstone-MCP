@@ -1218,6 +1218,77 @@ try
             JsonValueKind.Null, "old opponent review never leaks into a new match");
     }
 
+    // The tactical explorer must provide alternative mana plans without claiming
+    // that spending all mana is the best or that an effect is guaranteed.
+    var thinkingFixture = new
+    {
+        schema_version = 1, captured_at_utc = now.ToString("O"),
+        in_game = true, turn = 6, my_turn = true, phase = "turn",
+        player = new
+        {
+            mana_available = 5, mana_max = 6,
+            hero = new { health = 5, armor = 0 },
+            hand = new[] {
+                new { name = "Karta A", card_id = "TEST_A", card_type = "SPELL", cost = (int?)2 },
+                new { name = "Karta A", card_id = "TEST_A", card_type = "SPELL", cost = (int?)2 },
+                new { name = "Karta B", card_id = "TEST_B", card_type = "SPELL", cost = (int?)1 },
+                new { name = "Zbyt droga", card_id = "TEST_C", card_type = "SPELL", cost = (int?)8 },
+                new { name = "Koszt nieznany", card_id = "TEST_D", card_type = "SPELL", cost = (int?)null }
+            },
+            board = new[] { new { name = "Obrońca", card_id = "TEST_O", card_type = "MINION",
+                attack = 1, health = 2, taunt = false, exhausted = false, frozen = false } }
+        },
+        opponent = new
+        {
+            hero = new { health = 18, armor = 0 },
+            board = new[] { new { name = "Zagrożenie", card_id = "TEST_E", card_type = "MINION",
+                attack = 7, health = 5, taunt = false, exhausted = true, frozen = false } }
+        }
+    };
+    File.WriteAllText(path, JsonSerializer.Serialize(thinkingFixture));
+    var thinkingSnapshot = GameSnapshot.Read(path, now);
+    var turnTactics = TurnDecisionEngine.Analyze(thinkingSnapshot);
+    Check(turnTactics.Focus == "obrona przed potencjalnym lethal" &&
+        turnTactics.PossibleEnemyNextTurnDamage == 7, "exhausted enemy remains a next-turn threat");
+    Check(turnTactics.CardsWithUnknownCost == 1 &&
+        turnTactics.ManaPackages.Any(x => x.ManaSpent == 5 &&
+            x.CardCount == 3 && x.Cards.Count(c => c.StartsWith("Karta A")) == 2) &&
+        turnTactics.ManaPackages.All(x => x.ManaSpent <= 5 &&
+            x.Cards.All(card => !card.Contains("Zbyt droga") &&
+                !card.Contains("Koszt nieznany"))),
+        "bounded mana explorer preserves duplicate physical cards, budget, unknown costs");
+    Check(turnTactics.ManaPackages.Any(x => x.CardCount == 1) &&
+        turnTactics.ManaPackages.Any(x => x.CardCount >= 2),
+        "planner keeps competing single-card and combo branches instead of one greedy choice");
+    using (var planningJson = JsonDocument.Parse(new MatchIntelligence().BuildContext(thinkingSnapshot)))
+    {
+        var explorer = planningJson.RootElement.GetProperty("tactical_decision_explorer");
+        Check(explorer.GetProperty("focus").GetString() == turnTactics.Focus &&
+            explorer.GetProperty("possible_card_cost_packages")[0]
+                .GetProperty("certainty").GetString() == "cost_only_hypothetical_NOT_legal_sequence",
+            "tactical context marks cost-only packages as hypothetical");
+    }
+    Check(AdvicePrompt.Build(thinkingSnapshot).Contains("DWIE RÓŻNE sensowne linie") &&
+        AdvicePrompt.Build(thinkingSnapshot).Contains("possible_card_cost_packages"),
+        "AI explicitly compares different plans while respecting uncertainty");
+    Check(DecisionReasoningBudget.Choose(thinkingSnapshot).Effort == "medium" &&
+        DecisionReasoningBudget.Choose(thinkingSnapshot, opponentReview: true).Effort == "low" &&
+        DecisionReasoningBudget.Choose(thinkingSnapshot, deckAnalysis: true).Effort == "medium",
+        "model deliberation adapts to turn complexity, opponent and deck phases");
+
+    File.WriteAllText(path, JsonSerializer.Serialize(new
+    {
+        schema_version = 1, captured_at_utc = now.ToString("O"),
+        in_game = true, turn = 6, my_turn = true,
+        choice_tracking_supported = true, choice_active = true,
+        choices = new[] { new { index = 1, card = new { name = "Opcja A" } } },
+        player = thinkingFixture.player, opponent = thinkingFixture.opponent
+    }));
+    var urgentStrategicChoice = GameSnapshot.Read(path, now);
+    Check(DecisionReasoningBudget.Choose(urgentStrategicChoice).Effort == "low" &&
+        TurnDecisionEngine.Analyze(urgentStrategicChoice).ManaPackages.Count == 0,
+        "Discover stays immediate; turn mana explorer does not override choice");
+
     Console.WriteLine("Hearthstone Coach core checks: PASS");
 }
 finally { try { File.Delete(path); } catch { } }

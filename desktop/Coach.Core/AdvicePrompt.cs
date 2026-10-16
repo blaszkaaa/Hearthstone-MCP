@@ -26,8 +26,20 @@ public static class AdvicePrompt
         zagrania Pochodni z public_match_memory; liczba użyć NIE wyznacza obrażeń.
         Nie nazywaj potencjalnego lethal pewnym — opisuj warunki i ograniczenia.
         Najpierw oceniaj przeżycie, widoczne zagrożenia, ewentualny lethal,
-        a potem tempo, korzystne wymiany i oszczędzanie zasobów. Porównaj w myśli
-        2-3 realne ruchy, odpowiedz TYLKO najlepszym, bez wypisywania rozumowania.
+        a potem tempo, korzystne wymiany i oszczędzanie zasobów.
+        PODEJMUJ DECYZJE WEDŁUG PONIŻSZEJ PROCEDURY (nie pokazuj rozumowania):
+        1. Przejrzyj wszystkie JAWNIE dostępne akcje i potwierdzoną gotowość.
+        2. Oceń przynajmniej DWIE RÓŻNE sensowne linie ruchu, jeśli istnieją;
+           sprawdź ich manę, kolejność, efekt i stan końcowy, nie tylko pierwszy ruch.
+        3. Najpierw odrzuć linie oczywiście niemożliwe; jeśli obie są
+           warunkowe, wskaż bezpieczniejszą i nazwij konkretną niewiadomą.
+        4. Porównaj: zagrożenie przegraną w następnym ruchu, opłacalne
+           wymiany, presję, tempo, synergie talii, zasoby na kolejne tury.
+        5. Gdy najpierw można dobrać/odkryć kartę lub wywołać losowy efekt,
+           nie układaj po nim pewnego planu — zaznacz punkt do przeliczenia.
+        6. Dopiero potem wybierz pierwszy ruch i maksymalnie użyteczny,
+           WARUNKOWY plan reszty tury. Bez sztucznego zużywania całej many.
+        Odpowiedz TYLKO najlepszą propozycją, bez wypisywania analizy wariantów.
         Mechaniki kart odczytuj z card_knowledge.printed_card_effects.
         TYLKO confirmed_printed_mechanics przy mechanic_tags_status=catalog_confirmed
         są tagami wydrukowanej karty ze ZAINSTALOWANEJ biblioteki HearthDb.
@@ -57,6 +69,12 @@ public static class AdvicePrompt
         a NIE dowodem posiadania kart w ręce ani ich aktualnej grywalności.
         Stosuj strategię do mulliganu i wyboru sekwencji tylko przy zgodnym
         podpisie aktywnej talii i po sprawdzeniu bieżącej sytuacji.
+        tactical_decision_explorer pomaga sprawdzić zagrożenie oraz wstępne
+        warianty wydatkowania many. possible_card_cost_packages są TYLKO
+        matematycznymi zestawami aktualnych kosztów, NIE legalnymi combami
+        ani rekomendacją. Uwzględnij je przy porównaniu, ale odrzuć wariant
+        sprzeczny z mechanikami, polem planszy, celami lub planem talii.
+        Zestaw z maksymalnie wydaną maną NIE musi być najlepszy.
         Wskaźniki zagrożenia i wymian są TYLKO arytmetyczne, nie gwarantują
         legalności ataku, efektów ani pewnego lethal.
         OBOWIĄZKOWO sprawdź pole card_type oraz strefę ręka/plansza PRZED poradą:
@@ -111,6 +129,10 @@ public static class AdvicePrompt
     private const string Turn = """
         TRWA TWOJA TURA. UŁÓŻ PLAN CAŁEJ TURY w kolejności legalnych kroków.
         Oceń manę, rękę, gotowość do ataku, cele i potencjalne zagrożenia.
+        Skorzystaj z tactical_decision_explorer: porównaj dostępne pakiety
+        many z potrzebą obrony/lethal i zyskami z kombosów, a potem
+        zweryfikuj wybraną linię karta po karcie. Pakiety nie są
+        symulacją i mogą zawierać niedozwolone ruchy.
         Podaj KONKRETNY pierwszy ruch i WSZYSTKIE zasadne, możliwe do
         zaplanowania akcje w POLU POTEM, numerując kolejne 2., 3., 4., ...
         i oddzielając je średnikami. NIE urywaj planu po 5 krokach.
