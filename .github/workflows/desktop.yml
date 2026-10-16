@@ -45,6 +45,26 @@ jobs:
           Copy-Item $src "desktop/Coach.App/Resources/HearthstoneMcpPlugin.dll"
       - name: Build Windows desktop UI
         run: dotnet build desktop/Coach.App/Coach.App.csproj -c Release
+      - name: Validate embedded desktop updater
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path "desktop/Coach.App/Resources/apply-update.ps1").Path,
+            [ref]$tokens, [ref]$errors) | Out-Null
+          if ($errors.Count -gt 0) { throw "Desktop updater script has PowerShell syntax errors: $($errors -join '; ')" }
+          $app = (Resolve-Path "desktop/Coach.App/bin/Release/net8.0-windows/HearthstoneCoach.dll").Path
+          $assembly = [System.Reflection.Assembly]::LoadFile($app)
+          $embedded = $assembly.GetManifestResourceStream("Coach.App.UpdaterScript")
+          if ($null -eq $embedded) { throw "Missing embedded desktop updater resource" }
+          $mem = [System.IO.MemoryStream]::new()
+          try {
+            $embedded.CopyTo($mem)
+            $actual = [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData($mem.ToArray()))
+            $source = (Get-FileHash "desktop/Coach.App/Resources/apply-update.ps1" -Algorithm SHA256).Hash
+            if ($actual -ne $source) { throw "Embedded desktop updater does not match verified source" }
+          } finally { $embedded.Dispose(); $mem.Dispose() }
       - name: Verify embedded plugin byte-for-byte
         shell: pwsh
         run: |
