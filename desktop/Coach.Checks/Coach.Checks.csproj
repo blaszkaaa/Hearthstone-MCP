@@ -1,4 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings></PropertyGroup>
 <ItemGroup><ProjectReference Include="../Coach.Core/Coach.Core.csproj"/></ItemGroup>
+<!-- The HDT choice lifecycle algorithm is shared with plugin tests, so a bug
+     cannot be "fixed" in tests without updating the shipped DLL too. -->
+<ItemGroup><Compile Include="../../plugin/ChoiceOfferTracker.cs" Link="ChoiceOfferTracker.cs"/></ItemGroup>
 </Project>
