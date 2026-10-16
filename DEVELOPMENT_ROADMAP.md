@@ -6,7 +6,7 @@ Zasady: zachowujemy ciemny wygląd, brak automatycznego sterowania grą i brak d
 | --- | --- | --- |
 | 1. Legalne ruchy | **Zakończony (PR #13)** | Widoczne kandydatury ruchów, koszt many, blokada ataków wyczerpanymi/zamrożonymi jednostkami, kontrola Discover/mulligan; testy regresyjne. To filtr znanych błędów, nie pełna symulacja Hearthstone. |
 | 2. Baza kart i mechanik | **Zakończony (PR #14)** | Wtyczka v0.5 eksportuje identyfikatory DBF, mechaniki z tagów HearthDb i wersję jej assembly; model oddziela potwierdzone tagi od wskazówek z tekstu. Testy i CI wymagane. |
-| 3. Śledzenie zmian HDT | **W trakcie** | Poprawna aktualizacja decyzji po mulliganie, Discover, turach, animacjach i resetach. |
+| 3. Śledzenie zmian HDT | **Zakończony (PR #16)** | Poprawna aktualizacja decyzji po mulliganie, Discover, turach, animacjach i resetach. |
 | 4. Potencjalny lethal i obrona | Do zrobienia | Wiarygodne warunkowe wyliczenia z wyraźną informacją o brakujących efektach. |
 | 5. Warianty kilku ruchów | Do zrobienia | Krótkie porównanie sekwencji bez wymyślania dostępnych akcji. |
 | 6. Synergie i kombinacje | Do zrobienia | Wykrywanie opartych na danych interakcji własnych kart i kolejności. |
@@ -25,7 +25,7 @@ Zasady: zachowujemy ciemny wygląd, brak automatycznego sterowania grą i brak d
 
 ## Historia
 
-- 2026-10-16 — etap 3 rozpoczęty: `feat/stage-03-stable-hdt-transitions`; weryfikacja przejść Discover, kolejnych tur, menu oraz animacji w CI przed ukończeniem.
+- 2026-10-16 — etap 3: [PR #16](https://github.com/blaszkaaa/Hearthstone-MCP/pull/16). [Windows CI](https://github.com/blaszkaaa/Hearthstone-MCP/actions/runs/38901784988) i [MCP/HDT CI](https://github.com/blaszkaaa/Hearthstone-MCP/actions/runs/38901784894) zielone. Potwierdzanie przejść oraz priorytet mulliganu/Discover/nowej tury. Test w rzeczywistym meczu pozostaje wymagany.
 
 - 2026-10-16 — etap 2: [PR #14](https://github.com/blaszkaaa/Hearthstone-MCP/pull/14). [Windows CI](https://github.com/blaszkaaa/Hearthstone-MCP/actions/runs/38899192461) oraz [MCP/HDT CI](https://github.com/blaszkaaa/Hearthstone-MCP/actions/runs/38899192517) zakończone sukcesem. Dodano mechaniki potwierdzane tagami HearthDb i jawne oznaczenie danych nieznanych.
 
