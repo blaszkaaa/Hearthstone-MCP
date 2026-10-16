@@ -841,6 +841,67 @@ try
           unknownForecast.ReadyFriendlyBoardDamage == 0,
         "missing hero health and card types must not create imaginary lethal");
 
+    // Visual plan: only actual HDT card IDs, never fabricate image links.
+    var pictureFixture = new
+    {
+        schema_version = 1, captured_at_utc = now.ToString("O"),
+        in_game = true, turn = 6, my_turn = true, phase = "turn",
+        player = new
+        {
+            mana_available = 4, mana_max = 6,
+            hand = new[] { new { name = "Ognista Kula", card_id = "CS2_029", cost = 4,
+                card_type = "SPELL" } },
+            board = new[] { new { name = "Własny Sługa", card_id = "EX1_001",
+                card_type = "MINION", attack = 2, health = 3, exhausted = false } }
+        },
+        opponent = new { board = Array.Empty<object>() }
+    };
+    File.WriteAllText(path, JsonSerializer.Serialize(pictureFixture));
+    var pictureState = GameSnapshot.Read(path, now);
+    var stepAdvice = AdviceCard.Parse(
+        "RUCH: Zagraj Ognistą Kulę\nCEL: Wroga jednostka\n" +
+        "POTEM: 2. Zaatakuj Własnym Sługą; 3. Zakończ turę\n" +
+        "DLACZEGO: Testowy plan.");
+    var visualSteps = VisualTurnPlan.BuildSteps(pictureState, stepAdvice);
+    Check(visualSteps.Count == 3 &&
+        visualSteps[0].CardId == "CS2_029" &&
+        visualSteps[1].CardId == "EX1_001" &&
+        visualSteps[2].CardId == null,
+        "full turn sequence maps only genuinely visible cards to art");
+    Check(visualSteps[0].Target == "Wroga jednostka" &&
+        visualSteps[1].Target == null,
+        "target of first move does not incorrectly carry to later steps");
+    Check(!VisualTurnPlan.SafeCardId("../secret") &&
+        !VisualTurnPlan.SafeCardId("http://evil") &&
+        VisualTurnPlan.SafeCardId("CS2_029"),
+        "card images only accept safe validated HDT IDs");
+    var pickFixture = new
+    {
+        schema_version = 1, captured_at_utc = now.ToString("O"),
+        in_game = true, turn = 6, my_turn = true, phase = "choice",
+        choice_active = true, choice_tracking_supported = true,
+        choices = new[] {
+            new { index = 1, card = new { name = "Opcja A", card_id = "EX1_001" } },
+            new { index = 2, card = new { name = "Opcja B", card_id = "CS2_029" } },
+            new { index = 3, card = new { name = "Opcja C", card_id = "../oops" } }
+        },
+        player = new { hand = Array.Empty<object>(), board = Array.Empty<object>() },
+        opponent = new { board = Array.Empty<object>() }
+    };
+    File.WriteAllText(path, JsonSerializer.Serialize(pickFixture));
+    var pickPicture = GameSnapshot.Read(path, now);
+    var selectedCard = AdviceCard.Parse("RUCH: Wybierz 2 — Opcja B", "choice");
+    var visualChoices = VisualTurnPlan.BuildChoices(pickPicture, selectedCard);
+    Check(VisualTurnPlan.BuildSteps(pickPicture, selectedCard).Count == 0,
+        "a Discover decision is not a replacement turn plan");
+    Check(visualChoices.Count == 3 &&
+        visualChoices[1].Recommended && !visualChoices[0].Recommended &&
+        visualChoices[1].CardId == "CS2_029" &&
+        visualChoices[2].CardId == null,
+        "Discover graphics preserve order and highlight the offered choice");
+    Check(VisualTurnPlan.TryChoiceNumber("Wybierz opcję 3 — karta") == 3,
+        "choice parser accepts Polish option numbering");
+
     Console.WriteLine("Hearthstone Coach core checks: PASS");
 }
 finally { try { File.Delete(path); } catch { } }
