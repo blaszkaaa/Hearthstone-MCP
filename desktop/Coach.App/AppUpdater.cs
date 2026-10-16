@@ -164,7 +164,14 @@ internal static class AppUpdater
                 "Coach.App.UpdaterScript") ??
                 throw new InvalidDataException("Brakuje wbudowanego modułu aktualizacji."))
             await using (var output = File.Create(scriptPath))
+            {
+                // CRITICAL: Windows PowerShell 5.1 interprets BOM-less UTF-8
+                // as the machine ANSI code page. Polish text then corrupts
+                // quote boundaries and the helper exits with parser errors.
+                // Force UTF-8 BOM for powershell.exe (unlike pwsh 7).
+                await output.WriteAsync(new byte[] { 0xEF, 0xBB, 0xBF }, ct);
                 await embedded.CopyToAsync(output, ct);
+            }
 
             if (!canRestart())
                 throw new InvalidOperationException(
