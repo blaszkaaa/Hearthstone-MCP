@@ -2,6 +2,35 @@
 
 Natywna aplikacja **Windows 10/11, WPF/.NET 8**, ciemny interfejs. Odczytuje ten sam `%LOCALAPPDATA%\HearthstoneMCP\state.json`, który tworzy dotychczasowa wtyczka HDT. Nie potrzebuje Pythona do **interfejsu i silnika AI**; istniejący serwer MCP nadal może działać niezależnie dla ChatGPT.
 
+## Aktualizacja całej aplikacji jednym przyciskiem
+
+W **Ustawieniach → Aktualizacje aplikacji** kliknij **Sprawdź aktualizacje**.
+Program automatycznie sprawdza nową wersję przy uruchomieniu, ale **nie pobiera jej
+ani nie zamyka się bez kliknięcia użytkownika**. Jeśli na GitHubie jest nowa
+wersja, wybierz **Zainstaluj aktualizację** i potwierdź restart.
+
+- Wydanie aplikacji `app-latest` zawiera archiwum Windows x64 i manifest
+  `HearthstoneCoach-update.json` z wersją (SHA commita) i sumą SHA-256.
+- Aplikacja pobiera i **sprawdza SHA-256 całej paczki** przed podmianą plików.
+  Instalator działa w osobnym procesie dopiero po zamknięciu HearthstoneCoach.exe,
+  zachowuje poprzednie pliki do ewentualnego cofnięcia i uruchamia program ponownie.
+- **Nie aktualizuje w trakcie meczu.** Nie rusza danych użytkownika w
+  `%LOCALAPPDATA%`, historii gier, logowania do ChatGPT ani folderu HDT.
+- Jeśli nie ma internetu, manifest jest uszkodzony lub katalog instalacji jest
+  chroniony przed zapisem, pokazuje komunikat bez zmiany programu.
+- W przypadku nieudanego kopiowania skrypt próbuje przywrócić stare pliki,
+  a szczegóły zapisuje w `%LOCALAPPDATA%\HearthstoneMCP\desktop-update-error.log`.
+
+**Pierwszy raz** pobierz i rozpakuj wydanie z
+[GitHub Releases — app-latest](https://github.com/blaszkaaa/Hearthstone-MCP/releases/tag/app-latest).
+Od tego momentu kolejne aktualizacje instalujesz w aplikacji.
+Dla Windows używaj katalogu z prawem zapisu (np. w folderze użytkownika);
+nie trzeba uruchamiać programu jako administrator.
+
+Publikacja pakietu aktualizacyjnego odbywa się w
+[desktop.yml](../.github/workflows/desktop.yml) po pomyślnym buildzie z gałęzi main.
+Jest to **oddzielna funkcja** od aktualizacji biblioteki wtyczki HDT.
+
 ## Aktualizacja DLL jednym przyciskiem
 
 W zakładce **Preferencje** kliknij **Aktualizuj wtyczkę HDT ↻**, gdy nie trwa mecz.
