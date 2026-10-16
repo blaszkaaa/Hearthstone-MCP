@@ -500,6 +500,22 @@ try
         "block attacker with zero attack");
     Check(AdviceLegality.Validate(legalState, AdviceCard.Parse("RUCH: Zaatakuj Gotowym Stronnikiem")).Allowed,
         "do not block attack supported by visible tags");
+    Check(!AdviceLegality.Validate(snapshot,
+        AdviceCard.Parse("RUCH: Wybierz 9 — karta")).Allowed,
+        "reject unoffered Discover option");
+    Check(AdviceLegality.Validate(snapshot,
+        AdviceCard.Parse("RUCH: Wybierz 2 — karta")).Allowed,
+        "allow offered Discover option");
+    Check(!AdviceLegality.Validate(snapshot,
+        AdviceCard.Parse("RUCH: Zagraj Fireball")).Allowed,
+        "Discover must not be replaced by normal card play");
+    Check(AdviceLegality.Validate(openingState, mulliganAdvice).Allowed,
+        "complete indexed mulligan stays accepted");
+    Check(!AdviceLegality.Validate(openingState, AdviceCard.Parse(
+        "WYBORY:\\n1 ZOSTAW — Karta A\\n2 ODRZUĆ — Karta B",
+        "mulligan")).Allowed,
+        "incomplete mulligan requires all choices");
+
     var enriched = new MatchIntelligence().BuildContext(legalState);
     using (var contextDoc = JsonDocument.Parse(enriched))
     {
