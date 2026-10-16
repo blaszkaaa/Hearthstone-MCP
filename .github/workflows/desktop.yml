@@ -65,6 +65,20 @@ jobs:
             $source = (Get-FileHash "desktop/Coach.App/Resources/apply-update.ps1" -Algorithm SHA256).Hash
             if ($actual -ne $source) { throw "Embedded desktop updater does not match verified source" }
           } finally { $embedded.Dispose(); $mem.Dispose() }
+      - name: Exercise updater against real Windows files
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP "coach-update-smoke"
+          $installation = Join-Path $root "installed"
+          $stage = Join-Path $root "staged"
+          New-Item -ItemType Directory -Path $installation, $stage -Force | Out-Null
+          Copy-Item "$env:WINDIR/System32/where.exe" (Join-Path $installation "HearthstoneCoach.exe")
+          Copy-Item "$env:WINDIR/System32/whoami.exe" (Join-Path $stage "HearthstoneCoach.exe")
+          $targetHash = (Get-FileHash (Join-Path $stage "HearthstoneCoach.exe")).Hash
+          & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "desktop/Coach.App/Resources/apply-update.ps1" -AppPid 999999 -InstallDir $installation -StageDir $stage -UpdateDir $root
+          if ($LASTEXITCODE -ne 0) { throw "Updater helper exited with $LASTEXITCODE" }
+          $actualHash = (Get-FileHash (Join-Path $installation "HearthstoneCoach.exe")).Hash
+          if ($actualHash -ne $targetHash) { throw "Windows helper failed to replace the executable" }
       - name: Verify embedded plugin byte-for-byte
         shell: pwsh
         run: |
