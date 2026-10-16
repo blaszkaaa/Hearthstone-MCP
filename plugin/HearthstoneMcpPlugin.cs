@@ -273,6 +273,7 @@ namespace HearthstoneMcpPlugin
                     // Choice types include Discover, Choose One and other
                     // decision prompts. This is not necessarily Discover.
                     choice_tracking_supported = true,
+                    card_types_supported = true,
                     choice_active = !mulligan && offeredIds.Length > 0,
                     choice_count = offeredIds.Length,
                     choices = mulligan ? Array.Empty<object>() : choices,
