@@ -4,10 +4,12 @@ on:
     branches: [main]
     paths:
       - 'desktop/**'
+      - 'plugin/**'
       - '.github/workflows/desktop.yml'
   pull_request:
     paths:
       - 'desktop/**'
+      - 'plugin/**'
       - '.github/workflows/desktop.yml'
 
 jobs:
@@ -22,8 +24,44 @@ jobs:
           dotnet-version: '8.0.x'
       - name: Core tests
         run: dotnet run --project desktop/Coach.Checks/Coach.Checks.csproj -c Release
+      - name: Download pinned HDT binaries
+        shell: pwsh
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP "hdt.zip"
+          $folder = Join-Path $env:RUNNER_TEMP "hdt"
+          Invoke-WebRequest -Uri "https://github.com/HearthSim/Hearthstone-Deck-Tracker/releases/download/v1.55.6/Hearthstone.Deck.Tracker-v1.55.6.zip" -OutFile $zip
+          Expand-Archive -Path $zip -DestinationPath $folder -Force
+          $exe = Get-ChildItem -Path $folder -File -Recurse | Where-Object { $_.Name -eq "Hearthstone Deck Tracker.exe" } | Select-Object -First 1
+          if (-not $exe) { throw "Pinned HDT executable missing" }
+          "HDT_PATH=$($exe.Directory.FullName)" >> $env:GITHUB_ENV
+      - name: Compile and bundle HDT plugin
+        shell: pwsh
+        run: |
+          dotnet build plugin/HearthstoneMcpPlugin.csproj -c Release "-p:HdtPath=$env:HDT_PATH"
+          if ($LASTEXITCODE -ne 0) { throw "Plugin build failed" }
+          $src = "plugin/bin/Release/net472/HearthstoneMcpPlugin.dll"
+          if (-not (Test-Path $src)) { throw "Compiled HDT DLL missing" }
+          New-Item -Path "desktop/Coach.App/Resources" -ItemType Directory -Force | Out-Null
+          Copy-Item $src "desktop/Coach.App/Resources/HearthstoneMcpPlugin.dll"
       - name: Build Windows desktop UI
         run: dotnet build desktop/Coach.App/Coach.App.csproj -c Release
+      - name: Verify embedded plugin byte-for-byte
+        shell: pwsh
+        run: |
+          $app = (Resolve-Path "desktop/Coach.App/bin/Release/net8.0-windows/HearthstoneCoach.dll").Path
+          $assembly = [System.Reflection.Assembly]::LoadFile($app)
+          $stream = $assembly.GetManifestResourceStream("Coach.App.BundledHdtPlugin")
+          if ($null -eq $stream) { throw "Bundled HDT DLL resource missing: refusing publication" }
+          $buffer = New-Object System.IO.MemoryStream
+          try {
+            $stream.CopyTo($buffer)
+            $hash = [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData($buffer.ToArray()))
+            $sourceHash = (Get-FileHash "plugin/bin/Release/net472/HearthstoneMcpPlugin.dll" -Algorithm SHA256).Hash
+            if ($hash -ne $sourceHash) { throw "Embedded DLL checksum mismatch" }
+          } finally {
+            $stream.Dispose()
+            $buffer.Dispose()
+          }
       - name: Publish self-contained Windows app
         run: dotnet publish desktop/Coach.App/Coach.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o dist/HearthstoneCoach
       - name: Upload Windows application
