@@ -108,7 +108,7 @@ public static class LegalActionCatalog
     private static JsonElement Property(JsonElement item, string key) =>
         item.ValueKind == JsonValueKind.Object && item.TryGetProperty(key, out var v) ? v : default;
     private static IEnumerable<JsonElement> Enumerate(JsonElement item) =>
-        item.ValueKind == JsonValueKind.Array ? item.EnumerateArray() : [];
+        item.ValueKind == JsonValueKind.Array ? item.EnumerateArray().ToArray() : Array.Empty<JsonElement>();
     private static string Name(JsonElement item) => Text(item, "name") ?? "";
     private static string? Text(JsonElement item, string key)
     {
