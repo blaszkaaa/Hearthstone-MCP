@@ -39,7 +39,7 @@ public partial class MainWindow : Window
         _inference = new ChatGptInference(_auth);
         _timer.Tick += Poll;
         UpdateAccount();
-        DiagnosticLog.Write("app.start", new { version = "0.7", state_path = GameSnapshot.DefaultPath, log_dir = DiagnosticLog.DirectoryPath });
+        DiagnosticLog.Write("app.start", new { version = "0.8", state_path = GameSnapshot.DefaultPath, log_dir = DiagnosticLog.DirectoryPath });
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
@@ -451,6 +451,57 @@ public partial class MainWindow : Window
             "Automatyczna analiza wyłączona • możesz kliknąć „Analizuj teraz”.";
     }
     private void TopmostChanged(object sender, RoutedEventArgs e) => Topmost = TopmostCheck.IsChecked == true;
+    private async void UpdatePluginClick(object sender, RoutedEventArgs e)
+    {
+        RefreshState();
+        if (_snapshot.InGame)
+        {
+            MessageBox.Show(this, "Poczekaj na zakończenie partii, zanim zaktualizujesz HDT.",
+                "Aktualizacja wtyczki", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        var answer = MessageBox.Show(this,
+            "Aplikacja pobierze wtyczkę ze sprawdzonego wydania GitHub, " +
+            "poprosi HDT o zamknięcie, zachowa kopię starej DLL i ponownie uruchomi tracker. " +
+            "Nie będzie wymuszać zamknięcia HDT. Kontynuować?",
+            "Aktualizuj wtyczkę HDT", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (answer != MessageBoxResult.Yes) return;
+
+        UpdatePluginButton.IsEnabled = false;
+        _timer.Stop();
+        _cancelReason = "plugin_update";
+        _requestCts?.Cancel();
+        void Report(string message) =>
+            Dispatcher.Invoke(() => PluginUpdateStatus.Text = message);
+        try
+        {
+            DiagnosticLog.Write("plugin.update.begin");
+            var updated = await HdtPluginUpdater.UpdateAsync(Report, CancellationToken.None);
+            var status = updated.Changed
+                ? "DLL zaktualizowana. " + (updated.Restarted ?
+                    "HDT został uruchomiony ponownie." : "Uruchom HDT, aby użyć nowej DLL.")
+                : "Wtyczka jest już w najnowszej wersji.";
+            PluginUpdateStatus.Text = status;
+            DiagnosticLog.Write("plugin.update.success", new
+            {
+                updated.Changed, updated.Destination, updated.Restarted
+            });
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("plugin.update.failure", ex);
+            PluginUpdateStatus.Text = "Aktualizacja nieudana: " + ex.Message;
+            MessageBox.Show(this, ex.Message + "\n\nSprawdź logi diagnostyczne aplikacji.",
+                "Aktualizacja HDT", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            UpdatePluginButton.IsEnabled = true;
+            _timer.Start();
+            RefreshState();
+        }
+    }
+
     private void OpenLogsClick(object sender, RoutedEventArgs e)
     {
         try
