@@ -63,6 +63,7 @@ public sealed class MatchIntelligence
                     : null,
             visible_board_threats = ThreatAssessment.ForPrompt(snapshot),
             conditional_lethal_forecast = DamageForecast.ForPrompt(snapshot),
-            candidate_actions = LegalActionCatalog.ForPrompt(snapshot)
+            candidate_actions = LegalActionCatalog.ForPrompt(snapshot),
+            tactical_decision_explorer = TurnDecisionEngine.ForPrompt(snapshot)
         });
 }
