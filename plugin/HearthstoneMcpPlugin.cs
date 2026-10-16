@@ -93,7 +93,6 @@ namespace HearthstoneMcpPlugin
                 card_type = entity.GetTag(GameTag.CARDTYPE) > 0
                     ? ((CardType)entity.GetTag(GameTag.CARDTYPE)).ToString()
                     : entity.Card.Type.ToString(),
-                spell_school = entity.Card.SpellSchool,
                 name = entity.LocalizedName ?? entity.Name ?? entity.CardId,
                 card_text = entity.Card.Text,
                 card_text_en = entity.Card.EnglishText,
