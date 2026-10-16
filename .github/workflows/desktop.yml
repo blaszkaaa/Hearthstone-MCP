@@ -69,13 +69,23 @@ jobs:
         shell: pwsh
         run: |
           $root = Join-Path $env:RUNNER_TEMP "coach-update-smoke"
-          $installation = Join-Path $root "installed"
+          # Real installations are OUTSIDE the disposable staging directory.
+          $installation = Join-Path $env:RUNNER_TEMP "coach-update-smoke-installed"
           $stage = Join-Path $root "staged"
           New-Item -ItemType Directory -Path $installation, $stage -Force | Out-Null
           Copy-Item "$env:WINDIR/System32/where.exe" (Join-Path $installation "HearthstoneCoach.exe")
           Copy-Item "$env:WINDIR/System32/whoami.exe" (Join-Path $stage "HearthstoneCoach.exe")
           $targetHash = (Get-FileHash (Join-Path $stage "HearthstoneCoach.exe")).Hash
-          & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "desktop/Coach.App/Resources/apply-update.ps1" -AppPid 999999 -InstallDir $installation -StageDir $stage -UpdateDir $root
+          # Mirror the real desktop extraction: BOM is deliberately prepended.
+          $sourceScript = [System.IO.File]::ReadAllBytes((Resolve-Path "desktop/Coach.App/Resources/apply-update.ps1").Path)
+          $scriptBytes = [byte[]]::new($sourceScript.Length + 3)
+          $scriptBytes[0] = 0xef
+          $scriptBytes[1] = 0xbb
+          $scriptBytes[2] = 0xbf
+          [Array]::Copy($sourceScript, 0, $scriptBytes, 3, $sourceScript.Length)
+          $script = Join-Path $root "apply-update.ps1"
+          [System.IO.File]::WriteAllBytes($script, $scriptBytes)
+          & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $script -AppPid 999999 -InstallDir $installation -StageDir $stage -UpdateDir $root
           if ($LASTEXITCODE -ne 0) { throw "Updater helper exited with $LASTEXITCODE" }
           $actualHash = (Get-FileHash (Join-Path $installation "HearthstoneCoach.exe")).Hash
           if ($actualHash -ne $targetHash) { throw "Windows helper failed to replace the executable" }
