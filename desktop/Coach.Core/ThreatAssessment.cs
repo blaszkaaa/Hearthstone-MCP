@@ -78,8 +78,9 @@ public static class ThreatAssessment
             board_only_enemy_lethal_warning = ownHp is > 0 && knownEnemyAttack >= ownHp,
             unverified_friendly_lethal_possibility = theirHp is > 0 && ourPotentialAttack >= theirHp && !taunt,
             theoretical_trades = topTrades,
+            conditional_lethal_forecast = DamageForecast.ForPrompt(snapshot),
             caution = problems.Take(5).ToArray(),
-            note = "To tylko liczby z JAWNEJ planszy, nie symulacja. Brak kart z ręki przeciwnika, sekretów, efektów zaklęć, ograniczeń celów, uzdrowień i pełnej legalności ataków. NIE stwierdzaj pewnego lethal i NIE obiecuj opłacalnych wymian bez uwzględnienia efektów, Prowokacji i Boskiej Tarczy."
+            note = "To tylko liczby z JAWNEJ planszy, nie symulacja. Brak kart z ręki przeciwnika, sekretów, efektów zaklęć, ograniczeń celów, uzdrowień i pełnej legalności ataków. W razie sprzeczności liczb pierwszeństwo ma conditional_lethal_forecast. NIE stwierdzaj pewnego lethal i NIE obiecuj opłacalnych wymian bez uwzględnienia efektów, Prowokacji i Boskiej Tarczy."
         };
     }
 
