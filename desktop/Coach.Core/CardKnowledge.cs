@@ -17,7 +17,7 @@ public static class CardKnowledge
         // Compatibility property: keyword matches in TEXT only, unverified.
         string[] Keywords,
         int? DbfId, string[] ConfirmedMechanics, bool MechanicsVerified,
-        string? PrintedDataSource);
+        string? PrintedDataSource, int? LiveDamage);
 
     private static readonly string[] Keywords =
     [
@@ -82,7 +82,7 @@ public static class CardKnowledge
                 id, Text(card, "card_type"), Integer(card, "cost"),
                 printed, english, textHints,
                 Integer(card, "card_dbf_id"), mechanics,
-                verified, dbSource));
+                verified, dbSource, LiveTorchDamage(card, id)));
         }
 
         void AddCards(JsonElement parent, string key, string source)
@@ -120,6 +120,16 @@ public static class CardKnowledge
                 AddCard(weapon, "visible_enemy_weapon");
         }
         return results;
+    }
+
+    // Torch (CATA_585) stores its CURRENT remaining damage in a live entity tag.
+    // Printed HearthDb card text does not change when it bounces back to hand.
+    private static int? LiveTorchDamage(JsonElement card, string? id)
+    {
+        if (!string.Equals(id, "CATA_585", StringComparison.OrdinalIgnoreCase)) return null;
+        var value = Integer(card, "live_damage");
+        return value is > 0 and <= 8 && Text(card, "live_damage_source") == "TAG_SCRIPT_DATA_NUM_1"
+            ? value : null;
     }
 
     private static bool Has(JsonElement e, string name) =>
@@ -161,6 +171,8 @@ public static class CardKnowledge
                 dbf_id = x.DbfId,
                 card_type = x.CardType,
                 current_observed_cost = x.Cost,
+                current_live_damage = x.LiveDamage,
+                live_damage_status = x.LiveDamage.HasValue ? "verified_entity_tag" : "unknown",
                 printed_text = x.PrintedText,
                 printed_text_en = x.PrintedTextEnglish,
                 confirmed_printed_mechanics = x.MechanicsVerified ? x.ConfirmedMechanics : null,
