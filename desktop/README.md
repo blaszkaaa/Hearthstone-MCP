@@ -32,6 +32,19 @@ Wtyczka HDT **v0.3** publikuje `phase`, `mulligan_active`, `mulligan_cards` oraz
 - **Tury:** analiza uruchamia się po ok. 4 s stabilności; mulligan po 2 s, Odkryj po ok. 1 s. W miarę możliwości model otrzymuje limit czasu ok. 23 s na zakończenie analizy. Po niepowodzeniu może ponowić odczyt.
 - **Po każdej nowej turze:** harmonogram umożliwia nową analizę; każda zmiana istotna dla decyzji dostaje nowy identyfikator. Starsze odpowiedzi nie nadpisują nowszych.
 
+## Stabilne automatyczne rekomendacje (0.6)
+
+Naprawa błędu, w którym po analizie widniał komunikat `Zmieniono stan rozgrywki — Czekam na aktualizację...` i nic więcej się nie pojawiało:
+
+- Identyfikator decyzji obejmuje tylko **istotne pola gry** (koszt, ręka, statystyki, zdrowie, mana, talia w fazie mulligan, aktualne opcje wyboru). Zmiany technicznych opisów i pozycji HDT nie przerywają odpowiedzi.
+- Gdy odpowiedź dotrze podczas chwilowego odczytu HDT, aplikacja czeka **1,4 sekundy** i sprawdza stan ponownie, zanim ją odrzuci.
+- Jeśli odpowiedź nadal jest nieaktualna, harmonogram zostaje **odblokowany** i automatycznie spróbuje przeanalizować aktualną decyzję po ustaleniu się gry. Nie trzeba klikać „Analizuj teraz”.
+- Maksymalnie 3 próby tej samej decyzji (żeby nie zużywać bez końca planu ChatGPT); nowa sytuacja na planszy otrzymuje osobny limit. Zwykła tura jest ograniczona do 24 automatycznych prób, także w długiej turze.
+- Logi zawierają `ai.response.grace_recheck` oraz `ai.discarded.retry_armed` i stan harmonogramu `retry_budget_for_decision`.
+- Widoczny numer wersji w nagłówku to teraz `BETA 0.6`. Zaktualizuj samą aplikację Windows; istniejąca DLL HDT v0.3 działa dalej.
+
+Nie wolno używać poprzedniej decyzji, gdy nowy stan planszy został rzeczywiście potwierdzony. Poprawka nie zmienia wyglądu karty z poradą ani logowania przez ChatGPT.
+
 ## Poprawka wyświetlania po mulliganie (0.4.1)
 
 Jeśli podczas normalnej tury na ekranie pozostawały decyzje `ZOSTAW/ODRZUĆ` z mulliganu, starsza wersja mogła anulować następne zapytanie AI, porównując **nowe zapytanie** z **poprzednio wyświetloną poradą**. Od tej wersji osobno śledzone są: aktualne zapytanie oraz wyświetlona rekomendacja. Zmiana tury/fazy usuwa poprzednią poradę, a nietrwała zmiana danych HDT nie przerywa żądania.

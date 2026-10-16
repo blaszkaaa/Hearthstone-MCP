@@ -16,6 +16,12 @@ public sealed class SnapshotTransitionGuard
         _since = DateTimeOffset.MinValue;
     }
 
+    public static bool MatchesActionableDecision(GameSnapshot reference, GameSnapshot current) =>
+        reference.InGame && current.InGame && current.Actionable &&
+        current.Turn == reference.Turn &&
+        current.Phase == reference.Phase &&
+        current.DecisionKey == reference.DecisionKey;
+
     public bool HasChanged(GameSnapshot reference, GameSnapshot current, DateTimeOffset now)
     {
         if (current.InGame && reference.InGame &&

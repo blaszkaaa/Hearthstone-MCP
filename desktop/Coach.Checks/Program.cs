@@ -73,6 +73,75 @@ try
     Check(parsed.Reason.Contains("Daje przewagę") && parsed.Reason.Contains("Uwaga"), "reason last");
     Check(AdviceCard.Parse("Zagraj monetę").Move == "Zagraj monetę", "fallback model reply");
 
+    // A card description / HDT presentation position is not a new decision.
+    var decoratedHand = new
+    {
+        schema_version = 1, captured_at_utc = now.ToString("O"), in_game = true,
+        turn = 8, my_turn = true, choice_tracking_supported = true, choice_active = true,
+        choices = sample.choices,
+        player = new
+        {
+            mana_available = 4, mana_max = 8, card_class = "MAGE",
+            hand = new[] { new { name = "Fireball", cost = 4,
+                card_text = "Informacja z HDT", position = 1 } },
+            board = Array.Empty<object>(), played_this_turn = Array.Empty<object>()
+        },
+        opponent = sample.opponent
+    };
+    File.WriteAllText(path, JsonSerializer.Serialize(decoratedHand));
+    var metadataSnapshot = GameSnapshot.Read(path, now);
+    Check(metadataSnapshot.DecisionKey == snapshot.DecisionKey,
+        "cosmetic hand card text/position does not change the decision");
+    Check(metadataSnapshot.Fingerprint != snapshot.Fingerprint,
+        "debug state still reflects changed printed card text");
+    Check(SnapshotTransitionGuard.MatchesActionableDecision(snapshot, metadataSnapshot),
+        "cosmetic snapshot can still receive result");
+
+    File.WriteAllText(path, JsonSerializer.Serialize(new
+    {
+        schema_version = 1, captured_at_utc = now.ToString("O"), in_game = true,
+        turn = 8, my_turn = true, choice_tracking_supported = true, choice_active = true,
+        choices = sample.choices,
+        player = new
+        {
+            mana_available = 4, mana_max = 8, card_class = "MAGE",
+            hand = new[] { new { name = "Fireball", cost = 5 } },
+            board = Array.Empty<object>(), played_this_turn = Array.Empty<object>()
+        },
+        opponent = sample.opponent
+    }));
+    var changedCostSnapshot = GameSnapshot.Read(path, now);
+    Check(changedCostSnapshot.DecisionKey != snapshot.DecisionKey,
+        "changed card mana cost really changes the decision");
+    Check(!SnapshotTransitionGuard.MatchesActionableDecision(snapshot, changedCostSnapshot),
+        "reject old advice for a changed card");
+
+    // The bug from the screenshot: reply was discarded once, but never retried.
+    var recovery = new AnalysisScheduler();
+    Check(!recovery.ShouldAnalyze(snapshot, now, false, true), "retry scenario settles");
+    Check(recovery.ShouldAnalyze(snapshot, now.AddSeconds(2), false, true),
+        "initial choice inference");
+    Check(!recovery.ShouldAnalyze(snapshot, now.AddSeconds(3), false, true),
+        "successful decision is not continuously re-requested");
+    recovery.RecordFailure(snapshot); // AI reply rejected for transient HDT jitter
+    Check(recovery.ShouldAnalyze(snapshot, now.AddSeconds(4), false, true),
+        "stale reply re-arms same decision");
+    recovery.RecordFailure(snapshot);
+    Check(recovery.ShouldAnalyze(snapshot, now.AddSeconds(6), false, true),
+        "up to three bounded attempts for same decision");
+    recovery.RecordFailure(snapshot);
+    Check(!recovery.ShouldAnalyze(snapshot, now.AddSeconds(8), false, true) &&
+          recovery.LastDecision == "retry_budget_for_decision",
+        "network failure cannot cause unbounded AI calls");
+    var nextDecisionRetry = new AnalysisScheduler();
+    Check(!nextDecisionRetry.ShouldAnalyze(snapshot, now, false, true), "next decision setup");
+    Check(nextDecisionRetry.ShouldAnalyze(snapshot, now.AddSeconds(2), false, true),
+        "first decision runs");
+    Check(!nextDecisionRetry.ShouldAnalyze(changedCostSnapshot, now.AddSeconds(3), false, true),
+        "different decision debounce");
+    Check(nextDecisionRetry.ShouldAnalyze(changedCostSnapshot, now.AddSeconds(5), false, true),
+        "different decision triggers even without resetting app");
+
     // Opening mulligan is actionable even without CURRENT_PLAYER, and needs
     // an explicit one-by-one KEEP/DISCARD result.
     var opening = new

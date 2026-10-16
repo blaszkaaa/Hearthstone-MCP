@@ -8,12 +8,15 @@ public sealed class AnalysisScheduler
     private DateTimeOffset _stableSince = DateTimeOffset.MinValue;
     private DateTimeOffset _lastRequest = DateTimeOffset.MinValue;
     private int _turn = -1, _turnRequests;
+    private readonly Dictionary<string, int> _attempts = new(StringComparer.Ordinal);
     public string LastDecision { get; private set; } = "init";
     public static readonly TimeSpan TurnDelay = TimeSpan.FromSeconds(4);
     public static readonly TimeSpan ChoiceDelay = TimeSpan.FromSeconds(1);
     public static readonly TimeSpan MulliganDelay = TimeSpan.FromSeconds(2);
     public static readonly TimeSpan TurnGap = TimeSpan.FromSeconds(9);
-    public const int MaxTurnRequests = 8;
+    // Prevent endless paid-plan requests but do not lock up after a few stale replies.
+    public const int MaxTurnRequests = 24;
+    public const int MaxAttemptsPerDecision = 3;
 
     public bool ShouldAnalyze(GameSnapshot snapshot, DateTimeOffset now, bool analyzing, bool enabled)
     {
@@ -31,6 +34,7 @@ public sealed class AnalysisScheduler
             _turn = snapshot.Turn;
             _turnRequests = 0;
             _analyzedKey = null;
+            _attempts.Clear();
         }
         if (_seenKey != snapshot.DecisionKey || _seenPhase != snapshot.Phase)
         {
@@ -46,6 +50,8 @@ public sealed class AnalysisScheduler
             snapshot.ChoiceActive ? ChoiceDelay : TurnDelay;
         if (now - _stableSince < delay) { LastDecision = "settling"; return false; }
         if (_analyzedKey == snapshot.DecisionKey) { LastDecision = "already_analyzed"; return false; }
+        if (_attempts.GetValueOrDefault(snapshot.DecisionKey) >= MaxAttemptsPerDecision)
+        { LastDecision = "retry_budget_for_decision"; return false; }
         if (!snapshot.MulliganActive && !snapshot.ChoiceActive && _turnRequests >= MaxTurnRequests)
         { LastDecision = "turn_budget"; return false; }
         // Critical choice prompts are time-sensitive and may appear right after
@@ -65,11 +71,13 @@ public sealed class AnalysisScheduler
         _analyzedKey = snapshot.DecisionKey;
         _lastRequest = now;
         _turnRequests++;
+        _attempts[snapshot.DecisionKey] = _attempts.GetValueOrDefault(snapshot.DecisionKey) + 1;
     }
 
     public void RecordFailure(GameSnapshot snapshot)
     {
-        // Retrying same state is allowed after cooldown if AI failed, but remains bounded.
+        // Re-arm a rejected / failed reply. Subsequent polling triggers a retry
+        // of the SAME stable decision after cooldown (up to 3 attempts).
         if (_analyzedKey == snapshot.DecisionKey)
             _analyzedKey = null;
     }

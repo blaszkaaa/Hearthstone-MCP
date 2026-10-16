@@ -37,7 +37,7 @@ public partial class MainWindow : Window
         _inference = new ChatGptInference(_auth);
         _timer.Tick += Poll;
         UpdateAccount();
-        DiagnosticLog.Write("app.start", new { version = "0.5", state_path = GameSnapshot.DefaultPath, log_dir = DiagnosticLog.DirectoryPath });
+        DiagnosticLog.Write("app.start", new { version = "0.6", state_path = GameSnapshot.DefaultPath, log_dir = DiagnosticLog.DirectoryPath });
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
@@ -313,10 +313,23 @@ public partial class MainWindow : Window
                 response = result
             });
             RefreshState();
-            if (_snapshot.InGame &&
-                _snapshot.Actionable &&
-                _snapshot.Turn == original.Turn &&
-                _snapshot.DecisionKey == original.DecisionKey)
+            // HDT briefly changes entity metadata during animations. The AI
+            // response may be correct for a decision that comes back on the next
+            // read. Wait briefly instead of losing the only useful answer.
+            if (!SnapshotTransitionGuard.MatchesActionableDecision(original, _snapshot) &&
+                _snapshot.InGame && _snapshot.Turn == original.Turn &&
+                _snapshot.Phase == original.Phase)
+            {
+                DiagnosticLog.Write("ai.response.grace_recheck", new
+                {
+                    request = number, old_key = original.DecisionKey,
+                    first_key = _snapshot.DecisionKey
+                });
+                await Task.Delay(TimeSpan.FromMilliseconds(1400));
+                if (_closing) return;
+                RefreshState();
+            }
+            if (SnapshotTransitionGuard.MatchesActionableDecision(original, _snapshot))
             {
                 var card = AdviceCard.Parse(result, original.Phase);
                 MoveText.FontSize = original.MulliganActive ? 20 : 28;
@@ -336,13 +349,23 @@ public partial class MainWindow : Window
             }
             else
             {
-                // State changed while AI was responding: never overwrite a more
-                // recent recommendation with an outdated one.
-                AiStatus.Text = "Zmieniono stan rozgrywki";
-                AdviceMeta.Text = "Pominięto nieaktualną odpowiedź. Czekam na stabilny stan.";
+                // An outdated result must ALWAYS re-arm the scheduler. The old
+                // behavior marked the decision as analyzed forever, leaving the
+                // visible "Czekam na aktualizację..." state with no retry.
+                _scheduler.RecordFailure(original);
+                AiStatus.Text = "Przygotowuję aktualną poradę";
+                AdviceMeta.Text = _snapshot.Actionable
+                    ? "Stan gry zmienił się podczas analizy. Nowa próba uruchomi się automatycznie."
+                    : "Poczekam na kolejną Twoją turę.";
                 if (_shownSnapshot is null)
-                    MoveText.Text = "Czekam na aktualizację...";
-                DiagnosticLog.Write("ai.discarded", new { request = number, cause = "state_changed", old_key = original.DecisionKey, new_key = _snapshot.DecisionKey, phase = _snapshot.Phase });
+                    MoveText.Text = _snapshot.Actionable ? "Ponawiam analizę..." : "Czekam na Twoją turę";
+                DiagnosticLog.Write("ai.discarded.retry_armed", new
+                {
+                    request = number, cause = "state_changed",
+                    old_key = original.DecisionKey, new_key = _snapshot.DecisionKey,
+                    old_turn = original.Turn, new_turn = _snapshot.Turn,
+                    phase = _snapshot.Phase, scheduler = _scheduler.LastDecision
+                });
             }
         }
         catch (OperationCanceledException)
