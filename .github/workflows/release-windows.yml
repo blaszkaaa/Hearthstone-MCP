@@ -83,7 +83,7 @@ jobs:
       - name: Verify exact bundled plugin
         shell: pwsh
         run: |
-          $app = (Resolve-Path "desktop/Coach.App/bin/Release/net8.0-windows/HearthstoneCoach.dll").Path
+          $app = (Resolve-Path "desktop/Coach.App/bin/Release/net8.0-windows/win-x64/HearthstoneCoach.dll").Path
           $assembly = [System.Reflection.Assembly]::LoadFile($app)
           $stream = $assembly.GetManifestResourceStream("Coach.App.BundledHdtPlugin")
           if ($null -eq $stream) { throw "Embedded plugin missing" }
