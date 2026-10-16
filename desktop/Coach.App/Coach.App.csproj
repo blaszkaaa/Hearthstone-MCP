@@ -12,6 +12,10 @@
     <ProjectReference Include="../Coach.Core/Coach.Core.csproj" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Trusted updater runs after the EXE exits and performs file rollback. -->
+    <EmbeddedResource Include="Resources/apply-update.ps1" LogicalName="Coach.App.UpdaterScript" />
+  </ItemGroup>
   <!-- Built plugin is copied here by Windows CI. Optional for development
        builds, REQUIRED and verified in every published release ZIP. -->
   <ItemGroup Condition="Exists('Resources/HearthstoneMcpPlugin.dll')">
