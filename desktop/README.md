@@ -88,6 +88,33 @@ Aplikacja **blokuje i loguje** jednoznacznie niemożliwe rady, np. „Zaatakuj W
 
 Nie jest to pełny silnik zasad Hearthstone: nie potwierdza wszystkich możliwych celów, ograniczeń ataku, efektów Aur i zmian mechanik w czasie meczu. Dlatego walidator skupia się na rażących błędach jednoznacznie sprzecznych z widocznymi typami i strefami kart.
 
+## Etap 2 — wiarygodne dane kart i mechanik (DLL HDT v0.5)
+
+W tej wersji wtyczka HDT udostępnia dla znanych kart:
+`card_id`, `card_dbf_id`, `card_type`, `printed_mechanics`
+(z tagów HearthDb) i `printed_data_source`. Stan gry zawiera
+`card_evidence_schema=2`, `card_catalog_source` oraz
+`card_catalog_assembly_version`: **wersję zainstalowanej biblioteki**,
+a nie gwarancję posiadania najnowszego katalogu kart.
+
+AI rozróżnia teraz trzy różne sytuacje: `catalog_confirmed` oznacza
+mechaniki wyeksportowane przez bazę HearthDb (również pustą listę);
+`not_provided` oznacza **brak danych o mechanikach**, a nie brak
+mechanik na karcie; `unverified_text_hints` oznacza słowa z opisu
+karty, których nie wolno traktować jak potwierdzonych tagów.
+Żaden z tych elementów nie symuluje aktualnych efektów po buffach,
+transformacjach ani zmienionych kosztach.
+
+Zachowujemy też wielokrotne kopie tej samej karty w ręce, zamiast łączyć
+je w pojedynczy wpis według samej nazwy lub ID. Dane trafiają do
+tego samego wywołania modelu; wygląd programu jest bez zmian.
+
+**Aktualizacja wymaga pobrania zarówno nowej wtyczki HDT v0.5,
+jak i nowej aplikacji Windows.** Ze starszą DLL nowe pola pozostają
+nieznane, a AI nie może twierdzić, że zna jej mechaniczną specyfikację.
+Jest to nadal baza wydrukowanych informacji zainstalowanego HDT, nie
+automatycznie synchronizowana globalna baza wszystkich kart.
+
 ## Ochrona danych i logowanie
 
 Rejestracja zgodna z [OpenAI Sign in with ChatGPT dla aplikacji OSS](https://developers.openai.com/siwc/token-sharing-open-source/sign-in): systemowa przeglądarka, OAuth PKCE i losowe state/nonce, callback na `127.0.0.1`, walidacja OIDC JWT przez JWKS; żądania AI do oficjalnego `https://api.openai.com/v1/responses` z `store=false` i `stream=true`. Wysłany tekst zawiera **stan widocznej rozgrywki**, m.in. Twoją rękę i opcje wyboru, ale nie ukrytą rękę przeciwnika.
