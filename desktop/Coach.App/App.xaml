@@ -62,12 +62,64 @@
             <Setter Property="Foreground" Value="{StaticResource White}"/>
             <Setter Property="Background" Value="{StaticResource Panel2}"/>
         </Style>
-        <Style x:Key="ChromeButton" TargetType="{x:Type Button}" BasedOn="{StaticResource SecondaryButton}">
-            <Setter Property="MinHeight" Value="32"/>
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="Width" Value="34"/>
+        <!-- Dedicated caption controls: lightweight hover/focus feedback and a distinct close action. -->
+        <Style x:Key="ChromeButton" TargetType="{x:Type Button}">
+            <Setter Property="Width" Value="36"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="MinHeight" Value="36"/>
             <Setter Property="Padding" Value="0"/>
-            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontSize" Value="17"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+            <Setter Property="Background" Value="#1B2B38"/>
+            <Setter Property="BorderBrush" Value="#2B414F"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="Surface"
+                                CornerRadius="10"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Surface" Property="Opacity" Value="0.72"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Surface" Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#2A4150"/>
+                    <Setter Property="BorderBrush" Value="#466474"/>
+                    <Setter Property="Foreground" Value="{StaticResource White}"/>
+                </Trigger>
+                <Trigger Property="IsKeyboardFocused" Value="True">
+                    <Setter Property="BorderBrush" Value="{StaticResource Accent}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="CloseChromeButton" TargetType="{x:Type Button}"
+               BasedOn="{StaticResource ChromeButton}">
+            <Setter Property="Foreground" Value="#D6B8BE"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#53303A"/>
+                    <Setter Property="BorderBrush" Value="#80505D"/>
+                    <Setter Property="Foreground" Value="#FFE7E9"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
 
         <!-- Accessible keyboard-focusable switches (standard CheckBox semantics). -->
