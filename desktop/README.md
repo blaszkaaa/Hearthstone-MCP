@@ -78,6 +78,16 @@ AI ma najpierw uwzględnić ryzyko przegranej, możliwy lethal i wyraźne zagro�
 
 W logach `game.intelligence` znajduje się przekazany kontekst strategiczny; `ai.request` zawiera kompletny prompt do łatwiejszej diagnostyki. **Do tej aktualizacji nie potrzeba podmieniać DLL HDT:** wystarczy nowy program `HearthstoneCoach.exe`, jeżeli używana wtyczka już poprawnie eksportuje tekst kart oraz stan gry.
 
+## Poprawa zasad kart — Beta 0.7
+
+**Ważne: zaktualizuj zarówno wtyczkę HDT do v0.4, jak i aplikację Windows do Beta 0.7.** Stara DLL v0.3 nie przekazuje typu kart.
+
+Wtyczka publikuje teraz z bazy HearthDb pola `card_type` (np. `SPELL`, `MINION`, `WEAPON`, `LOCATION`) i `spell_school` dla kart z ręki, planszy i aktywnych wyborów. Te typy trafiają do pojedynczego promptu AI i do lokalnych reguł kontroli.
+
+Aplikacja **blokuje i loguje** jednoznacznie niemożliwe rady, np. „Zaatakuj Wybuchającym wulkanem” (zaklęcie w ręce), atak na własną kartę znajdującą się w ręce, próbę zaatakowania lokacją jak stronnikiem oraz wskazanie ręcznego celu dla zaklęcia, którego opis mówi o losowym rozdzielaniu obrażeń. Automatycznie ponawia analizę (z dotychczasowym limitem prób) i przekazuje modelowi przyczynę odrzucenia. Zdarzenia diagnostyczne: `ai.advice.rejected_illegal` i `hdt.card_types_missing`.
+
+Nie jest to pełny silnik zasad Hearthstone: nie potwierdza wszystkich możliwych celów, ograniczeń ataku, efektów Aur i zmian mechanik w czasie meczu. Dlatego walidator skupia się na rażących błędach jednoznacznie sprzecznych z widocznymi typami i strefami kart.
+
 ## Ochrona danych i logowanie
 
 Rejestracja zgodna z [OpenAI Sign in with ChatGPT dla aplikacji OSS](https://developers.openai.com/siwc/token-sharing-open-source/sign-in): systemowa przeglądarka, OAuth PKCE i losowe state/nonce, callback na `127.0.0.1`, walidacja OIDC JWT przez JWKS; żądania AI do oficjalnego `https://api.openai.com/v1/responses` z `store=false` i `stream=true`. Wysłany tekst zawiera **stan widocznej rozgrywki**, m.in. Twoją rękę i opcje wyboru, ale nie ukrytą rękę przeciwnika.
