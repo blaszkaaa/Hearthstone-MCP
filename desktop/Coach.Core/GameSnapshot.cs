@@ -82,6 +82,7 @@ public sealed class GameSnapshot
                     mana_available = ReadInt(player, "mana_available"),
                     mana_max = ReadInt(player, "mana_max"),
                     card_class = ReadString(player, "card_class"),
+                    active_deck = GetRaw(player, "active_deck"),
                     hero = GetRaw(player, "hero"),
                     weapon = GetRaw(player, "weapon"),
                     hero_power = GetRaw(player, "hero_power"),

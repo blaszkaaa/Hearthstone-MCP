@@ -40,6 +40,18 @@ public static class AdvicePrompt
         wymagającej niezweryfikowanego efektu.
         Historia to tylko zagrane PUBLICZNIE karty, które aplikacja rzeczywiście
         widziała. Nie wyciągaj wniosków o ukrytej ręce ani niezakrytych sekretach.
+        player.active_deck: status=class_matches_not_game_verified oznacza
+        talię ustawioną jako AKTYWNA w HDT, zgodną klasą, ale NIEZWERYFIKOWANĄ
+        jako talia faktycznie użyta w tym meczu. cards podaje jej POCZĄTKOWY
+        skład, a nie karty pozostałe do dobrania. Nigdy nie licz pozostałych
+        kopii kart na podstawie samej listy; uwzględniaj obserwacje, karty
+        wygenerowane i możliwość rozbieżności. Dla statusów unavailable,
+        class_mismatch lub read_error ignoruj skład talii. Przy mulliganie
+        bierz krzywą i plan gry z aktywnej talii pod uwagę, jeśli dostępna.
+        opponent_turn_review jest krótką HIPOTEZĄ z obserwacji wrogiej tury,
+        nigdy potwierdzonym stanem gry. Zweryfikuj ją względem TERAZ widocznej
+        planszy, historii publicznych zagrań i zagrożeń. Wykorzystaj ją
+        do wyboru obrony, wymian i tempa, a nie do zgadywania ukrytych kart.
         Wskaźniki zagrożenia i wymian są TYLKO arytmetyczne, nie gwarantują
         legalności ataku, efektów ani pewnego lethal.
         OBOWIĄZKOWO sprawdź pole card_type oraz strefę ręka/plansza PRZED poradą:

@@ -14,6 +14,7 @@ public partial class MainWindow : Window
     private readonly ChatGptAuth _auth = new();
     private readonly ChatGptInference _inference;
     private readonly AnalysisScheduler _scheduler = new();
+    private readonly OpponentTurnScheduler _opponentScheduler = new();
     private readonly MatchIntelligence _intelligence = new();
     private readonly MatchHistoryStore _history = new();
     private readonly ObservableCollection<HistoryMatchEntry> _historyRows = new();
@@ -29,6 +30,9 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
     private GameSnapshot _snapshot = new();
     private CancellationTokenSource? _requestCts;
+    private CancellationTokenSource? _opponentRequestCts;
+    private int _opponentRequestTurn = -1;
+    private bool _opponentBusy;
     private bool _busy;
     private int _analysisNumber;
     private GameSnapshot? _shownSnapshot;
@@ -95,6 +99,7 @@ public partial class MainWindow : Window
         _timer.Stop();
         _cancelReason = "application_closed";
         _requestCts?.Cancel();
+        _opponentRequestCts?.Cancel();
     }
 
     private void Poll(object? sender, EventArgs e)
@@ -102,6 +107,12 @@ public partial class MainWindow : Window
         RefreshState();
         var now = DateTimeOffset.UtcNow;
         _intelligence.Observe(_snapshot, now);
+        // Opponent inference must never compete with an actionable player turn.
+        // Public played-card memory keeps collecting evidence even if canceled.
+        if (_opponentBusy && (!_snapshot.InGame || _snapshot.MyTurn ||
+            _snapshot.MulliganActive || _snapshot.ChoiceActive ||
+            _snapshot.Turn != _opponentRequestTurn))
+            _opponentRequestCts?.Cancel();
         _history.Observe(_snapshot, now);
         if (HistoryPage.Visibility == Visibility.Visible)
             RefreshHistory();
@@ -167,10 +178,70 @@ public partial class MainWindow : Window
             DiagnosticLog.Write("ai.scheduled", new { phase = _snapshot.Phase, turn = _snapshot.Turn, key = _snapshot.DecisionKey });
             _ = AnalyzeAsync(_snapshot, model);
         }
+        if (_auth.SignedIn && ModelPicker.SelectedItem is ChatGptInference.ModelChoice reviewModel &&
+            _opponentScheduler.ShouldAnalyze(_snapshot, now, AutoCheck.IsChecked == true,
+                _opponentBusy || _busy))
+        {
+            DiagnosticLog.Write("ai.opponent.scheduled", new { turn = _snapshot.Turn, key = _snapshot.DecisionKey });
+            _ = ReviewOpponentAsync(_snapshot, reviewModel);
+        }
         if (_lastSchedulerReason != _scheduler.LastDecision)
         {
             _lastSchedulerReason = _scheduler.LastDecision;
             DiagnosticLog.Write("scheduler.status", new { reason = _lastSchedulerReason, turn = _snapshot.Turn, phase = _snapshot.Phase });
+        }
+    }
+
+    private async Task ReviewOpponentAsync(GameSnapshot original, ChatGptInference.ModelChoice model)
+    {
+        if (_opponentBusy || _closing) return;
+        _opponentBusy = true;
+        _opponentRequestTurn = original.Turn;
+        var session = _intelligence.Memory.SessionId;
+        var started = DateTimeOffset.UtcNow;
+        var request = new CancellationTokenSource(TimeSpan.FromSeconds(25));
+        _opponentRequestCts = request;
+        try
+        {
+            // Freeze all evidence at the instant this request starts.
+            var context = _intelligence.BuildContext(original);
+            var prompt = OpponentTurnPrompt.Build(original, context);
+            DiagnosticLog.Write("ai.opponent.request", new {
+                turn = original.Turn, session, model = model.Slug,
+                fingerprint = original.Fingerprint, prompt
+            });
+            var review = await _inference.AnalyzeOpponentAsync(original, model.Slug, prompt, request.Token);
+            if (!_closing && _snapshot.InGame &&
+                _snapshot.Turn >= original.Turn &&
+                _snapshot.Turn <= original.Turn + 1 &&
+                session == _intelligence.Memory.SessionId &&
+                _intelligence.RecordOpponentReview(original, review))
+                DiagnosticLog.Write("ai.opponent.completed", new {
+                    turn = original.Turn,
+                    elapsed_ms = (int)(DateTimeOffset.UtcNow - started).TotalMilliseconds,
+                    review
+                });
+            else
+                DiagnosticLog.Write("ai.opponent.discarded", new { turn = original.Turn, session });
+        }
+        catch (OperationCanceledException)
+        {
+            DiagnosticLog.Write("ai.opponent.canceled", new {
+                turn = original.Turn,
+                elapsed_ms = (int)(DateTimeOffset.UtcNow - started).TotalMilliseconds
+            });
+        }
+        catch (Exception ex)
+        {
+            // Background review errors must not replace the visible coach advice.
+            DiagnosticLog.Error("ai.opponent.failure", ex);
+        }
+        finally
+        {
+            if (ReferenceEquals(_opponentRequestCts, request)) _opponentRequestCts = null;
+            request.Dispose();
+            _opponentBusy = false;
+            _opponentRequestTurn = -1;
         }
     }
 

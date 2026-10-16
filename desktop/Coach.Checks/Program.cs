@@ -1041,6 +1041,91 @@ try
     }
     finally { try { File.Delete(historyFile); } catch { } }
 
+    // The full currently active HDT deck is available to the player-turn AI,
+    // without confusing the original list with cards still in the draw pile.
+    var withDeck = new
+    {
+        schema_version = 1, captured_at_utc = now.ToString("O"), in_game = true,
+        turn = 12, my_turn = false, phase = "turn",
+        player = new {
+            card_class = "MAGE",
+            active_deck = new {
+                source = "hdt_active_deck", status = "class_matches_not_game_verified",
+                name = "Testowa talia", signature = "DECK_A",
+                cards = new[] { new { card_id = "CS2_029", name = "Ognista Kula",
+                    count = 2, cost = 4, card_type = "SPELL" } }
+            },
+            hand = Array.Empty<object>(), board = Array.Empty<object>(),
+            played_this_turn = Array.Empty<string>()
+        },
+        opponent = new {
+            card_class = "WARRIOR", board = Array.Empty<object>(),
+            played_this_turn = new[] { "Odkryta karta" }
+        }
+    };
+    File.WriteAllText(path, JsonSerializer.Serialize(withDeck));
+    var enemyTurn = GameSnapshot.Read(path, now);
+    using (var deckData = JsonDocument.Parse(enemyTurn.TacticalJson))
+    {
+        var activeDeck = deckData.RootElement.GetProperty("player").GetProperty("active_deck");
+        Check(activeDeck.GetProperty("cards")[0].GetProperty("card_id").GetString() == "CS2_029",
+            "actual HDT active deck entries reach the AI snapshot");
+    }
+    var intelligence = new MatchIntelligence();
+    intelligence.Observe(enemyTurn, now);
+    Check(intelligence.RecordOpponentReview(enemyTurn,
+            "WIDOCZNE: zagrano kartę. RYZYKO: plansza. NASTĘPNA TURA: obrona."),
+        "opponent review saved during enemy turn");
+    Check(AdvicePrompt.Build(enemyTurn, intelligence.BuildContext(enemyTurn))
+        .Contains("class_matches_not_game_verified", StringComparison.Ordinal) &&
+        OpponentTurnPrompt.Build(enemyTurn, intelligence.BuildContext(enemyTurn))
+        .Contains("Odkryta karta", StringComparison.Ordinal),
+        "AI prompts receive opponent play and deck evidence");
+    var opponentScheduler = new OpponentTurnScheduler();
+    Check(!opponentScheduler.ShouldAnalyze(enemyTurn, now, true, false),
+        "enemy analysis waits for stable initial evidence");
+    Check(!opponentScheduler.ShouldAnalyze(enemyTurn, now.AddSeconds(3), true, false),
+        "enemy analysis does not start too early");
+    Check(opponentScheduler.ShouldAnalyze(enemyTurn, now.AddSeconds(5), true, false),
+        "opponent turn receives a proactive AI review");
+    Check(!opponentScheduler.ShouldAnalyze(enemyTurn, now.AddSeconds(10), true, false),
+        "same enemy state is not re-reviewed");
+    var laterPlay = new {
+        schema_version = 1, captured_at_utc = now.ToString("O"), in_game = true,
+        turn = 12, my_turn = false, phase = "turn", player = withDeck.player,
+        opponent = new { card_class = "WARRIOR", board = Array.Empty<object>(),
+            played_this_turn = new[] { "Odkryta karta", "Druga karta" } }
+    };
+    File.WriteAllText(path, JsonSerializer.Serialize(laterPlay));
+    var changedEnemy = GameSnapshot.Read(path, now);
+    Check(!opponentScheduler.ShouldAnalyze(changedEnemy, now.AddSeconds(11), true, false),
+        "new public enemy play must settle before inference");
+    Check(opponentScheduler.ShouldAnalyze(changedEnemy, now.AddSeconds(16), true, false),
+        "a second enemy review follows meaningful public activity");
+    Check(!opponentScheduler.ShouldAnalyze(changedEnemy, now.AddSeconds(27), true, false),
+        "maximum two enemy reviews per turn");
+    var playerTurnFixture = new {
+        schema_version = 1, captured_at_utc = now.ToString("O"), in_game = true,
+        turn = 13, my_turn = true, phase = "turn", player = withDeck.player,
+        opponent = laterPlay.opponent
+    };
+    File.WriteAllText(path, JsonSerializer.Serialize(playerTurnFixture));
+    var ourNextTurn = GameSnapshot.Read(path, now);
+    intelligence.Observe(ourNextTurn, now.AddSeconds(17));
+    using (var afterEnemy = JsonDocument.Parse(intelligence.BuildContext(ourNextTurn)))
+    {
+        Check(afterEnemy.RootElement.GetProperty("opponent_turn_review")
+            .GetProperty("summary").GetString()!.Contains("RYZYKO"),
+            "opponent review informs the following player turn");
+    }
+    intelligence.Memory.Reset();
+    intelligence.Observe(ourNextTurn, now.AddSeconds(18));
+    using (var newMatch = JsonDocument.Parse(intelligence.BuildContext(ourNextTurn)))
+    {
+        Check(newMatch.RootElement.GetProperty("opponent_turn_review").ValueKind ==
+            JsonValueKind.Null, "old opponent review never leaks into a new match");
+    }
+
     Console.WriteLine("Hearthstone Coach core checks: PASS");
 }
 finally { try { File.Delete(path); } catch { } }
