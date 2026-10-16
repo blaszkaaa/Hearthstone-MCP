@@ -151,7 +151,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "Nie udało się utworzyć release aplikacji." }
           } else {
             # Publish BOTH new SHA-immutable ZIP and legacy ZIP before ANY manifests.
-            gh release upload app-latest $immutablePath --repo $repo
+            gh release upload app-latest $immutablePath --clobber --repo $repo
             if ($LASTEXITCODE -ne 0) { throw "Nie udało się opublikować wersjonowanego ZIP." }
             gh release upload app-latest "dist/HearthstoneCoach-win-x64.zip" --clobber --repo $repo
             if ($LASTEXITCODE -ne 0) { throw "Nie udało się opublikować starego ZIP aplikacji." }
@@ -164,7 +164,7 @@ jobs:
           # Keep a few immutable archives for rollbacks without storing every build forever.
           $releases = gh release view app-latest --repo $repo --json assets | ConvertFrom-Json
           $old = @($releases.assets |
-            Where-Object { $_.name -match '^HearthstoneCoach-win-x64-[a-f0-9]{40}\\.zip$' } |
+            Where-Object { $_.name -match '^HearthstoneCoach-win-x64-[a-f0-9]{40}\.zip$' } |
             Sort-Object -Property createdAt -Descending |
             Select-Object -Skip 4)
           foreach ($asset in $old) {
