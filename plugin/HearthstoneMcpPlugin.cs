@@ -224,9 +224,9 @@ namespace HearthstoneMcpPlugin
                 if (selected == null)
                     return new { source = "hdt_active_deck", status = "unavailable" };
                 bool classMatches = !string.IsNullOrWhiteSpace(selected.Class)
-                    && !string.IsNullOrWhiteSpace(currentClass)
-                    && string.Equals(selected.Class.Replace(" ", ""), currentClass.Replace(" ", ""),
-                        StringComparison.OrdinalIgnoreCase);
+                    && (string.IsNullOrWhiteSpace(currentClass) ||
+                        string.Equals(selected.Class.Replace(" ", ""), currentClass.Replace(" ", ""),
+                            StringComparison.OrdinalIgnoreCase));
                 var cards = classMatches
                     ? selected.Cards.Where(c => c != null && !string.IsNullOrWhiteSpace(c.Id))
                         .OrderBy(c => c.Id)
@@ -253,7 +253,9 @@ namespace HearthstoneMcpPlugin
                 return new
                 {
                     source = "hdt_active_deck",
-                    status = classMatches ? "class_matches_not_game_verified" : "class_mismatch",
+                    status = !classMatches ? "class_mismatch" :
+                        string.IsNullOrWhiteSpace(currentClass) ? "hdt_selected_not_game_verified" :
+                        "class_matches_not_game_verified",
                     name = selected.Name,
                     card_class = selected.Class,
                     // This is the INITIAL deck list, not cards remaining in the deck.
@@ -306,6 +308,9 @@ namespace HearthstoneMcpPlugin
                     captured_at_utc = DateTime.UtcNow.ToString("o"),
                     source = "hearthstone-deck-tracker-plugin",
                     in_game = false,
+                    // Expose only the locally selected HDT deck in the menu.
+                    // This is NOT proof of the deck used in a future match.
+                    active_deck = allowGame ? ActiveDeckForPrompt(null) : null,
                 };
             }
             else
