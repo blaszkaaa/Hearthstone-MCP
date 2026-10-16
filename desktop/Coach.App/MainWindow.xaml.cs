@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows;
@@ -14,6 +15,12 @@ public partial class MainWindow : Window
     private readonly ChatGptInference _inference;
     private readonly AnalysisScheduler _scheduler = new();
     private readonly MatchIntelligence _intelligence = new();
+    private readonly CardArtCache _cardImages = new();
+    private readonly ObservableCollection<CardVisualItem> _planRows = new();
+    private readonly ObservableCollection<CardVisualItem> _choiceRows = new();
+    private int _turnPlanTurn = -1;
+    private string? _shownChoiceKey;
+    private string? _latestChoiceKey;
     private readonly HdtStateReconciler _stateReconciler = new();
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
     private GameSnapshot _snapshot = new();
@@ -37,10 +44,12 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        PlanItems.ItemsSource = _planRows;
+        ChoiceItems.ItemsSource = _choiceRows;
         _inference = new ChatGptInference(_auth);
         _timer.Tick += Poll;
         UpdateAccount();
-        DiagnosticLog.Write("app.start", new { version = "0.9.1", state_path = GameSnapshot.DefaultPath, log_dir = DiagnosticLog.DirectoryPath });
+        DiagnosticLog.Write("app.start", new { version = "1.0", state_path = GameSnapshot.DefaultPath, log_dir = DiagnosticLog.DirectoryPath });
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
@@ -86,7 +95,11 @@ public partial class MainWindow : Window
                 game_data = _snapshot.TacticalJson
             });
         }
-        if (_shownSnapshot is not null &&
+        // A Discover popup is an interruption, not a new turn plan:
+        // never erase its visible instructions just to display a choice.
+        bool preservePlan = _turnPlanTurn >= 0 && _snapshot.InGame &&
+            _turnPlanTurn == _snapshot.Turn && !_snapshot.MulliganActive;
+        if (_shownSnapshot is not null && !preservePlan &&
             _shownGuard.HasChanged(_shownSnapshot, _snapshot, now))
         {
             DiagnosticLog.Write("advice.expired", new
@@ -134,6 +147,10 @@ public partial class MainWindow : Window
     {
         _shownSnapshot = null;
         _shownGuard.Reset();
+        _turnPlanTurn = -1;
+        _planRows.Clear();
+        TurnPlanPanel.Visibility = Visibility.Collapsed;
+        MoveText.Visibility = Visibility.Visible;
         MoveText.FontSize = 28;
         MoveText.Text = !_snapshot.InGame ? "Czekam na mecz" :
             _snapshot.MulliganActive ? "Co zostawić na ręce?" :
@@ -184,6 +201,87 @@ public partial class MainWindow : Window
             !_snapshot.ChoiceSupported ? "Wybory: brak obsługi" :
             _snapshot.ChoiceActive ? $"Wybory: {_snapshot.ChoicesCount}" :
             "Wybory: brak";
+        UpdateChoiceVisuals(_snapshot);
+    }
+
+    private void UpdateChoiceVisuals(GameSnapshot state)
+    {
+        bool visible = state.InGame && (state.ChoiceActive || state.MulliganActive);
+        ChoicePanel.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        if (!visible)
+        {
+            _shownChoiceKey = null;
+            _latestChoiceKey = null;
+            _choiceRows.Clear();
+            return;
+        }
+        if (_shownChoiceKey == state.DecisionKey) return;
+        _shownChoiceKey = state.DecisionKey;
+        _latestChoiceKey = null;
+        _choiceRows.Clear();
+        ChoiceHeadline.Text = state.MulliganActive ?
+            "Co zostawić na ręce?" : "Wybieram najlepszą kartę...";
+        foreach (var offered in VisualTurnPlan.BuildChoices(state, null))
+        {
+            var row = new CardVisualItem(offered.Index, offered.Name, offered.CardId);
+            _choiceRows.Add(row);
+            _ = LoadCardArtAsync(row);
+        }
+    }
+
+    private void ShowVisualPlan(GameSnapshot state, AdviceCard advice)
+    {
+        var plan = VisualTurnPlan.BuildSteps(state, advice);
+        _planRows.Clear();
+        foreach (var step in plan)
+        {
+            var row = new CardVisualItem(step.Number, step.Instruction,
+                step.CardId, step.Target is null ? "" : "CEL: " + step.Target);
+            _planRows.Add(row);
+            _ = LoadCardArtAsync(row);
+        }
+        _turnPlanTurn = plan.Count > 0 ? state.Turn : -1;
+        bool hasPlan = plan.Count > 0;
+        TurnPlanPanel.Visibility = hasPlan ? Visibility.Visible : Visibility.Collapsed;
+        MoveText.Visibility = hasPlan ? Visibility.Collapsed : Visibility.Visible;
+        DiagnosticLog.Write("ui.plan.visualized", new {
+            turn = state.Turn, steps = plan.Count,
+            art_known = plan.Count(x => x.CardId is not null)
+        });
+    }
+
+    private void ShowVisualChoice(GameSnapshot state, AdviceCard advice)
+    {
+        UpdateChoiceVisuals(state);
+        var selected = VisualTurnPlan.TryChoiceNumber(advice.Move);
+        foreach (var item in _choiceRows)
+            item.Recommended = selected.HasValue && item.Index == selected.Value;
+        if (state.ChoiceActive)
+            ChoiceHeadline.Text = selected is int index ?
+                "WYBIERZ " + index : "Wybierz wskazaną kartę";
+        _latestChoiceKey = state.DecisionKey;
+        DiagnosticLog.Write("ui.choice.visualized", new {
+            turn = state.Turn, selection = selected,
+            offers = _choiceRows.Count, plan_preserved = _turnPlanTurn == state.Turn
+        });
+    }
+
+    private async Task LoadCardArtAsync(CardVisualItem item)
+    {
+        if (item.CardId is null) return;
+        try
+        {
+            var image = await _cardImages.GetAsync(item.CardId);
+            if (!_closing && image is not null)
+                item.Art = image;
+        }
+        catch (Exception ex)
+        {
+            // Image failures MUST never interrupt card advice or plan updates.
+            DiagnosticLog.Write("ui.card_art.missing", new {
+                card_id = item.CardId, error = ex.GetType().Name
+            });
+        }
     }
 
     private async void SignInClick(object sender, RoutedEventArgs e)
@@ -374,16 +472,40 @@ public partial class MainWindow : Window
                 }
                 _rejectedActionKey = null;
                 _rejectedActionReason = null;
+                if (original.ChoiceActive)
+                {
+                    // A side choice never overwrites the previously accepted
+                    // plan. It only highlights the selected option beside it.
+                    ShowVisualChoice(original, card);
+                    if (_turnPlanTurn != original.Turn)
+                    {
+                        MoveText.Visibility = Visibility.Visible;
+                        MoveText.Text = card.Move;
+                    }
+                    AiStatus.Text = "Odkryj: wybierz wskazaną kartę";
+                    AdviceMeta.Text = $"Wybór w turze {original.Turn} • {DateTime.Now:HH:mm:ss}";
+                    DiagnosticLog.Write("ai.displayed.choice", new {
+                        request = number, index = VisualTurnPlan.TryChoiceNumber(card.Move)
+                    });
+                    return;
+                }
+                if (!original.MulliganActive)
+                    ShowVisualPlan(original, card);
                 MoveText.FontSize = original.MulliganActive ? 20 : 28;
                 MoveText.Text = card.Move;
                 TargetText.Text = card.Target;
-                TargetPanel.Visibility = card.Target.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+                TargetPanel.Visibility = _turnPlanTurn == original.Turn
+                    ? Visibility.Collapsed :
+                    card.Target.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
                 AdviceText.Text = card.Next;
-                NextPanel.Visibility = card.Next.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+                NextPanel.Visibility = _turnPlanTurn == original.Turn
+                    ? Visibility.Collapsed :
+                    card.Next.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
                 WhyText.Text = card.Reason;
                 WhyPanel.Visibility = card.Reason.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
                 _shownSnapshot = original;
                 _shownGuard.Reset();
+                if (original.MulliganActive) ChoiceHeadline.Text = "ZOSTAW / ODRZUĆ";
                 AiStatus.Text = original.MulliganActive ? "Zostaw / odrzuć karty" :
                     original.ChoiceActive ? "Wybór Odkryj / kart" : "Gotowa rekomendacja";
                 DiagnosticLog.Write("ai.displayed", new { request = number, decision_key = original.DecisionKey, turn = original.Turn });
