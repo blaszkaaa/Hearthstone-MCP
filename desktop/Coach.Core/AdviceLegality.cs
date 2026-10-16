@@ -28,6 +28,8 @@ public static class AdviceLegality
     {
         if (!snapshot.InGame || snapshot.MulliganActive || snapshot.ChoiceActive)
             return Result.Ok; // The other phases do not recommend normal attacks.
+        var observed = LegalMoveCatalog.Validate(snapshot, advice);
+        if (!observed.Allowed) return observed;
         using var doc = JsonDocument.Parse(snapshot.TacticalJson);
         var root = doc.RootElement;
         if (!root.TryGetProperty("player", out var player) ||
