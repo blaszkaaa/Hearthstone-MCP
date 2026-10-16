@@ -53,6 +53,18 @@ Dzienniki aplikacji są przechowywane maksymalnie 7 dni i mogą zawierać szczeg
 
 Gdy problem wystąpi, wyślij plik `coach-*.jsonl` z odpowiedniej godziny oraz `plugin.log` — bez potrzeby przepisywania błędów ręcznie.
 
+## Inteligencja taktyczna v0.5 — wiedza o kartach, pamięć i zagrożenia
+
+Silnik aplikacji (bez zmiany wyglądu oraz bez nowych żądań API) tworzy trzy konteksty do **jednego** zapytania ChatGPT:
+
+1. **Znane efekty kart** — odczytuje `card_id`, koszt i oryginalny opis działania z HDT dla własnej ręki, mulliganu, Odkrycia, widocznych stronników i broni. Wydobywa potwierdzone słowa kluczowe (np. Battlecry / Taunt / Divine Shield), ale **nie zgaduje** efektu, jeśli nie ma go w danych. Wzmocnienia i przemiany w trakcie partii mogą zmienić rzeczywiste działanie karty.
+2. **Pamięć meczu** — śledzi **publicznie zaobserwowane** karty zagrane przez obie strony, aktualizowane przez ciągłe odczyty HDT. Zapamiętuje maksymalnie 120 zdarzeń w RAM, a do AI przekazuje 32 ostatnie. Rozróżnia brak danych z wcześniejszych tur od pewnej wiedzy o historii. Zapis resetuje się po nowym meczu / dłuższym pobycie w menu. Pamięć jest procesowa (znika po zamknięciu aplikacji), natomiast diagnostyka rozgrywki nadal zapisuje się do lokalnych logów.
+3. **Ocena zagrożeń** — oblicza jawną siłę ataku obu plansz, zdrowie + pancerz bohaterów, sprawdza obecność Prowokacji oraz ostrzega przed **potencjalnym** lethal i teoretycznymi wymianami. Nie traktuje tych ocen jako potwierdzonego, legalnego ruchu: mogą działać tarcze, zdolności, sekrety, zaklęcia i inne ograniczenia. Nie zna ukrytych kart przeciwnika.
+
+AI ma najpierw uwzględnić ryzyko przegranej, możliwy lethal i wyraźne zagrożenia, następnie opłacalne wymiany oraz tempo. Nadal zwraca krótki, konkretny ruch, cel i powód. Odpowiedź jest generowana **jednym wywołaniem** dotychczasowego modelu w planie ChatGPT. Nie ma dodatkowego logowania ani opłat za osobne API.
+
+W logach `game.intelligence` znajduje się przekazany kontekst strategiczny; `ai.request` zawiera kompletny prompt do łatwiejszej diagnostyki. **Do tej aktualizacji nie potrzeba podmieniać DLL HDT:** wystarczy nowy program `HearthstoneCoach.exe`, jeżeli używana wtyczka już poprawnie eksportuje tekst kart oraz stan gry.
+
 ## Ochrona danych i logowanie
 
 Rejestracja zgodna z [OpenAI Sign in with ChatGPT dla aplikacji OSS](https://developers.openai.com/siwc/token-sharing-open-source/sign-in): systemowa przeglądarka, OAuth PKCE i losowe state/nonce, callback na `127.0.0.1`, walidacja OIDC JWT przez JWKS; żądania AI do oficjalnego `https://api.openai.com/v1/responses` z `store=false` i `stream=true`. Wysłany tekst zawiera **stan widocznej rozgrywki**, m.in. Twoją rękę i opcje wyboru, ale nie ukrytą rękę przeciwnika.

@@ -13,6 +13,7 @@ public partial class MainWindow : Window
     private readonly ChatGptAuth _auth = new();
     private readonly ChatGptInference _inference;
     private readonly AnalysisScheduler _scheduler = new();
+    private readonly MatchIntelligence _intelligence = new();
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
     private GameSnapshot _snapshot = new();
     private CancellationTokenSource? _requestCts;
@@ -36,7 +37,7 @@ public partial class MainWindow : Window
         _inference = new ChatGptInference(_auth);
         _timer.Tick += Poll;
         UpdateAccount();
-        DiagnosticLog.Write("app.start", new { version = "0.4.1", state_path = GameSnapshot.DefaultPath, log_dir = DiagnosticLog.DirectoryPath });
+        DiagnosticLog.Write("app.start", new { version = "0.5", state_path = GameSnapshot.DefaultPath, log_dir = DiagnosticLog.DirectoryPath });
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
@@ -59,6 +60,7 @@ public partial class MainWindow : Window
     {
         RefreshState();
         var now = DateTimeOffset.UtcNow;
+        _intelligence.Observe(_snapshot, now);
         if (_lastLoggedSnapshot != _snapshot.Fingerprint || now - _lastHeartbeat > TimeSpan.FromSeconds(10))
         {
             _lastLoggedSnapshot = _snapshot.Fingerprint;
@@ -246,6 +248,7 @@ public partial class MainWindow : Window
             return;
         }
         if (_busy) return;
+        _intelligence.Observe(_snapshot, DateTimeOffset.UtcNow);
         _scheduler.MarkAnalyzed(_snapshot, DateTimeOffset.UtcNow);
         DiagnosticLog.Write("ai.manual", new { phase = _snapshot.Phase, turn = _snapshot.Turn, key = _snapshot.DecisionKey });
         await AnalyzeAsync(_snapshot, model);
@@ -284,14 +287,25 @@ public partial class MainWindow : Window
             "Trwa nowa analiza • nie zagrywaj poprzednio wskazanej karty bez sprawdzenia." :
             $"Model: {model.DisplayName} • analiza #{number}";
         var started = DateTimeOffset.UtcNow;
+        // Snapshot memory at request start: future observations must never
+        // change the meaning of an already running inference.
+        var tacticalContext = _intelligence.BuildContext(original);
+        var prompt = AdvicePrompt.Build(original, tacticalContext);
         DiagnosticLog.Write("ai.request", new
         {
             request = number, turn = original.Turn, phase = original.Phase, model = model.Slug,
-            decision_key = original.DecisionKey, prompt = AdvicePrompt.Build(original)
+            decision_key = original.DecisionKey, prompt = prompt
+        });
+        DiagnosticLog.Write("game.intelligence", new
+        {
+            request = number,
+            turn = original.Turn,
+            observed_public_plays = _intelligence.Memory.TotalObservedPlays,
+            context = tacticalContext
         });
         try
         {
-            var result = await _inference.AnalyzeAsync(original, model.Slug, myRequest.Token);
+            var result = await _inference.AnalyzeAsync(original, model.Slug, prompt, myRequest.Token);
             DiagnosticLog.Write("ai.response", new
             {
                 request = number, phase = original.Phase, turn = original.Turn,

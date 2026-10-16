@@ -41,7 +41,7 @@ public sealed class ChatGptInference
         return choices;
     }
 
-    public async Task<string> AnalyzeAsync(GameSnapshot snapshot, string model, CancellationToken ct)
+    public async Task<string> AnalyzeAsync(GameSnapshot snapshot, string model, string prompt, CancellationToken ct)
     {
         if (!snapshot.Actionable)
             throw new InvalidOperationException("Czekam na Twoją turę lub aktywny wybór kart.");
@@ -50,7 +50,7 @@ public sealed class ChatGptInference
         var body = new
         {
             model,
-            input = new[] { new { role = "user", content = AdvicePrompt.Build(snapshot) } },
+            input = new[] { new { role = "user", content = prompt } },
             store = false,
             stream = true,
             // GPT-6.1 Sol defaults to medium. Low reduces latency and prevents
