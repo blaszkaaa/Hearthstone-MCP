@@ -18,6 +18,12 @@ public static class AdvicePrompt
         rozważ affordable_confirmed_taunt_candidates, wymianę lub usunięcie
         groźnych jednostek; nigdy nie obiecuj przeżycia bez symulacji.
         Nie wymyślaj obrażeń zaklęć z samej nazwy karty; licz je jako nieznane.
+        UWAGA NA POCHODNIĘ (CATA_585, Torch): przy powrocie do ręki po zadaniu
+        obrażeń karta zachowuje tylko NADMIAROWE obrażenia, nie pierwotne 8.
+        Używaj wyłącznie current_live_damage z verified_entity_tag DLA KONKRETNEJ
+        karty w ręce jako bieżącej siły Pochodni. Jeśli null/unknown, NIE zakładaj
+        ani 8, ani poprzedniej wartości. Uwzględniaj zaobserwowane wcześniejsze
+        zagrania Pochodni z public_match_memory; liczba użyć NIE wyznacza obrażeń.
         Nie nazywaj potencjalnego lethal pewnym — opisuj warunki i ograniczenia.
         Najpierw oceniaj przeżycie, widoczne zagrożenia, ewentualny lethal,
         a potem tempo, korzystne wymiany i oszczędzanie zasobów. Porównaj w myśli

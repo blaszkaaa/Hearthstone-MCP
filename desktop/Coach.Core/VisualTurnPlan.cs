@@ -25,6 +25,31 @@ public static class VisualTurnPlan
         @"\bwybierz\s+(?:opcj[eę]\s+)?([1-9]\d?)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
+    private static readonly Regex MulliganLine = new(
+        @"^\s*([1-9]\d?)[.)]?\s+(ZOSTAW|ODRZUĆ|ODRZUC)\b",
+        RegexOptions.Multiline | RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    /// <summary>Only uniquely indexed mulligan decisions are rendered; never guess missing choices.</summary>
+    public static IReadOnlyDictionary<int, string> ParseMulliganDecisions(string? move)
+    {
+        var decisions = new Dictionary<int, string>();
+        var duplicates = new HashSet<int>();
+        foreach (Match match in MulliganLine.Matches(move ?? ""))
+        {
+            if (!int.TryParse(match.Groups[1].Value, out var index) || duplicates.Contains(index)) continue;
+            if (decisions.ContainsKey(index))
+            {
+                decisions.Remove(index);
+                duplicates.Add(index);
+                continue;
+            }
+            var verb = match.Groups[2].Value;
+            decisions[index] = verb.StartsWith("ZOSTAW", StringComparison.OrdinalIgnoreCase)
+                ? "ZOSTAW" : "ODRZUĆ";
+        }
+        return decisions;
+    }
+
     public static bool SafeCardId(string? id) => id != null && ValidCardId.IsMatch(id);
 
     /// <summary>Keep current turn plan during Discover, not after turn/game ends.</summary>

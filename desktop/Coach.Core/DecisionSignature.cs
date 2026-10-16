@@ -72,6 +72,8 @@ public static class DecisionSignature
         known = Flag(item, "known"),
         entity_id = Integer(item, "entity_id"),
         cost = Integer(item, "cost"),
+        // Current Torch damage is tactical, unlike printed text or UI position.
+        live_damage = Integer(item, "live_damage"),
         attack = Integer(item, "attack"),
         health = Integer(item, "health"),
         taunt = Flag(item, "taunt"),

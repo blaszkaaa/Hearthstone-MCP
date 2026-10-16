@@ -216,7 +216,91 @@
                                FontSize="12" Foreground="{StaticResource Muted}"
                                Margin="1,0,0,19" TextWrapping="Wrap"/>
 
-                    <Border Style="{StaticResource Card}" Padding="21" MinHeight="234">
+                    
+                    <!-- Mulligan: independent horizontal card strip. -->
+                    <Border x:Name="MulliganPanel" Style="{StaticResource Card}"
+                            Padding="18" Margin="0,0,0,15" Visibility="Collapsed">
+                        <StackPanel>
+                            <TextBlock Text="RĘKA POCZĄTKOWA · ZOSTAW / ODRZUĆ"
+                                       Style="{StaticResource Kicker}" Foreground="{StaticResource Accent}"
+                                       Margin="0,0,0,7"/>
+                            <TextBlock Text="Decyzja nad każdą kartą, w kolejności z gry."
+                                       FontSize="12" Foreground="{StaticResource Muted}" Margin="0,0,0,12"/>
+                            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                                <ItemsControl x:Name="MulliganItems">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Width="174" Margin="0,0,10,8" Padding="10"
+                                                    Background="{StaticResource Panel2}"
+                                                    BorderBrush="{StaticResource Stroke}" BorderThickness="1"
+                                                    CornerRadius="12">
+                                                <StackPanel>
+                                                    <Border CornerRadius="8" Padding="7,6" Margin="0,0,0,7">
+                                                        <Border.Style>
+                                                            <Style TargetType="{x:Type Border}">
+                                                                <Setter Property="Background" Value="{StaticResource NeutralTint}"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding MulliganDecision}" Value="ZOSTAW">
+                                                                        <Setter Property="Background" Value="{StaticResource AccentTint}"/>
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding MulliganDecision}" Value="ODRZUĆ">
+                                                                        <Setter Property="Background" Value="#3B202C"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                        <TextBlock Text="{Binding MulliganDecision}" FontSize="14"
+                                                                   FontWeight="Bold" TextAlignment="Center">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="{x:Type TextBlock}">
+                                                                    <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding MulliganDecision}" Value="ZOSTAW">
+                                                                            <Setter Property="Foreground" Value="{StaticResource Accent}"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding MulliganDecision}" Value="ODRZUĆ">
+                                                                            <Setter Property="Foreground" Value="#FDA4AF"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                    </Border>
+                                                    <Grid Width="105" Height="146" HorizontalAlignment="Center">
+                                                        <Border Background="{StaticResource NeutralTint}" CornerRadius="7"
+                                                                BorderBrush="{StaticResource Stroke}" BorderThickness="1">
+                                                            <TextBlock Text="{Binding Placeholder}" Opacity=".5"
+                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <Image Source="{Binding Art}" Stretch="Uniform">
+                                                            <Image.ToolTip>
+                                                                <ToolTip>
+                                                                    <Image Source="{Binding Art}" Width="260" Stretch="Uniform"/>
+                                                                </ToolTip>
+                                                            </Image.ToolTip>
+                                                        </Image>
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding IndexText, StringFormat='KARTA {0}'}"
+                                                               HorizontalAlignment="Center" Margin="0,7,0,3"
+                                                               FontSize="10" Foreground="{StaticResource Accent}"/>
+                                                    <TextBlock Text="{Binding Caption}" FontSize="12"
+                                                               FontWeight="SemiBold" TextWrapping="Wrap"
+                                                               TextAlignment="Center" MaxHeight="42"
+                                                               ToolTip="{Binding Caption}"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource Card}" Padding="21" MinHeight="180">
                         <Border.Background>
                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                                 <GradientStop Color="#1A332D" Offset="0"/>
@@ -272,10 +356,10 @@
                                                             CornerRadius="12" Padding="10" Margin="0,0,0,9">
                                                         <Grid>
                                                             <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="74"/>
+                                                                <ColumnDefinition Width="92"/>
                                                                 <ColumnDefinition Width="*"/>
                                                             </Grid.ColumnDefinitions>
-                                                            <Grid Width="66" Height="96" HorizontalAlignment="Left">
+                                                            <Grid Width="84" Height="116" HorizontalAlignment="Left">
                                                                 <Border Background="{StaticResource NeutralTint}"
                                                                         CornerRadius="7" BorderBrush="{StaticResource Stroke}"
                                                                         BorderThickness="1">
@@ -351,7 +435,7 @@
 
                                 <!-- Discover is an independent sidebar: never replaces the turn plan. -->
                                 <Border x:Name="ChoicePanel" Grid.Column="1" Visibility="Collapsed"
-                                        Width="236" Margin="14,0,0,0"
+                                        Width="252" Margin="12,0,0,0"
                                         Background="{StaticResource Panel2}" CornerRadius="12"
                                         BorderBrush="{StaticResource Stroke}" BorderThickness="1"
                                         Padding="10" VerticalAlignment="Top">
@@ -381,10 +465,10 @@
                                                         </Border.Style>
                                                         <Grid>
                                                             <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="61"/>
+                                                                <ColumnDefinition Width="72"/>
                                                                 <ColumnDefinition Width="*"/>
                                                             </Grid.ColumnDefinitions>
-                                                            <Grid Width="55" Height="80" HorizontalAlignment="Left">
+                                                            <Grid Width="66" Height="93" HorizontalAlignment="Left">
                                                                 <Border Background="{StaticResource NeutralTint}" CornerRadius="6">
                                                                     <TextBlock Text="HS" Foreground="{StaticResource Muted}"
                                                                                HorizontalAlignment="Center" VerticalAlignment="Center"/>

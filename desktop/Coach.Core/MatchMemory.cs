@@ -100,10 +100,13 @@ public sealed class MatchMemory
         first_observed_turn = _firstObservedTurn < 0 ? (int?)null : _firstObservedTurn,
         observed_opening = _observedMulligan,
         coverage = _firstObservedTurn > 1 && !_observedMulligan ? "partial_from_app_start" : "observed_only",
+        observed_own_torch_plays = _plays.Count(x => x.Side == "player" &&
+            (x.Card.Equals("Pochodnia", StringComparison.OrdinalIgnoreCase) ||
+             x.Card.Equals("Torch", StringComparison.OrdinalIgnoreCase))),
         recent_public_plays = RecentPlays.Select(x => new
         {
             turn = x.Turn, side = x.Side, card = x.Card
         }).ToArray(),
-        note = "Historia to wyłącznie publiczne zagrania ZAOBSERWOWANE podczas pracy aplikacji; nie jest pełną talią, historią wszystkich tur ani wiedzą o ręce przeciwnika."
+        note = "Historia obejmuje wyłącznie zaobserwowane publiczne zagrania. Wcześniejsze zagranie Pochodni NIE dowodzi jej aktualnych obrażeń; po powrocie liczy się wartość z bieżącego tagu konkretnej karty."
     };
 }

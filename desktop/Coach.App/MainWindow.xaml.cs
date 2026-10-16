@@ -18,6 +18,7 @@ public partial class MainWindow : Window
     private readonly CardArtCache _cardImages = new();
     private readonly ObservableCollection<CardVisualItem> _planRows = new();
     private readonly ObservableCollection<CardVisualItem> _choiceRows = new();
+    private readonly ObservableCollection<CardVisualItem> _mulliganRows = new();
     private int _turnPlanTurn = -1;
     private string? _shownChoiceKey;
     private string? _latestChoiceKey;
@@ -46,6 +47,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         PlanItems.ItemsSource = _planRows;
         ChoiceItems.ItemsSource = _choiceRows;
+        MulliganItems.ItemsSource = _mulliganRows;
         _inference = new ChatGptInference(_auth);
         _timer.Tick += Poll;
         UpdateAccount();
@@ -205,27 +207,47 @@ public partial class MainWindow : Window
 
     private void UpdateChoiceVisuals(GameSnapshot state)
     {
-        bool visible = state.InGame && (state.ChoiceActive || state.MulliganActive);
-        ChoicePanel.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
-        if (!visible)
+        bool mulligan = state.InGame && state.MulliganActive;
+        bool discover = state.InGame && state.ChoiceActive && !mulligan;
+        MulliganPanel.Visibility = mulligan ? Visibility.Visible : Visibility.Collapsed;
+        ChoicePanel.Visibility = discover ? Visibility.Visible : Visibility.Collapsed;
+
+        if (!mulligan && !discover)
         {
             _shownChoiceKey = null;
             _latestChoiceKey = null;
             _choiceRows.Clear();
+            _mulliganRows.Clear();
             return;
         }
         if (_shownChoiceKey == state.DecisionKey) return;
         _shownChoiceKey = state.DecisionKey;
         _latestChoiceKey = null;
         _choiceRows.Clear();
-        ChoiceHeadline.Text = state.MulliganActive ?
-            "Co zostawić na ręce?" : "Wybieram najlepszą kartę...";
+        _mulliganRows.Clear();
+        ChoiceHeadline.Text = "Wybieram najlepszą kartę...";
         foreach (var offered in VisualTurnPlan.BuildChoices(state, null))
         {
             var row = new CardVisualItem(offered.Index, offered.Name, offered.CardId);
-            _choiceRows.Add(row);
+            if (mulligan) _mulliganRows.Add(row);
+            else _choiceRows.Add(row);
             _ = LoadCardArtAsync(row);
         }
+    }
+
+    private void ShowVisualMulligan(GameSnapshot state, AdviceCard advice)
+    {
+        UpdateChoiceVisuals(state);
+        var decisions = VisualTurnPlan.ParseMulliganDecisions(advice.Move);
+        foreach (var item in _mulliganRows)
+            item.MulliganDecision = decisions.TryGetValue(item.Index, out var decision)
+                ? decision : "BRAK DECYZJI";
+        DiagnosticLog.Write("ui.mulligan.visualized", new
+        {
+            turn = state.Turn, cards = _mulliganRows.Count,
+            accepted_decisions = _mulliganRows.Count(x => decisions.ContainsKey(x.Index)),
+            decisions = decisions
+        });
     }
 
     private void ShowVisualPlan(GameSnapshot state, AdviceCard advice)
@@ -488,10 +510,13 @@ public partial class MainWindow : Window
                     });
                     return;
                 }
-                if (!original.MulliganActive)
+                if (original.MulliganActive)
+                    ShowVisualMulligan(original, card);
+                else
                     ShowVisualPlan(original, card);
                 MoveText.FontSize = original.MulliganActive ? 20 : 28;
                 MoveText.Text = card.Move;
+                if (original.MulliganActive) MoveText.Visibility = Visibility.Collapsed;
                 TargetText.Text = card.Target;
                 TargetPanel.Visibility = _turnPlanTurn == original.Turn
                     ? Visibility.Collapsed :

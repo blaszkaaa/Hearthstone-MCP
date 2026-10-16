@@ -9,6 +9,7 @@ internal sealed class CardVisualItem : INotifyPropertyChanged
 {
     private ImageSource? _art;
     private bool _recommended;
+    private string _mulliganDecision = "ANALIZUJĘ…";
 
     public CardVisualItem(int index, string caption, string? cardId, string description = "")
     {
@@ -28,6 +29,12 @@ internal sealed class CardVisualItem : INotifyPropertyChanged
     {
         get => _recommended;
         set { if (_recommended != value) { _recommended = value; Changed(); } }
+    }
+
+    public string MulliganDecision
+    {
+        get => _mulliganDecision;
+        set { if (_mulliganDecision != value) { _mulliganDecision = value; Changed(); } }
     }
 
     public ImageSource? Art
