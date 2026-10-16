@@ -31,11 +31,28 @@ internal static class AppUpdater
 
     public static async Task<AppReleaseManifest> CheckAsync(CancellationToken ct)
     {
+        // v2 references a SHA-named, immutable ZIP. Keep a fallback because
+        // clients can check during the first deployment of v2.
+        try
+        {
+            return await ReadManifestAsync("HearthstoneCoach-update-v2.json", ct);
+        }
+        catch (HttpRequestException ex) when (
+            ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            DiagnosticLog.Write("app.update.v2_manifest_unavailable", new { reason = "404", fallback = "v1" });
+            return await ReadManifestAsync("HearthstoneCoach-update.json", ct);
+        }
+    }
+
+    private static async Task<AppReleaseManifest> ReadManifestAsync(
+        string manifestName, CancellationToken ct)
+    {
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
         // GitHub may require more than 10 seconds for the first TLS request.
         deadline.CancelAfter(TimeSpan.FromSeconds(25));
         using var request = new HttpRequestMessage(HttpMethod.Get,
-            ReleaseBase + "HearthstoneCoach-update.json?nocache=" +
+            ReleaseBase + manifestName + "?nocache=" +
             DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
         request.Headers.CacheControl = new CacheControlHeaderValue { NoCache = true, NoStore = true };
         using var response = await Http.SendAsync(request,
@@ -49,7 +66,12 @@ internal static class AppUpdater
         var length = await reader.ReadBlockAsync(buffer.AsMemory(), deadline.Token);
         if (length > 32_768 || await reader.ReadAsync(buffer.AsMemory(0, 1), deadline.Token) != 0)
             throw new InvalidDataException("Manifest aktualizacji jest zbyt duży.");
-        return AppReleaseManifest.Parse(new string(buffer, 0, length));
+        var parsed = AppReleaseManifest.Parse(new string(buffer, 0, length));
+        DiagnosticLog.Write("app.update.manifest_checked", new {
+            manifest = manifestName, version = parsed.Version,
+            asset = parsed.Asset, package_sha256 = parsed.Sha256
+        });
+        return parsed;
     }
 
     public static async Task PrepareAndStartAsync(
