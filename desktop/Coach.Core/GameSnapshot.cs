@@ -10,6 +10,7 @@ public sealed class GameSnapshot
     public bool InGame { get; private init; }
     public bool MyTurn { get; private init; }
     public bool ChoiceActive { get; private init; }
+    public string ChoiceValidation { get; private init; } = "";
     public bool ChoiceSupported { get; private init; }
     public bool CardTypesSupported { get; private init; }
     public bool MulliganActive { get; private init; }
@@ -72,7 +73,10 @@ public sealed class GameSnapshot
             var choices = Get(root, "choices");
             bool supported = ReadBool(root, "choice_tracking_supported");
             bool typesSupported = ReadBool(root, "card_types_supported");
-            bool active = supported && ReadBool(root, "choice_active");
+            // An incomplete offer set cannot be a valid choice. Older plugins
+            // occasionally expose choice_active=true before the entities arrive.
+            bool active = supported && ReadBool(root, "choice_active") &&
+                choices.ValueKind == JsonValueKind.Array && choices.GetArrayLength() > 0;
             bool mine = ReadBool(root, "my_turn");
             bool mulligan = ReadBool(root, "mulligan_active") || ReadString(root, "phase") == "mulligan";
             string phase = mulligan ? "mulligan" : active ? "choice" : "turn";
@@ -121,6 +125,7 @@ public sealed class GameSnapshot
                 choice_tracking_supported = supported,
                 card_types_supported = typesSupported,
                 choice_active = active,
+                choice_validation = ReadString(root, "choice_validation"),
                 choices = active ? GetRaw(root, "choices") : JsonSerializer.SerializeToElement(Array.Empty<object>())
             };
             var compact = JsonSerializer.Serialize(payload);
@@ -146,7 +151,8 @@ public sealed class GameSnapshot
             {
                 Connected = true, InGame = true, MyTurn = mine, ChoiceSupported = supported,
                 MulliganActive = mulligan, Phase = phase, CardTypesSupported = typesSupported,
-                ChoiceActive = active, Turn = ReadInt(root, "turn") ?? 0,
+                ChoiceActive = active, ChoiceValidation = ReadString(root, "choice_validation") ?? "",
+                Turn = ReadInt(root, "turn") ?? 0,
                 Mana = ReadInt(player, "mana_available"), HandCount = count,
                 ChoicesCount = choiceCount, TacticalJson = compact, PublicHistoryJson = history, Fingerprint = digest,
                 DecisionKey = decisionKey,
