@@ -295,7 +295,7 @@
                                                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                                                 <TextBlock FontSize="10" FontWeight="SemiBold"
                                                                            Foreground="{StaticResource Accent}"
-                                                                           Text="{Binding IndexText, StringFormat=KROK {0}}"/>
+                                                                           Text="{Binding IndexText, StringFormat='KROK {0}'}"/>
                                                                 <TextBlock Text="{Binding Caption}" FontSize="14"
                                                                            FontWeight="SemiBold" TextWrapping="Wrap"
                                                                            Margin="0,4,0,0"/>
@@ -399,7 +399,7 @@
                                                                 </Image>
                                                             </Grid>
                                                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                                <TextBlock Text="{Binding IndexText, StringFormat=KARTA {0}}"
+                                                                <TextBlock Text="{Binding IndexText, StringFormat='KARTA {0}'}"
                                                                            Foreground="{StaticResource Accent}" FontSize="10"
                                                                            FontWeight="Bold"/>
                                                                 <TextBlock Text="{Binding Caption}"
