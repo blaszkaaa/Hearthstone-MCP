@@ -28,7 +28,7 @@ namespace HearthstoneMcpPlugin
         public string Description => "Udostepnia stan meczu i aktywne wybory kart (Odkryj / Choose One) do MCP.";
         public string ButtonText => "Pokaz plik danych";
         public string Author => "Hearthstone-MCP contributors";
-        public Version Version => new Version(0, 4, 0);
+        public Version Version => new Version(0, 5, 0);
         public MenuItem MenuItem => null;
 
         private static string StatePath
@@ -48,7 +48,7 @@ namespace HearthstoneMcpPlugin
         {
             _enabled = true;
             _lastWriteUtc = DateTime.MinValue;
-            TryDiagnostic("Plugin uruchomiony v0.4");
+            TryDiagnostic("Plugin uruchomiony v0.5");
             OnUpdate();
         }
 
@@ -88,6 +88,11 @@ namespace HearthstoneMcpPlugin
                 entity_id = entity.Id,
                 known = true,
                 card_id = entity.CardId,
+                // HearthDb printed metadata is authoritative for the installed
+                // tracker DB revision, not for live buffs or changed costs.
+                card_dbf_id = entity.Card.DbfId > 0 ? (int?)entity.Card.DbfId : null,
+                printed_mechanics = (entity.Card.Mechanics ?? Array.Empty<string>()).Take(24).ToArray(),
+                printed_data_source = "HearthDb",
                 // HDT/HearthDb knows card kind. The client MUST NOT decide
                 // whether a card can attack from its name or printed description.
                 card_type = entity.GetTag(GameTag.CARDTYPE) > 0
@@ -136,6 +141,12 @@ namespace HearthstoneMcpPlugin
                 cost = power.Cost,
                 card_text = power.HasCardId && !power.Info.Hidden ? power.Card.Text : null,
                 card_text_en = power.HasCardId && !power.Info.Hidden ? power.Card.EnglishText : null,
+                card_type = power.HasCardId && !power.Info.Hidden ? power.Card.Type.ToString() : null,
+                card_dbf_id = power.HasCardId && !power.Info.Hidden && power.Card.DbfId > 0
+                    ? (int?)power.Card.DbfId : null,
+                printed_mechanics = power.HasCardId && !power.Info.Hidden
+                    ? (power.Card.Mechanics ?? Array.Empty<string>()).Take(24).ToArray() : null,
+                printed_data_source = power.HasCardId && !power.Info.Hidden ? "HearthDb" : null,
             };
         }
 
@@ -154,6 +165,12 @@ namespace HearthstoneMcpPlugin
                 durability_remaining = durability > 0 ? (int?)Math.Max(0, durability - damage) : null,
                 card_text = weapon.HasCardId && !weapon.Info.Hidden ? weapon.Card.Text : null,
                 card_text_en = weapon.HasCardId && !weapon.Info.Hidden ? weapon.Card.EnglishText : null,
+                card_type = weapon.HasCardId && !weapon.Info.Hidden ? weapon.Card.Type.ToString() : null,
+                card_dbf_id = weapon.HasCardId && !weapon.Info.Hidden && weapon.Card.DbfId > 0
+                    ? (int?)weapon.Card.DbfId : null,
+                printed_mechanics = weapon.HasCardId && !weapon.Info.Hidden
+                    ? (weapon.Card.Mechanics ?? Array.Empty<string>()).Take(24).ToArray() : null,
+                printed_data_source = weapon.HasCardId && !weapon.Info.Hidden ? "HearthDb" : null,
             };
         }
 
@@ -264,6 +281,9 @@ namespace HearthstoneMcpPlugin
                     captured_at_utc = DateTime.UtcNow.ToString("o"),
                     source = "hearthstone-deck-tracker-plugin",
                     in_game = true,
+                    card_evidence_schema = 2,
+                    card_catalog_source = "HearthDb (installed HDT)",
+                    card_catalog_assembly_version = typeof(HearthDb.Card).Assembly.GetName().Version?.ToString(),
                     phase = phase,
                     mulligan_active = mulligan,
                     mulligan_cards = mulliganCards,
