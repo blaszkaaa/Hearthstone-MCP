@@ -82,7 +82,7 @@ W logach `game.intelligence` znajduje się przekazany kontekst strategiczny; `ai
 
 **Ważne: zaktualizuj zarówno wtyczkę HDT do v0.4, jak i aplikację Windows do Beta 0.7.** Stara DLL v0.3 nie przekazuje typu kart.
 
-Wtyczka publikuje teraz z bazy HearthDb pola `card_type` (np. `SPELL`, `MINION`, `WEAPON`, `LOCATION`) i `spell_school` dla kart z ręki, planszy i aktywnych wyborów. Te typy trafiają do pojedynczego promptu AI i do lokalnych reguł kontroli.
+Wtyczka publikuje teraz z bazy HearthDb pole `card_type` (np. `SPELL`, `MINION`, `WEAPON`, `LOCATION`) dla kart z ręki, planszy i aktywnych wyborów. Te typy trafiają do pojedynczego promptu AI i do lokalnych reguł kontroli.
 
 Aplikacja **blokuje i loguje** jednoznacznie niemożliwe rady, np. „Zaatakuj Wybuchającym wulkanem” (zaklęcie w ręce), atak na własną kartę znajdującą się w ręce, próbę zaatakowania lokacją jak stronnikiem oraz wskazanie ręcznego celu dla zaklęcia, którego opis mówi o losowym rozdzielaniu obrażeń. Automatycznie ponawia analizę (z dotychczasowym limitem prób) i przekazuje modelowi przyczynę odrzucenia. Zdarzenia diagnostyczne: `ai.advice.rejected_illegal` i `hdt.card_types_missing`.
 
