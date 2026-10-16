@@ -24,6 +24,14 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      - name: Pin .NET 8 SDK
+        shell: pwsh
+        run: |
+          '{ "sdk": { "version": "8.0.100", "rollForward": "latestFeature" } }' | Set-Content -Path global.json -Encoding UTF8
+          $sdk = dotnet --version
+          Write-Host "Release build SDK: $sdk"
+          if ($sdk -notlike '8.0.*') { throw "Expected .NET 8 SDK, got $sdk" }
+
       - name: Validate new release version
         id: version
         shell: pwsh
