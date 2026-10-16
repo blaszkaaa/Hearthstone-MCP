@@ -97,8 +97,7 @@ public partial class MainWindow : Window
         }
         // A Discover popup is an interruption, not a new turn plan:
         // never erase its visible instructions just to display a choice.
-        bool preservePlan = _turnPlanTurn >= 0 && _snapshot.InGame &&
-            _turnPlanTurn == _snapshot.Turn && !_snapshot.MulliganActive;
+        bool preservePlan = VisualTurnPlan.ShouldPreserveTurnPlan(_turnPlanTurn, _snapshot);
         if (_shownSnapshot is not null && !preservePlan &&
             _shownGuard.HasChanged(_shownSnapshot, _snapshot, now))
         {
