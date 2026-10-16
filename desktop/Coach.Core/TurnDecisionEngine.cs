@@ -33,7 +33,7 @@ public static class TurnDecisionEngine
             + "warunków combo ani efektywnego wyniku. Mogą zawierać karty, których razem "
             + "nie należy zagrywać. Efekty zmieniające koszty/manę i nowe karty wymagają "
             + "ponownej analizy po zagrywce. Rywal ma nieznaną rękę/sekrety.";
-        if (!snapshot.InGame || snapshot.MulliganActive || snapshot.ChoiceActive)
+        if (!snapshot.InGame || !snapshot.MyTurn || snapshot.MulliganActive || snapshot.ChoiceActive)
             return new("brak planowania sekwencji", "Oczekiwanie na zwykłą turę.",
                 null, null, null, 0, 0, false, false, [], 0, [], limits);
 
