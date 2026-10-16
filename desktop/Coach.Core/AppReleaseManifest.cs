@@ -6,7 +6,11 @@ namespace Coach.Core;
 /// <summary>Validated descriptor for the rolling, Windows x64 desktop release.</summary>
 public sealed class AppReleaseManifest
 {
+    // Retain legacy file to support updater builds installed before unique assets.
     public const string PackageName = "HearthstoneCoach-win-x64.zip";
+
+    public static string ImmutablePackageName(string version) =>
+        "HearthstoneCoach-win-x64-" + version.ToLowerInvariant() + ".zip";
 
     [JsonPropertyName("version")]
     public string Version { get; init; } = "";
@@ -25,7 +29,9 @@ public sealed class AppReleaseManifest
         if (value is null ||
             value.Version is null || value.Version.Length != 40 || !value.Version.All(Uri.IsHexDigit) ||
             value.Sha256 is null || value.Sha256.Length != 64 || !value.Sha256.All(Uri.IsHexDigit) ||
-            !string.Equals(value.Asset, PackageName, StringComparison.Ordinal))
+            !(string.Equals(value.Asset, PackageName, StringComparison.Ordinal) ||
+              string.Equals(value.Asset, ImmutablePackageName(value.Version),
+                  StringComparison.OrdinalIgnoreCase)))
             throw new InvalidDataException("Manifest aktualizacji zawiera nieprawidłową wersję, plik lub sumę SHA-256.");
         return value;
     }
