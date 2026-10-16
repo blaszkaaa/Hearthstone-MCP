@@ -890,6 +890,11 @@ try
     };
     File.WriteAllText(path, JsonSerializer.Serialize(pickFixture));
     var pickPicture = GameSnapshot.Read(path, now);
+    Check(VisualTurnPlan.ShouldPreserveTurnPlan(6, pickPicture),
+        "existing turn plan persists when Discover temporarily interrupts play");
+    Check(!VisualTurnPlan.ShouldPreserveTurnPlan(5, pickPicture) &&
+        !VisualTurnPlan.ShouldPreserveTurnPlan(6, new GameSnapshot()),
+        "previous-turn or finished-game plan must not linger");
     var selectedCard = AdviceCard.Parse("RUCH: Wybierz 2 — Opcja B", "choice");
     var visualChoices = VisualTurnPlan.BuildChoices(pickPicture, selectedCard);
     Check(VisualTurnPlan.BuildSteps(pickPicture, selectedCard).Count == 0,
