@@ -200,6 +200,18 @@ namespace HearthstoneMcpPlugin
                     .Where(name => !string.IsNullOrWhiteSpace(name))
                     .Take(30).ToArray();
 
+        // Publicly revealed, uniquely identifiable plays for the archive.
+        // Does not expose opponent hand or deck identities.
+        private static object[] PublicPlayDetails(System.Collections.Generic.IEnumerable<Entity> cards)
+            => cards.Where(e => e.HasCardId && !e.Info.Hidden)
+                .Take(30)
+                .Select(e => (object)new
+                {
+                    entity_id = e.Id,
+                    card_id = e.CardId,
+                    name = e.LocalizedName ?? e.Name ?? e.CardId
+                }).ToArray();
+
         private static void TryDiagnostic(string text)
         {
             try
@@ -325,6 +337,7 @@ namespace HearthstoneMcpPlugin
                         board = BoardCards(player.Board),
                         secrets_count = player.Secrets.Count(),
                         played_this_turn = PublicPlays(player.CardsPlayedThisTurn),
+                        public_plays_this_turn = PublicPlayDetails(player.CardsPlayedThisTurn),
                     },
                     opponent = new
                     {
@@ -337,6 +350,7 @@ namespace HearthstoneMcpPlugin
                         board = BoardCards(opponent.Board),
                         secrets_count = opponent.Secrets.Count(),
                         played_this_turn = PublicPlays(opponent.CardsPlayedThisTurn),
+                        public_plays_this_turn = PublicPlayDetails(opponent.CardsPlayedThisTurn),
                     },
                 };
             }
