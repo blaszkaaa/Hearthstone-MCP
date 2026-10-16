@@ -73,6 +73,16 @@ namespace HearthstoneMcpPlugin
             catch (Exception ex) { TryDiagnostic("WriteSnapshot: " + ex); }
         }
 
+        private static int? LiveTorchDamage(Entity entity)
+        {
+            if (!string.Equals(entity.CardId, "CATA_585", StringComparison.OrdinalIgnoreCase)) return null;
+            // Resolve by name so older HearthDb versions fail safely instead of
+            // requiring an enum constant they might not expose at compile time.
+            if (!Enum.TryParse("TAG_SCRIPT_DATA_NUM_1", out GameTag liveTag)) return null;
+            int value = entity.GetTag(liveTag);
+            return value > 0 && value <= 8 ? (int?)value : null;
+        }
+
         private static object AsCard(Entity entity, bool withCombatData, bool ownOfferedChoice = false)
         {
             if (entity == null)
@@ -101,6 +111,11 @@ namespace HearthstoneMcpPlugin
                 name = entity.LocalizedName ?? entity.Name ?? entity.CardId,
                 card_text = entity.Card.Text,
                 card_text_en = entity.Card.EnglishText,
+                // The mutable game-entity script tag tracks remaining Torch damage.
+                // Null means HDT cannot confirm it; never substitute printed 8.
+                live_damage = LiveTorchDamage(entity),
+                live_damage_source = string.Equals(entity.CardId, "CATA_585", StringComparison.OrdinalIgnoreCase)
+                    ? "TAG_SCRIPT_DATA_NUM_1" : null,
                 position = entity.ZonePosition,
                 cost = entity.Cost,
                 attack = withCombatData ? (int?)entity.Attack : null,
