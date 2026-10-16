@@ -29,6 +29,7 @@ public static class DecisionSignature
             {
                 mana = Integer(player, "mana_available"),
                 max_mana = Integer(player, "mana_max"),
+                active_deck_signature = String(Prop(player, "active_deck"), "signature"),
                 hand = Cards(Prop(player, "hand")),
                 board = Cards(Prop(player, "board")),
                 hero = Hero(Prop(player, "hero")),

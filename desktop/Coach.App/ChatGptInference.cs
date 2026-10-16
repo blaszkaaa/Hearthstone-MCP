@@ -41,10 +41,22 @@ public sealed class ChatGptInference
         return choices;
     }
 
-    public async Task<string> AnalyzeAsync(GameSnapshot snapshot, string model, string prompt, CancellationToken ct)
+    public Task<string> AnalyzeAsync(GameSnapshot snapshot, string model, string prompt, CancellationToken ct)
     {
         if (!snapshot.Actionable)
             throw new InvalidOperationException("Czekam na Twoją turę lub aktywny wybór kart.");
+        return RequestAsync(snapshot, model, prompt, false, ct);
+    }
+
+    public Task<string> AnalyzeOpponentAsync(GameSnapshot snapshot, string model, string prompt, CancellationToken ct)
+    {
+        if (!snapshot.InGame || snapshot.MyTurn || snapshot.MulliganActive || snapshot.ChoiceActive)
+            throw new InvalidOperationException("Analiza rywala jest dostępna wyłącznie podczas jego tury.");
+        return RequestAsync(snapshot, model, prompt, true, ct);
+    }
+
+    private async Task<string> RequestAsync(GameSnapshot snapshot, string model, string prompt, bool opponentReview, CancellationToken ct)
+    {
         if (string.IsNullOrWhiteSpace(model)) throw new InvalidOperationException("Wybierz model ChatGPT.");
         string token = await _auth.AccessTokenAsync(ct);
         var body = new
@@ -57,13 +69,13 @@ public sealed class ChatGptInference
             // all output budget being spent on hidden reasoning for short turns.
             reasoning = new { effort = "low" },
             text = new { verbosity = "low" },
-            max_output_tokens = snapshot.MulliganActive ? 800 : snapshot.ChoiceActive ? 650 : 900
+            max_output_tokens = opponentReview ? 650 : snapshot.MulliganActive ? 800 : snapshot.ChoiceActive ? 650 : 900
         };
         using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/responses");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         request.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
         using var response = await Http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-        DiagnosticLog.Write("api.response_status", new { status = (int)response.StatusCode, phase = snapshot.Phase, model });
+        DiagnosticLog.Write("api.response_status", new { status = (int)response.StatusCode, phase = opponentReview ? "opponent_review" : snapshot.Phase, model });
         if (!response.IsSuccessStatusCode)
         {
             if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)

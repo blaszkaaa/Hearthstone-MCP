@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Security.Cryptography;
 using System.Windows;
 using System.Windows.Controls;
 using HearthDb.Enums;
@@ -28,7 +29,7 @@ namespace HearthstoneMcpPlugin
         public string Description => "Udostepnia stan meczu i aktywne wybory kart (Odkryj / Choose One) do MCP.";
         public string ButtonText => "Pokaz plik danych";
         public string Author => "Hearthstone-MCP contributors";
-        public Version Version => new Version(0, 5, 0);
+        public Version Version => new Version(0, 6, 0);
         public MenuItem MenuItem => null;
 
         private static string StatePath
@@ -48,7 +49,7 @@ namespace HearthstoneMcpPlugin
         {
             _enabled = true;
             _lastWriteUtc = DateTime.MinValue;
-            TryDiagnostic("Plugin uruchomiony v0.5");
+            TryDiagnostic("Plugin uruchomiony v0.6");
             OnUpdate();
         }
 
@@ -211,6 +212,63 @@ namespace HearthstoneMcpPlugin
                     name = e.LocalizedName ?? e.Name ?? e.CardId
                 }).ToArray();
 
+        // Only the explicitly ACTIVE HDT deck is considered. A highlighted/selected
+        // deck is not necessarily the deck being played. Matching class is merely a
+        // sanity check, not proof of an identical in-game deck.
+        private static object ActiveDeckForPrompt(string currentClass)
+        {
+            try
+            {
+                var selected = Hearthstone_Deck_Tracker.DeckList.Instance.ActiveDeckVersion
+                    ?? Hearthstone_Deck_Tracker.DeckList.Instance.ActiveDeck;
+                if (selected == null)
+                    return new { source = "hdt_active_deck", status = "unavailable" };
+                bool classMatches = !string.IsNullOrWhiteSpace(selected.Class)
+                    && !string.IsNullOrWhiteSpace(currentClass)
+                    && string.Equals(selected.Class.Replace(" ", ""), currentClass.Replace(" ", ""),
+                        StringComparison.OrdinalIgnoreCase);
+                var cards = classMatches
+                    ? selected.Cards.Where(c => c != null && !string.IsNullOrWhiteSpace(c.Id))
+                        .OrderBy(c => c.Id)
+                        .Take(60)
+                        .Select(c => (object)new
+                        {
+                            card_id = c.Id,
+                            name = c.LocalizedName ?? c.Name ?? c.Id,
+                            count = Math.Max(0, Math.Min(10, c.Count)),
+                            cost = c.Cost,
+                            card_type = c.TypeEnum?.ToString(),
+                            card_text = c.Text,
+                            card_text_en = c.EnglishText
+                        }).ToArray()
+                    : Array.Empty<object>();
+                var signature = "";
+                if (classMatches)
+                {
+                    var rawSignature = string.Join("|", cards.Select(c => JsonConvert.SerializeObject(c)));
+                    using (var sha = SHA256.Create())
+                        signature = BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(rawSignature)))
+                            .Replace("-", "");
+                }
+                return new
+                {
+                    source = "hdt_active_deck",
+                    status = classMatches ? "class_matches_not_game_verified" : "class_mismatch",
+                    name = selected.Name,
+                    card_class = selected.Class,
+                    // This is the INITIAL deck list, not cards remaining in the deck.
+                    cards = cards,
+                    total_cards = classMatches ? (int?)selected.Cards.Sum(c => Math.Max(0, c.Count)) : null,
+                    signature = signature
+                };
+            }
+            catch (Exception)
+            {
+                // A missing/unloaded HDT deck list must never block the game snapshot.
+                return new { source = "hdt_active_deck", status = "read_error" };
+            }
+        }
+
         private static void TryDiagnostic(string text)
         {
             try
@@ -325,6 +383,7 @@ namespace HearthstoneMcpPlugin
                     player = new
                     {
                         card_class = player.CurrentClass,
+                        active_deck = ActiveDeckForPrompt(player.CurrentClass),
                         mana_max = manaMax,
                         mana_available = manaAvailable,
                         hand = player.Hand.OrderBy(e => e.ZonePosition)

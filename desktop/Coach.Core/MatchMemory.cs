@@ -16,12 +16,14 @@ public sealed class MatchMemory
     private DateTimeOffset? _noGameSince;
     private bool _observedMulligan;
 
+    public int SessionId { get; private set; }
     public int FirstObservedTurn => _firstObservedTurn;
     public int TotalObservedPlays => _plays.Count;
     public IReadOnlyList<ObservedPlay> RecentPlays => _plays.TakeLast(32).ToArray();
 
     public void Reset()
     {
+        SessionId++;
         _plays.Clear();
         _seen.Clear();
         _firstObservedTurn = -1;

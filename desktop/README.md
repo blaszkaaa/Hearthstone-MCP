@@ -254,3 +254,13 @@ dotnet publish desktop/Coach.App/Coach.App.csproj -c Release -r win-x64 --self-c
 - HDT i jego logi nie udostępniają pełnego zbioru legalnych akcji ani ukrytych kart. AI może się mylić. Gra pozostaje wyłącznie pod kontrolą użytkownika.
 - Aplikacja nie gwarantuje dopuszczalności porad AI w turniejach i określonych trybach. Sprawdź odpowiednie zasady.
 - Początkowa wersja nie ma automatycznych aktualizacji, instalatora MSI, historii analiz, wyboru różnych kont ani podświetlania kart na ekranie gry.
+
+
+## Rozpoznawanie talii i analiza tury rywala
+
+- **Twoja talia:** nowa wtyczka HDT v0.6 udostępnia nazwę i pełny początkowy skład talii oznaczonej jako **ACTIVE** w Hearthstone Deck Tracker (identyfikator, nazwa, liczba kopii, koszt, rodzaj, opis karty). To nie są aktualne karty pozostałe w bibliotece. Gdy brak aktywnej talii lub nie zgadza się klasa, AI nie korzysta ze składu. Sama zgodność klasy **nie potwierdza**, że w partii faktycznie wybrano identyczny deck.
+- **Tura przeciwnika:** po ok. 4 sekundach stabilności aplikacja wykonuje krótką analizę widocznej planszy i publicznych zagrań, pod warunkiem włączonej automatycznej analizy i zalogowanego ChatGPT. Po istotnych zmianach może wykonać jeszcze jedną analizę (maks. 2 na turę, min. 9 s między startami). Nie pokazuje podczas tego ruchów do zagrania.
+- **Twoja następna tura:** wynik analizy rywala dołączany jest do kolejnego promptu jako **hipoteza**, wymagająca porównania z aktualnymi danymi z HDT; historia publicznych zagrań jest zbierana niezależnie od dostępności AI. Nie odczytujemy nieznanych kart z ręki ani talii przeciwnika.
+- **Priorytet opóźnień:** tura gracza przerywa trwającą analizę przeciwnika, aby szybciej wygenerować poradę. Nieudana analiza w tle nie psuje obecnej rekomendacji. Dodatkowe wywołania mogą zużywać limit użycia modelu.
+- **Aktualizacja:** aby AI znało pełny skład talii, zaktualizuj **zarówno EXE, jak i DLL wtyczki HDT**; sama aplikacja bez nowej wtyczki nadal analizuje wroga na podstawie widocznych kart.
+- **Logi:** diagnostyka obejmuje `ai.opponent.scheduled`, `ai.opponent.request`, `ai.opponent.completed`, `ai.opponent.canceled`, `ai.opponent.discarded`, `ai.opponent.failure`.
