@@ -15,12 +15,15 @@ internal static class HdtPluginUpdater
 {
     private const string ReleaseBase =
         "https://github.com/blaszkaaa/Hearthstone-MCP/releases/download/plugin-latest/";
+    // Never wait 35 seconds for GitHub DNS. Release ZIPs embed the exact HDT
+    // DLL built from the same commit, so installation works without internet.
     private static readonly HttpClient Http = new()
     {
-        Timeout = TimeSpan.FromSeconds(35)
+        Timeout = TimeSpan.FromSeconds(6)
     };
 
-    public sealed record Result(bool Changed, string Destination, bool Restarted);
+    public sealed record Result(bool Changed, string Destination, bool Restarted,
+        string Source);
 
     public static async Task<Result> UpdateAsync(Action<string> progress, CancellationToken ct)
     {
@@ -30,33 +33,38 @@ internal static class HdtPluginUpdater
         string tempDll = Path.Combine(folder, "HearthstoneMcpPlugin.dll");
         try
         {
-            progress("Pobieram oficjalną DLL i sumę kontrolną...");
-            string sha = (await Http.GetStringAsync(ReleaseBase +
-                "HearthstoneMcpPlugin.dll.sha256", ct)).Trim().Split(' ', '\t', '\r', '\n')[0];
-            if (!PluginFileSwap.ValidDigest(sha))
-                throw new InvalidDataException("Wydanie GitHub ma nieprawidłową sumę kontrolną.");
-
-            using (var response = await Http.GetAsync(ReleaseBase + "HearthstoneMcpPlugin.dll",
-                HttpCompletionOption.ResponseHeadersRead, ct))
+            string sha;
+            string source;
+            // If the app is a development build without a bundled DLL, the
+            // online release remains available as the only update source.
+            try
             {
-                response.EnsureSuccessStatusCode();
-                if (response.Content.Headers.ContentLength is > 20_000_000)
-                    throw new InvalidDataException("Plik DLL jest zbyt duży.");
-                await using var stream = await response.Content.ReadAsStreamAsync(ct);
-                await using var file = new FileStream(tempDll, FileMode.CreateNew, FileAccess.Write);
-                var bytes = new byte[65536];
-                long count = 0;
-                int n;
-                while ((n = await stream.ReadAsync(bytes, ct)) != 0)
-                {
-                    count += n;
-                    if (count > 20_000_000) throw new InvalidDataException("Plik DLL jest zbyt duży.");
-                    await file.WriteAsync(bytes.AsMemory(0, n), ct);
-                }
+                progress("Sprawdzam najnowszą DLL na GitHubie (maks. 6 s)...");
+                sha = await DownloadReleaseAsync(tempDll, ct);
+                source = "github-release";
             }
+            catch (HttpRequestException ex) when (BundledHdtPlugin.Available)
+            {
+                DiagnosticLog.Write("plugin.update.network_fallback", new {
+                    kind = "network_error", error = ex.Message
+                });
+                progress("GitHub jest niedostępny. Korzystam z DLL dołączonej do aplikacji...");
+                sha = BundledHdtPlugin.Extract(tempDll);
+                source = "bundled-offline";
+            }
+            catch (TaskCanceledException ex) when (!ct.IsCancellationRequested && BundledHdtPlugin.Available)
+            {
+                DiagnosticLog.Write("plugin.update.network_fallback", new {
+                    kind = "timeout", error = ex.Message
+                });
+                progress("GitHub nie odpowiedział. Korzystam z DLL dołączonej do aplikacji...");
+                sha = BundledHdtPlugin.Extract(tempDll);
+                source = "bundled-offline";
+            }
+            // Validation MUST happen before HDT is closed, regardless of source.
             if (!string.Equals(PluginFileSwap.Sha256Of(tempDll), sha,
                 StringComparison.OrdinalIgnoreCase))
-                throw new InvalidDataException("Suma SHA-256 DLL nie zgadza się z wydaniem.");
+                throw new InvalidDataException("Kontrola SHA-256 DLL nie powiodła się.");
             var assembly = AssemblyName.GetAssemblyName(tempDll);
             if (!string.Equals(assembly.Name, "HearthstoneMcpPlugin", StringComparison.Ordinal))
                 throw new InvalidDataException("Pobrano nieprawidłową bibliotekę DLL.");
@@ -66,7 +74,7 @@ internal static class HdtPluginUpdater
                 PluginFileSwap.Sha256Of(destination), sha, StringComparison.OrdinalIgnoreCase))
             {
                 progress("Wtyczka jest już aktualna. Nie trzeba zamykać HDT.");
-                return new Result(false, destination, false);
+                return new Result(false, destination, false, source);
             }
 
             var processes = Process.GetProcesses()
@@ -117,7 +125,7 @@ internal static class HdtPluginUpdater
                 progress("Podmieniam DLL i weryfikuję zapis...");
                 bool changed = PluginFileSwap.Install(tempDll, destination, sha);
                 progress("Wtyczka zaktualizowana.");
-                return new Result(changed, destination, wasRunning);
+                return new Result(changed, destination, wasRunning, source);
             }
             finally
             {
@@ -139,6 +147,34 @@ internal static class HdtPluginUpdater
             try { Directory.Delete(folder, recursive: true); }
             catch (IOException) { }
         }
+    }
+
+    private static async Task<string> DownloadReleaseAsync(string targetDll,
+        CancellationToken ct)
+    {
+        string sha = (await Http.GetStringAsync(ReleaseBase +
+            "HearthstoneMcpPlugin.dll.sha256", ct)).Trim().Split(' ', '\t', '\r', '\n')[0];
+        if (!PluginFileSwap.ValidDigest(sha))
+            throw new InvalidDataException("Nieprawidłowa suma SHA-256 w GitHub Release.");
+        using var response = await Http.GetAsync(ReleaseBase + "HearthstoneMcpPlugin.dll",
+            HttpCompletionOption.ResponseHeadersRead, ct);
+        response.EnsureSuccessStatusCode();
+        if (response.Content.Headers.ContentLength is > 20_000_000)
+            throw new InvalidDataException("DLL jest zbyt duża.");
+        await using var stream = await response.Content.ReadAsStreamAsync(ct);
+        await using var file = new FileStream(targetDll, FileMode.Create, FileAccess.Write,
+            FileShare.None, bufferSize: 65536, useAsync: true);
+        byte[] bytes = new byte[65536];
+        long count = 0;
+        int n;
+        while ((n = await stream.ReadAsync(bytes, ct)) != 0)
+        {
+            count += n;
+            if (count > 20_000_000) throw new InvalidDataException("DLL jest zbyt duża.");
+            await file.WriteAsync(bytes.AsMemory(0, n), ct);
+        }
+        await file.FlushAsync(ct);
+        return sha;
     }
 
     public static string ResolveInstalledPluginPath()
