@@ -1,0 +1,146 @@
+name: Publish Windows desktop release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'desktop/RELEASE_VERSION'
+      - '.github/workflows/release-windows.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hearthstone-desktop-versioned-release
+  cancel-in-progress: false
+
+jobs:
+  windows-release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Validate new release version
+        id: version
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $version = (Get-Content desktop/RELEASE_VERSION -Raw).Trim()
+          if ($version -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+$') {
+            throw "Invalid release version: $version"
+          }
+          "VERSION=$version" >> $env:GITHUB_ENV
+          gh release view "$version" --json tagName *> $null
+          if ($LASTEXITCODE -eq 0) {
+            throw "Release $version already exists; bump desktop/RELEASE_VERSION to publish a new build."
+          }
+
+      - name: Core regression tests
+        run: dotnet run --project desktop/Coach.Checks/Coach.Checks.csproj -c Release
+
+      - name: Download pinned HDT binaries
+        shell: pwsh
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP "hdt.zip"
+          $folder = Join-Path $env:RUNNER_TEMP "hdt"
+          Invoke-WebRequest -Uri "https://github.com/HearthSim/Hearthstone-Deck-Tracker/releases/download/v1.55.6/Hearthstone.Deck.Tracker-v1.55.6.zip" -OutFile $zip
+          Expand-Archive -Path $zip -DestinationPath $folder -Force
+          $exe = Get-ChildItem -Path $folder -File -Recurse | Where-Object { $_.Name -eq "Hearthstone Deck Tracker.exe" } | Select-Object -First 1
+          if (-not $exe) { throw "HDT executable missing" }
+          "HDT_PATH=$($exe.Directory.FullName)" >> $env:GITHUB_ENV
+
+      - name: Build and bundle HDT plugin
+        shell: pwsh
+        run: |
+          dotnet build plugin/HearthstoneMcpPlugin.csproj -c Release "-p:HdtPath=$env:HDT_PATH"
+          if ($LASTEXITCODE -ne 0) { throw "HDT plugin build failed" }
+          $dll = "plugin/bin/Release/net472/HearthstoneMcpPlugin.dll"
+          if (-not (Test-Path $dll)) { throw "HDT DLL missing" }
+          New-Item -Path "desktop/Coach.App/Resources" -ItemType Directory -Force | Out-Null
+          Copy-Item $dll "desktop/Coach.App/Resources/HearthstoneMcpPlugin.dll"
+
+      - name: Publish self-contained Windows x64 application
+        shell: pwsh
+        run: |
+          dotnet publish desktop/Coach.App/Coach.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o dist/HearthstoneCoach
+          if ($LASTEXITCODE -ne 0) { throw "Windows publish failed" }
+          if (-not (Test-Path "dist/HearthstoneCoach/HearthstoneCoach.exe")) {
+            throw "Windows executable missing from published package"
+          }
+
+      - name: Verify exact bundled plugin
+        shell: pwsh
+        run: |
+          $app = (Resolve-Path "desktop/Coach.App/bin/Release/net8.0-windows/HearthstoneCoach.dll").Path
+          $assembly = [System.Reflection.Assembly]::LoadFile($app)
+          $stream = $assembly.GetManifestResourceStream("Coach.App.BundledHdtPlugin")
+          if ($null -eq $stream) { throw "Embedded plugin missing" }
+          $buffer = New-Object System.IO.MemoryStream
+          try {
+            $stream.CopyTo($buffer)
+            $actual = [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData($buffer.ToArray()))
+            $expected = (Get-FileHash "plugin/bin/Release/net472/HearthstoneMcpPlugin.dll" -Algorithm SHA256).Hash
+            if ($actual -ne $expected) { throw "Embedded plugin checksum mismatch" }
+          } finally {
+            $stream.Dispose()
+            $buffer.Dispose()
+          }
+
+      - name: Package ZIP, checksums and release notes
+        shell: pwsh
+        run: |
+          $archiveName = "HearthstoneCoach-$env:VERSION-win-x64.zip"
+          $archivePath = Join-Path "dist" $archiveName
+          Compress-Archive -Path "dist/HearthstoneCoach/*" -DestinationPath $archivePath -CompressionLevel Optimal -Force
+          if (-not (Test-Path $archivePath)) { throw "Release ZIP missing" }
+          $hash = (Get-FileHash $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+          [System.IO.File]::WriteAllText("$archivePath.sha256", "$hash  $archiveName`n")
+          @"
+          ## Hearthstone AI Coach $env:VERSION (Windows 10/11, x64)
+
+          Wydanie gotowe do pobrania na komputer (ZIP z programem HearthstoneCoach.exe).
+
+          ### Nowości
+          - AI zna listę kart aktywnej talii z Hearthstone Deck Tracker, gdy zgadza się klasa.
+          - Analiza widocznych zagrań rywala podczas jego tury; wnioski są wykorzystywane w kolejnych rekomendacjach.
+          - Historia meczów i kart oraz ulepszenia wyboru kart (mulligan i Discover).
+          - Ulepszone śledzenie aktualnych obrażeń Pochodni.
+          - Zawiera sprawdzoną bajt po bajcie wtyczkę HDT v0.6 jako zasób offline.
+
+          ### Instalacja
+          1. Pobierz plik `$archiveName` i rozpakuj ZIP do osobnego folderu.
+          2. Uruchom `HearthstoneCoach.exe` (Windows 10/11, 64-bit; środowisko .NET dołączone).
+          3. Uruchom Hearthstone Deck Tracker i skorzystaj w Ustawieniach programu z opcji aktualizacji wtyczki HDT, gdy nie trwa mecz.
+          4. W HDT wybierz aktywną talię. Połącz ChatGPT i włącz automatyczną analizę.
+
+          Uwaga: program czyta widoczny stan meczu z HDT. Nie zna ukrytych kart przeciwnika. Analiza AI na żywo wymaga podłączonego konta i może korzystać z limitów jego planu.
+          "@ | Set-Content -Path "dist/release-notes.md" -Encoding UTF8
+          "ARCHIVE_PATH=$archivePath" >> $env:GITHUB_ENV
+          "HASH_PATH=$archivePath.sha256" >> $env:GITHUB_ENV
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release create "$env:VERSION" "$env:ARCHIVE_PATH" "$env:HASH_PATH" --target "$env:GITHUB_SHA" --title "Hearthstone AI Coach $env:VERSION — Windows" --notes-file "dist/release-notes.md" --latest
+          if ($LASTEXITCODE -ne 0) { throw "Failed to publish GitHub release" }
+
+      - name: Verify release asset is downloadable
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $assets = gh release view "$env:VERSION" --json assets | ConvertFrom-Json
+          $expected = "HearthstoneCoach-$env:VERSION-win-x64.zip"
+          if (-not ($assets.assets | Where-Object { $_.name -eq $expected -and $_.size -gt 1000000 })) {
+            throw "Published release is missing the Windows ZIP"
+          }
