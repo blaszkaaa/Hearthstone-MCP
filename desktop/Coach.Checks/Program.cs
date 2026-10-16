@@ -266,7 +266,7 @@ try
     var groundedPrompt = AdvicePrompt.Build(intelSnapshot, intellect.BuildContext(intelSnapshot));
     Check(groundedPrompt.Contains("DODATKOWE DOWODY") &&
           groundedPrompt.Contains("Battlecry") &&
-          groundedPrompt.Contains("widoczna"), "new evidence reaches one AI prompt");
+          groundedPrompt.Contains("visible_board_threats"), "new evidence reaches one AI prompt");
 
     File.WriteAllText(path, JsonSerializer.Serialize(new
     {
