@@ -104,7 +104,7 @@ jobs:
           @"
           ## Hearthstone AI Coach $env:VERSION (Windows 10/11, x64)
 
-          Wydanie gotowe do pobrania na komputer (ZIP z programem HearthstoneCoach.exe).
+          Wydanie gotowe do pobrania na komputer: HearthstoneCoach.exe lub pełne archiwum ZIP.
 
           ### Nowości
           - AI zna listę kart aktywnej talii z Hearthstone Deck Tracker, gdy zgadza się klasa.
@@ -114,8 +114,8 @@ jobs:
           - Zawiera sprawdzoną bajt po bajcie wtyczkę HDT v0.6 jako zasób offline.
 
           ### Instalacja
-          1. Pobierz plik `$archiveName` i rozpakuj ZIP do osobnego folderu.
-          2. Uruchom `HearthstoneCoach.exe` (Windows 10/11, 64-bit; środowisko .NET dołączone).
+          1. Pobierz HearthstoneCoach.exe bezpośrednio albo $archiveName i rozpakuj ZIP.
+          2. Uruchom HearthstoneCoach.exe (Windows 10/11, 64-bit; środowisko .NET dołączone).
           3. Uruchom Hearthstone Deck Tracker i skorzystaj w Ustawieniach programu z opcji aktualizacji wtyczki HDT, gdy nie trwa mecz.
           4. W HDT wybierz aktywną talię. Połącz ChatGPT i włącz automatyczną analizę.
 
@@ -130,7 +130,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          gh release create "$env:VERSION" "$env:ARCHIVE_PATH" "$env:HASH_PATH" --target "$env:GITHUB_SHA" --title "Hearthstone AI Coach $env:VERSION — Windows" --notes-file "dist/release-notes.md" --latest
+          gh release create "$env:VERSION" "dist/HearthstoneCoach/HearthstoneCoach.exe" "$env:ARCHIVE_PATH" "$env:HASH_PATH" --target "$env:GITHUB_SHA" --title "Hearthstone AI Coach $env:VERSION — Windows" --notes-file "dist/release-notes.md" --latest
           if ($LASTEXITCODE -ne 0) { throw "Failed to publish GitHub release" }
 
       - name: Verify release asset is downloadable
@@ -143,4 +143,7 @@ jobs:
           $expected = "HearthstoneCoach-$env:VERSION-win-x64.zip"
           if (-not ($assets.assets | Where-Object { $_.name -eq $expected -and $_.size -gt 1000000 })) {
             throw "Published release is missing the Windows ZIP"
+          }
+          if (-not ($assets.assets | Where-Object { $_.name -eq "HearthstoneCoach.exe" -and $_.size -gt 1000000 })) {
+            throw "Published release is missing the Windows executable"
           }
