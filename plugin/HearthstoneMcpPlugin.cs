@@ -200,8 +200,7 @@ namespace HearthstoneMcpPlugin
                     .Where(name => !string.IsNullOrWhiteSpace(name))
                     .Take(30).ToArray();
 
-        // Publicly revealed, uniquely identifiable plays for the archive.
-        // Does not expose opponent hand or deck identities.
+        // Only public, revealed cards. Never exports opponent hand or deck.
         private static object[] PublicPlayDetails(System.Collections.Generic.IEnumerable<Entity> cards)
             => cards.Where(e => e.HasCardId && !e.Info.Hidden)
                 .Take(30)

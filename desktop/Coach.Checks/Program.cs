@@ -975,7 +975,6 @@ try
     Check(CardKnowledge.Collect(unknownTorch).Single(x => x.CardId == "CATA_585").LiveDamage == null,
           "absent live tag must not be replaced with the printed base value");
 
-
     // Match history: visible cards, duplicate copies, persistence and boundaries.
     var historyFile = Path.Combine(Path.GetTempPath(),
         "hscoach-history-" + Guid.NewGuid().ToString("N") + ".json");

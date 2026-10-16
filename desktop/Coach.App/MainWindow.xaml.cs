@@ -50,12 +50,32 @@ public partial class MainWindow : Window
         InitializeComponent();
         PlanItems.ItemsSource = _planRows;
         ChoiceItems.ItemsSource = _choiceRows;
-        HistoryMatchList.ItemsSource = _historyRows;
         MulliganItems.ItemsSource = _mulliganRows;
+        HistoryMatchList.ItemsSource = _historyRows;
         _inference = new ChatGptInference(_auth);
         _timer.Tick += Poll;
         UpdateAccount();
         DiagnosticLog.Write("app.start", new { version = "1.0", state_path = GameSnapshot.DefaultPath, log_dir = DiagnosticLog.DirectoryPath });
+    }
+
+    private void NavigateClick(object sender, RoutedEventArgs e)
+    {
+        var settings = ReferenceEquals(sender, SettingsNavButton);
+        var history = ReferenceEquals(sender, HistoryNavButton);
+        MainPage.Visibility = !settings && !history ? Visibility.Visible : Visibility.Collapsed;
+        SettingsPage.Visibility = settings ? Visibility.Visible : Visibility.Collapsed;
+        HistoryPage.Visibility = history ? Visibility.Visible : Visibility.Collapsed;
+        MainNavButton.Background = (Brush)FindResource(!settings && !history ? "AccentTint" : "Panel2");
+        MainNavButton.Foreground = (Brush)FindResource(!settings && !history ? "Accent" : "White");
+        SettingsNavButton.Background = (Brush)FindResource(settings ? "AccentTint" : "Panel2");
+        SettingsNavButton.Foreground = (Brush)FindResource(settings ? "Accent" : "White");
+        HistoryNavButton.Background = (Brush)FindResource(history ? "AccentTint" : "Panel2");
+        HistoryNavButton.Foreground = (Brush)FindResource(history ? "Accent" : "White");
+        if (history)
+        {
+            _shownHistoryRevision = -1;
+            RefreshHistory();
+        }
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
@@ -386,7 +406,7 @@ public partial class MainWindow : Window
         }
         if (!_auth.SignedIn || ModelPicker.SelectedItem is not ChatGptInference.ModelChoice model)
         {
-            AiStatus.Text = "Najpierw połącz konto i wybierz model";
+            AiStatus.Text = "Połącz konto i wybierz model w Ustawieniach";
             return;
         }
         if (_busy) return;
@@ -670,26 +690,6 @@ public partial class MainWindow : Window
             _timer.Start();
             RefreshState();
         }
-    }
-
-
-    private void ShowCoachClick(object sender, RoutedEventArgs e)
-    {
-        HistoryPage.Visibility = Visibility.Collapsed;
-        CoachPage.Visibility = Visibility.Visible;
-        CoachNavButton.Background = (Brush)FindResource("Accent");
-        HistoryNavButton.Background = (Brush)FindResource("Panel2");
-    }
-
-    private void ShowHistoryClick(object sender, RoutedEventArgs e)
-    {
-        CoachPage.Visibility = Visibility.Collapsed;
-        HistoryPage.Visibility = Visibility.Visible;
-        CoachNavButton.Background = (Brush)FindResource("Panel2");
-        HistoryNavButton.Background = (Brush)FindResource("Accent");
-        _shownHistoryRevision = -1;
-        RefreshHistory();
-        DiagnosticLog.Write("ui.match_history.opened", new { matches = _history.Matches.Count });
     }
 
     private void RefreshHistory()

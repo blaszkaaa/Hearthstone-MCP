@@ -59,49 +59,97 @@
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="66"/>
+            <RowDefinition Height="72"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Title bar -->
-        <Border Grid.Row="0" Background="#111A25"
-                BorderBrush="{StaticResource Stroke}" BorderThickness="0,0,0,1"
-                MouseLeftButtonDown="TitleDrag">
-            <Grid Margin="23,0,19,0">
+        <!-- Compact, integrated desktop title bar. The open center remains draggable. -->
+        <Border Grid.Row="0" BorderBrush="{StaticResource Stroke}"
+                BorderThickness="0,0,0,1" MouseLeftButtonDown="TitleDrag">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#172B2E" Offset="0"/>
+                    <GradientStop Color="#13232C" Offset="0.38"/>
+                    <GradientStop Color="#101A25" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Grid Margin="22,0,16,0">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Width="34" Height="34" CornerRadius="11"
-                            Background="{StaticResource Accent}">
-                        <TextBlock Text="✦" Foreground="#09221A" FontSize="23"
-                                   VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                    </Border>
-                    <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
-                        <TextBlock FontSize="15" FontWeight="Bold">
-                            <Run Text="Hearthstone"/><Run Text="  AI Coach" Foreground="{StaticResource Muted}" FontWeight="Normal"/>
-                        </TextBlock>
-                        <TextBlock Text="Twój asystent rozgrywki" FontSize="11" Foreground="{StaticResource Muted}" Margin="0,3,0,0"/>
+
+                <!-- Vector mark stays sharp at different Windows DPI settings. -->
+                <Border Grid.Column="0" Width="40" Height="40" CornerRadius="12"
+                        Background="#1E443B" BorderBrush="#37695A" BorderThickness="1"
+                        VerticalAlignment="Center">
+                    <Grid>
+                        <Path Width="23" Height="23" Stretch="Uniform"
+                              Fill="{StaticResource Accent}"
+                              Data="M12,1 L14.8,8.2 22,11 14.8,13.8 12,21 9.2,13.8 2,11 9.2,8.2 Z"/>
+                        <Ellipse Width="3" Height="3" Fill="#C9FFEB"
+                                 VerticalAlignment="Top" HorizontalAlignment="Right"
+                                 Margin="0,7,6,0"/>
+                    </Grid>
+                </Border>
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="Hearthstone" FontSize="16" FontWeight="Bold"
+                                   Foreground="{StaticResource White}" VerticalAlignment="Center"/>
+                        <TextBlock Text="  AI Coach" FontSize="16" FontWeight="SemiBold"
+                                   Foreground="{StaticResource Accent}" VerticalAlignment="Center"/>
+                        <Border Margin="11,0,0,0" Padding="7,3" CornerRadius="6"
+                                BorderBrush="#376255" BorderThickness="1"
+                                Background="#1B3B33" VerticalAlignment="Center">
+                            <TextBlock Text="BETA" FontSize="9" FontWeight="SemiBold"
+                                       Foreground="{StaticResource Accent}"/>
+                        </Border>
                     </StackPanel>
-                    <Border Background="{StaticResource AccentTint}" Padding="9,5"
-                            CornerRadius="7" Margin="17,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="BETA 1.0" Foreground="{StaticResource Accent}" FontSize="10" FontWeight="SemiBold"/>
-                    </Border>
+                    <TextBlock Text="Asystent rozgrywki na żywo" FontSize="11"
+                               Foreground="{StaticResource Muted}" Margin="0,4,0,0"/>
                 </StackPanel>
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border x:Name="HeaderStateBadge" Background="{StaticResource NeutralTint}"
-                            CornerRadius="9" Padding="11,7" Margin="0,0,17,0">
-                        <StackPanel Orientation="Horizontal">
-                            <Ellipse x:Name="HeaderIndicator" Width="7" Height="7" Fill="{StaticResource Muted}"
-                                     VerticalAlignment="Center" Margin="0,0,8,0"/>
-                            <TextBlock x:Name="HeaderStatusText" Text="Sprawdzanie HDT" FontSize="11" FontWeight="SemiBold"
-                                       Foreground="{StaticResource Muted}"/>
+
+                <!-- Live game state (names are used by MainWindow.xaml.cs). -->
+                <Border x:Name="HeaderStateBadge" Grid.Column="3"
+                        Background="{StaticResource NeutralTint}" CornerRadius="11"
+                        BorderBrush="#35524D" BorderThickness="1"
+                        Padding="11,7" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Width="27" Height="27" CornerRadius="8"
+                                Background="#23443E" VerticalAlignment="Center">
+                            <Ellipse x:Name="HeaderIndicator" Width="8" Height="8"
+                                     Fill="{StaticResource Muted}" VerticalAlignment="Center"
+                                     HorizontalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Margin="10,0,2,0" VerticalAlignment="Center">
+                            <TextBlock Text="STATUS ROZGRYWKI" FontSize="9"
+                                       FontWeight="SemiBold" Foreground="{StaticResource Muted}"/>
+                            <TextBlock x:Name="HeaderStatusText" Text="Sprawdzanie HDT"
+                                       FontSize="12" FontWeight="SemiBold"
+                                       Foreground="{StaticResource Muted}" Margin="0,3,0,0"
+                                       ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
                         </StackPanel>
-                    </Border>
-                    <Button Content="−" ToolTip="Minimalizuj" Style="{StaticResource ChromeButton}"
-                            Click="MinimizeClick" Margin="0,0,7,0"/>
-                    <Button Content="×" ToolTip="Zamknij" Style="{StaticResource ChromeButton}"
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="4" Width="1" Height="26"
+                        Background="{StaticResource Stroke}" Margin="16,0,13,0"
+                        VerticalAlignment="Center"/>
+
+                <StackPanel Grid.Column="5" Orientation="Horizontal"
+                            VerticalAlignment="Center">
+                    <Button Content="−" ToolTip="Minimalizuj" 
+                            AutomationProperties.Name="Minimalizuj okno"
+                            Style="{StaticResource ChromeButton}"
+                            Click="MinimizeClick" Margin="0,0,8,0"/>
+                    <Button Content="×" ToolTip="Zamknij"
+                            AutomationProperties.Name="Zamknij okno"
+                            Style="{StaticResource CloseChromeButton}"
                             Click="CloseClick"/>
                 </StackPanel>
             </Grid>
@@ -114,19 +162,23 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Sidebar scrolls independently; account card never overlays settings. -->
+            <!-- Persistent game status; configuration lives on its own page. -->
             <Border Grid.Column="0" Style="{StaticResource Card}" Padding="17">
                 <ScrollViewer VerticalScrollBarVisibility="Hidden"
                               HorizontalScrollBarVisibility="Disabled"
                               CanContentScroll="False">
                     <StackPanel>
-                        <TextBlock Text="NAWIGACJA" Style="{StaticResource Kicker}" Margin="2,2,0,10"/>
-                        <Button x:Name="CoachNavButton" Content="✦  Asystent gry"
-                                Style="{StaticResource PrimaryButton}" Click="ShowCoachClick"
-                                Margin="0,0,0,7"/>
-                        <Button x:Name="HistoryNavButton" Content="▤  Match History"
-                                Style="{StaticResource SecondaryButton}" Click="ShowHistoryClick"
-                                Margin="0,0,0,24"/>
+                        <TextBlock Text="NAWIGACJA" Style="{StaticResource Kicker}" Margin="2,2,0,12"/>
+                        <Button x:Name="MainNavButton" Content="⌂   Główna"
+                                Style="{StaticResource SecondaryButton}"
+                                Background="{StaticResource AccentTint}" Foreground="{StaticResource Accent}"
+                                Click="NavigateClick" Margin="0,0,0,8"/>
+                        <Button x:Name="SettingsNavButton" Content="⚙   Ustawienia"
+                                Style="{StaticResource SecondaryButton}"
+                                Click="NavigateClick" Margin="0,0,0,8"/>
+                        <Button x:Name="HistoryNavButton" Content="▤   Match History"
+                                Style="{StaticResource SecondaryButton}"
+                                Click="NavigateClick" Margin="0,0,0,24"/>
                         <TextBlock Text="POŁĄCZENIE" Style="{StaticResource Kicker}" Margin="2,2,0,12"/>
                         <Border x:Name="ConnectionCard" Background="{StaticResource NeutralTint}"
                                 CornerRadius="12" Padding="14" Margin="0,0,0,22">
@@ -183,58 +235,12 @@
                             </StackPanel>
                         </Border>
 
-                        <TextBlock Text="PREFERENCJE" Style="{StaticResource Kicker}" Margin="2,0,0,12"/>
-                        <Border Background="{StaticResource Panel2}" CornerRadius="12"
-                                Padding="14" Margin="0,0,0,23">
-                            <StackPanel>
-                                <CheckBox x:Name="AutoCheck" Content="Automatyczna analiza"
-                                          IsChecked="True" Style="{StaticResource SwitchToggle}"
-                                          Click="AutoChanged" Margin="0,0,0,8"/>
-                                <CheckBox x:Name="TopmostCheck" Content="Przypnij nad grą"
-                                          Style="{StaticResource SwitchToggle}" Click="TopmostChanged"/>
-                                <TextBlock Text="Nowe podpowiedzi po zmianie sytuacji na planszy."
-                                           Style="{StaticResource BodyMuted}" Margin="0,12,0,0"/>
-                                <Border Height="1" Background="{StaticResource Stroke}" Margin="0,14,0,13"/>
-                                <Button x:Name="UpdatePluginButton" Content="Aktualizuj wtyczkę HDT ↻"
-                                        Style="{StaticResource SecondaryButton}"
-                                        Click="UpdatePluginClick"
-                                        ToolTip="Sprawdź GitHub, a przy braku połączenia użyj DLL wbudowanej w program; zamknij HDT, podmień plik i uruchom go ponownie"/>
-                                <TextBlock x:Name="PluginUpdateStatus"
-                                           Text="Działa także bez GitHuba (DLL jest w aplikacji). Tylko poza meczem."
-                                           FontSize="11" Foreground="{StaticResource Muted}"
-                                           TextWrapping="Wrap" Margin="0,9,0,0"/>
-                            </StackPanel>
-                        </Border>
-
-                        <TextBlock Text="KONTO CHATGPT" Style="{StaticResource Kicker}" Margin="2,0,0,12"/>
-                        <Border Background="{StaticResource Panel2}" CornerRadius="12" Padding="14">
-                            <StackPanel>
-                                <StackPanel Orientation="Horizontal">
-                                    <Ellipse x:Name="AccountDot" Width="7" Height="7"
-                                             Fill="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <TextBlock x:Name="AccountStateText" Text="Nie połączono"
-                                               FontSize="12" FontWeight="SemiBold"/>
-                                </StackPanel>
-                                <TextBlock x:Name="AccountText" Text="Połącz konto ChatGPT"
-                                           FontSize="12" Foreground="{StaticResource Muted}"
-                                           Margin="0,9,0,13" TextTrimming="CharacterEllipsis"
-                                           ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
-                                <Button x:Name="SignInButton" Content="Połącz przez ChatGPT"
-                                        Style="{StaticResource PrimaryButton}" Click="SignInClick"/>
-                                <Button x:Name="SignOutButton" Content="Wyloguj z ChatGPT"
-                                        Style="{StaticResource SecondaryButton}"
-                                        Click="SignOutClick" Visibility="Collapsed"/>
-                                <Button Content="Otwórz logi diagnostyczne ↗"
-                                        Style="{StaticResource SecondaryButton}" Margin="0,10,0,0"
-                                        Click="OpenLogsClick" ToolTip="Otwórz folder dzienników tej aplikacji"/>
-                            </StackPanel>
-                        </Border>
                     </StackPanel>
                 </ScrollViewer>
             </Border>
 
             <!-- Main content -->
-            <ScrollViewer x:Name="CoachPage" Grid.Column="2" VerticalScrollBarVisibility="Auto"
+            <ScrollViewer x:Name="MainPage" Grid.Column="2" VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="0,2,9,2">
                     <TextBlock Text="ASYSTENT GRY"
@@ -537,41 +543,22 @@
                     </Border>
 
                     <Border Style="{StaticResource Card}" Margin="0,18,0,0" Padding="21">
-                        <StackPanel>
-                            <Grid Margin="0,0,0,17">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel>
-                                    <TextBlock Text="SILNIK ANALIZY" Style="{StaticResource Kicker}"/>
-                                    <TextBlock Text="Model w Twoim planie ChatGPT"
-                                               FontWeight="SemiBold" FontSize="16" Margin="0,6,0,0"/>
-                                </StackPanel>
-                                <Border Grid.Column="1" Background="{StaticResource NeutralTint}"
-                                        CornerRadius="8" Padding="10,6" VerticalAlignment="Center">
-                                    <TextBlock Text="Bez klucza API" Foreground="{StaticResource Muted}"
-                                               FontSize="11"/>
-                                </Border>
-                            </Grid>
-                            <ComboBox x:Name="ModelPicker" Height="44"
-                                      Style="{StaticResource DarkComboBox}"
-                                      Margin="0,0,0,15"
-                                      ToolTip="Wybierz model udostępniony na Twoim koncie ChatGPT"/>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="12"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Button Grid.Column="0" x:Name="AnalyzeButton"
-                                        Style="{StaticResource PrimaryButton}"
-                                        Content="✦  Analizuj teraz" Click="AnalyzeClick"/>
-                                <Button Grid.Column="2"
-                                        Style="{StaticResource SecondaryButton}"
-                                        Content="Zużycie planu  ↗" Click="UsageClick"/>
-                            </Grid>
-                        </StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center" Margin="0,0,15,0">
+                                <TextBlock Text="SZYBKA ANALIZA" Style="{StaticResource Kicker}"/>
+                                <TextBlock Text="Analizuj AI" FontSize="16" FontWeight="SemiBold" Margin="0,6,0,0"/>
+                                <TextBlock Text="Model i pozostałe opcje zmienisz w Ustawieniach."
+                                           Style="{StaticResource BodyMuted}" Margin="0,6,0,0"/>
+                            </StackPanel>
+                            <Button Grid.Column="1" x:Name="AnalyzeButton"
+                                    MinWidth="164" Style="{StaticResource PrimaryButton}"
+                                    Content="✦  Analizuj AI" Click="AnalyzeClick"
+                                    VerticalAlignment="Center"/>
+                        </Grid>
                     </Border>
 
                     <Border CornerRadius="11" BorderBrush="{StaticResource Stroke}"
@@ -589,6 +576,105 @@
                                        Foreground="{StaticResource Muted}" FontSize="12"
                                        TextWrapping="Wrap" VerticalAlignment="Center"/>
                         </Grid>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Configuration page: the controls remain alive when navigating, preserving state. -->
+            <ScrollViewer x:Name="SettingsPage" Grid.Column="2" Visibility="Collapsed"
+                          VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Margin="0,2,9,2">
+                    <TextBlock Text="USTAWIENIA" Foreground="{StaticResource Accent}"
+                               FontSize="11" FontWeight="SemiBold" Margin="2,0,0,8"/>
+                    <TextBlock Text="Konfiguracja asystenta" FontSize="25" FontWeight="Bold"
+                               Margin="0,0,0,6" TextWrapping="Wrap"/>
+                    <TextBlock Text="Dostosuj działanie AI i połączenie z Hearthstone Deck Tracker."
+                               Style="{StaticResource BodyMuted}" Margin="1,0,0,21"/>
+
+                    <TextBlock Text="PREFERENCJE" Style="{StaticResource Kicker}" Margin="2,0,0,12"/>
+                    <Border Style="{StaticResource Card}" Padding="21" Margin="0,0,0,20">
+                        <StackPanel>
+                            <CheckBox x:Name="AutoCheck" Content="Automatyczna analiza"
+                                      IsChecked="True" Style="{StaticResource SwitchToggle}"
+                                      Click="AutoChanged"/>
+                            <TextBlock Text="Nowe podpowiedzi po zmianie sytuacji na planszy."
+                                       Style="{StaticResource BodyMuted}" Margin="0,9,0,0"/>
+                            <Border Height="1" Background="{StaticResource Stroke}" Margin="0,17,0,17"/>
+                            <CheckBox x:Name="TopmostCheck" Content="Przypnij nad grą"
+                                      Style="{StaticResource SwitchToggle}" Click="TopmostChanged"/>
+                            <TextBlock Text="Wyświetlaj okno asystenta ponad oknem gry."
+                                       Style="{StaticResource BodyMuted}" Margin="0,9,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock Text="SILNIK ANALIZY" Style="{StaticResource Kicker}" Margin="2,0,0,12"/>
+                    <Border Style="{StaticResource Card}" Padding="21" Margin="0,0,0,20">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,17">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Model w Twoim planie ChatGPT"
+                                           FontWeight="SemiBold" FontSize="16" VerticalAlignment="Center"/>
+                                <Border Grid.Column="1" Background="{StaticResource NeutralTint}"
+                                        CornerRadius="8" Padding="10,6" VerticalAlignment="Center"
+                                        Margin="12,0,0,0">
+                                    <TextBlock Text="Bez klucza API" Foreground="{StaticResource Muted}" FontSize="11"/>
+                                </Border>
+                            </Grid>
+                            <ComboBox x:Name="ModelPicker" Height="44"
+                                      Style="{StaticResource DarkComboBox}"
+                                      ToolTip="Wybierz model udostępniony na Twoim koncie ChatGPT"/>
+                            <Button Content="Zużycie planu  ↗" Style="{StaticResource SecondaryButton}"
+                                    Click="UsageClick" Margin="0,13,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock Text="WŁĄCZENIE HDT" Style="{StaticResource Kicker}" Margin="2,0,0,12"/>
+                    <Border Style="{StaticResource Card}" Padding="21" Margin="0,0,0,20">
+                        <StackPanel>
+                            <TextBlock Text="Wtyczka Hearthstone Deck Tracker"
+                                       FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                            <Button x:Name="UpdatePluginButton" Content="Aktualizuj wtyczkę HDT ↻"
+                                    Style="{StaticResource SecondaryButton}" Click="UpdatePluginClick"
+                                    ToolTip="Sprawdź GitHub, a przy braku połączenia użyj DLL wbudowanej w program; zamknij HDT, podmień plik i uruchom go ponownie"/>
+                            <TextBlock x:Name="PluginUpdateStatus"
+                                       Text="Działa także bez GitHuba (DLL jest w aplikacji). Tylko poza meczem."
+                                       Style="{StaticResource BodyMuted}" Margin="0,10,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock Text="KONTO CHATGPT" Style="{StaticResource Kicker}" Margin="2,0,0,12"/>
+                    <Border Style="{StaticResource Card}" Padding="21" Margin="0,0,0,20">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse x:Name="AccountDot" Width="7" Height="7"
+                                         Fill="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock x:Name="AccountStateText" Text="Nie połączono"
+                                           FontSize="12" FontWeight="SemiBold"/>
+                            </StackPanel>
+                            <TextBlock x:Name="AccountText" Text="Połącz konto ChatGPT"
+                                       FontSize="12" Foreground="{StaticResource Muted}"
+                                       Margin="0,9,0,13" TextTrimming="CharacterEllipsis"
+                                       ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
+                            <Button x:Name="SignInButton" Content="Połącz przez ChatGPT"
+                                    Style="{StaticResource PrimaryButton}" Click="SignInClick"/>
+                            <Button x:Name="SignOutButton" Content="Wyloguj z ChatGPT"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Click="SignOutClick" Visibility="Collapsed"/>
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock Text="DIAGNOSTYKA" Style="{StaticResource Kicker}" Margin="2,0,0,12"/>
+                    <Border Style="{StaticResource Card}" Padding="21">
+                        <StackPanel>
+                            <TextBlock Text="Logi działania aplikacji" FontSize="16" FontWeight="SemiBold"
+                                       Margin="0,0,0,12"/>
+                            <Button Content="Otwórz logi diagnostyczne ↗"
+                                    Style="{StaticResource SecondaryButton}" Click="OpenLogsClick"
+                                    ToolTip="Otwórz folder dzienników tej aplikacji"/>
+                        </StackPanel>
                     </Border>
                 </StackPanel>
             </ScrollViewer>
