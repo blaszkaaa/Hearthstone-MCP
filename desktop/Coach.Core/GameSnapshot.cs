@@ -102,30 +102,8 @@ public sealed class GameSnapshot
             };
             var compact = JsonSerializer.Serialize(payload);
             var digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(compact)));
-            // The entire prompt can change due to bookkeeping fields while the
-            // player's actual decision remains the same. Avoid flickering/canceling
-            // a recommendation for such non-actionable updates.
-            var decision = JsonSerializer.Serialize(new
-            {
-                turn = ReadInt(root, "turn"),
-                my_turn = mine,
-                phase = phase,
-                mulligan_cards = mulligan ? GetRaw(root, "mulligan_cards") : JsonSerializer.SerializeToElement(Array.Empty<object>()),
-                choice_active = active,
-                choices = active ? GetRaw(root, "choices") : JsonSerializer.SerializeToElement(Array.Empty<object>()),
-                mana = ReadInt(player, "mana_available"),
-                hand = GetRaw(player, "hand"),
-                player_board = GetRaw(player, "board"),
-                enemy_board = GetRaw(opponent, "board"),
-                player_hero = GetRaw(player, "hero"),
-                enemy_hero = GetRaw(opponent, "hero"),
-                player_weapon = GetRaw(player, "weapon"),
-                enemy_weapon = GetRaw(opponent, "weapon"),
-                player_secrets = ReadInt(player, "secrets_count"),
-                enemy_secrets = ReadInt(opponent, "secrets_count")
-            });
-            var decisionKey = Convert.ToHexString(
-                SHA256.HashData(Encoding.UTF8.GetBytes(decision)));
+            // Only stable action-relevant fields drive invalidation and retries.
+            var decisionKey = DecisionSignature.Compute(root);
             return new()
             {
                 Connected = true, InGame = true, MyTurn = mine, ChoiceSupported = supported,
