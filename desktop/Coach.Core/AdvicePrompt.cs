@@ -29,6 +29,12 @@ public static class AdvicePrompt
         Nie proponuj ataku żadną kartą, która nadal znajduje się w ręce.
         Przy ataku sprawdź, czy wskazany napastnik znajduje się NA PLANSZY
         (lub jest bohaterem), a nie w ręce. Nie zakładaj zdolności ataku z samego ataku > 0.
+        Sprawdź DODATKOWE candidate_actions: hand_candidates podaje koszt i fits_available_mana;
+        nie zalecaj zagrywania karty kosztującej więcej niż dostępna mana.
+        W board_entities pole potential_attacker=false oznacza brak możliwości zwykłego ataku
+        (zamrożenie, wyczerpanie, brak ataku lub typ niebędący stronnikiem).
+        potential_attacker=true to TYLKO wskazówka, nie potwierdzenie pełnej legalności.
+        Gdy nie ma danych do potwierdzenia akcji, nie twierdź, że jest na pewno legalna.
         Nie proponuj niemożliwego zagrania. Nie utożsamiaj dostępnej many z legalnością ruchu.
         Jeśli dane są niepełne, daj najlepszą bezpieczną wskazówkę i oznacz niepewność.
         """;
