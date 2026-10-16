@@ -24,6 +24,11 @@ public sealed class GameSnapshot
     public string DecisionKey { get; private init; } = "";
     public string Status { get; private init; } = "Oczekiwanie na Hearthstone";
     public string TacticalJson { get; private init; } = "{}";
+    // The HDT active deck is exported even in the menu so the coach can study
+    // card interactions BEFORE mulligan. It is a selection, not game proof.
+    public string ActiveDeckJson { get; private init; } = "{}";
+    public string ActiveDeckSignature { get; private init; } = "";
+    public string ActiveDeckStatus { get; private init; } = "";
     // Separate public play evidence for persistent history; not added to AI prompt.
     public string PublicHistoryJson { get; private init; } = "{}";
 
@@ -49,7 +54,16 @@ public sealed class GameSnapshot
             var age = ((now ?? DateTimeOffset.UtcNow) - captured).TotalSeconds;
             if (age > 15 || age < -5) return new() { Status = "Dane HDT nieaktualne" };
             if (!ReadBool(root, "in_game"))
-                return new() { Connected = true, Status = "HDT połączony • czekam na mecz" };
+            {
+                var menuDeck = Get(root, "active_deck");
+                return new()
+                {
+                    Connected = true, Status = "HDT połączony • czekam na mecz",
+                    ActiveDeckJson = menuDeck.ValueKind == JsonValueKind.Object ? menuDeck.GetRawText() : "{}",
+                    ActiveDeckSignature = ReadString(menuDeck, "signature") ?? "",
+                    ActiveDeckStatus = ReadString(menuDeck, "status") ?? ""
+                };
+            }
             if (!root.TryGetProperty("player", out var player) ||
                 !root.TryGetProperty("opponent", out var opponent) ||
                 player.ValueKind != JsonValueKind.Object || opponent.ValueKind != JsonValueKind.Object)
@@ -136,6 +150,10 @@ public sealed class GameSnapshot
                 Mana = ReadInt(player, "mana_available"), HandCount = count,
                 ChoicesCount = choiceCount, TacticalJson = compact, PublicHistoryJson = history, Fingerprint = digest,
                 DecisionKey = decisionKey,
+                ActiveDeckJson = Get(player, "active_deck").ValueKind == JsonValueKind.Object
+                    ? Get(player, "active_deck").GetRawText() : "{}",
+                ActiveDeckSignature = ReadString(Get(player, "active_deck"), "signature") ?? "",
+                ActiveDeckStatus = ReadString(Get(player, "active_deck"), "status") ?? "",
                 Status = mulligan ? "Mulligan • zdecyduj, co zostawić" :
                     active ? "Odkryj • wybierz kartę" :
                     mine ? "Twoja tura • analiza aktywna" : "Tura przeciwnika • obserwuję"
