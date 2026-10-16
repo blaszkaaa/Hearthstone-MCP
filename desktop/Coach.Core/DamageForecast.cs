@@ -51,8 +51,10 @@ public static class DamageForecast
 
         var friendly = new List<Attacker>();
         var enemyThreats = new List<Attacker>();
-        int ownUnknown = 0;
-        int enemyUnknown = 0;
+        // HDT can expose board entities before their card type resolves.
+        // Such objects do not count as attack, but MUST count as uncertainty.
+        int ownUnknown = ownBoard.Count(x => Text(x, "card_type") is null);
+        int enemyUnknown = enemyBoard.Count(x => Text(x, "card_type") is null);
 
         foreach (var card in ownBoard.Where(IsMinion))
         {
