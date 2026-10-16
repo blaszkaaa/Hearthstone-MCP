@@ -30,6 +30,9 @@ public static class AdvicePrompt
         Przy ataku sprawdź, czy wskazany napastnik znajduje się NA PLANSZY
         (lub jest bohaterem), a nie w ręce. Nie zakładaj zdolności ataku z samego ataku > 0.
         Nie proponuj niemożliwego zagrania. Nie utożsamiaj dostępnej many z legalnością ruchu.
+        W observed_legal_move_constraints sprawdź brak many, zamrożenie,
+        wyczerpanie, zerowy atak i Prowokację. To jedynie ograniczenia
+        z widocznego stanu, NIE kompletny zbiór legalnych ruchów.
         Jeśli dane są niepełne, daj najlepszą bezpieczną wskazówkę i oznacz niepewność.
         """;
 

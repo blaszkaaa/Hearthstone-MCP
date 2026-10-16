@@ -437,6 +437,75 @@ try
     Check(volcanoState.DecisionKey != minionState.DecisionKey,
         "card type changes the tactical fingerprint");
 
+
+    // Stage 1: deterministic constraints must reject only contradictions in
+    // observed HDT state, without claiming to enumerate all legal actions.
+    var observed = new
+    {
+        schema_version = 1, captured_at_utc = now.ToString("O"), in_game = true,
+        card_types_supported = true, turn = 9, my_turn = true,
+        phase = "turn", mulligan_active = false, choice_active = false,
+        player = new
+        {
+            mana_available = 1, mana_max = 9,
+            hero_power = new { name = "Fireblast", cost = 2 },
+            hand = new[] { new { name = "Fireball", card_type = "SPELL", cost = 4 } },
+            board = new[]
+            {
+                new { name = "Gotowy stronnik", card_type = "MINION", attack = 3,
+                      health = 3, frozen = false, exhausted = false },
+                new { name = "Zmęczony stronnik", card_type = "MINION", attack = 4,
+                      health = 4, frozen = false, exhausted = true },
+                new { name = "Zamrożony stronnik", card_type = "MINION", attack = 4,
+                      health = 4, frozen = true, exhausted = false },
+                new { name = "Bez ataku", card_type = "MINION", attack = 0,
+                      health = 4, frozen = false, exhausted = false }
+            }
+        },
+        opponent = new
+        {
+            board = new[] { new { name = "Strażnik", card_type = "MINION",
+                taunt = true, health = 3, attack = 2 } }
+        }
+    };
+    File.WriteAllText(path, JsonSerializer.Serialize(observed));
+    var observedState = GameSnapshot.Read(path, now);
+    var observedContext = new MatchIntelligence().BuildContext(observedState);
+    using (var evidence = JsonDocument.Parse(observedContext))
+    {
+        var constraints = evidence.RootElement.GetProperty("observed_legal_move_constraints");
+        Check(constraints.GetProperty("mana_blocked_hand_cards").GetArrayLength() == 1,
+            "observed mana shortfall in model context");
+        Check(constraints.GetProperty("visibly_ready_board_minions_not_guaranteed_attackers")
+            .GetArrayLength() == 1, "only one visibly ready board minion");
+        Check(constraints.GetProperty("enemy_taunt_minions").GetArrayLength() == 1,
+            "enemy taunt tracked");
+    }
+    Check(!AdviceLegality.Validate(observedState,
+        AdviceCard.Parse("RUCH: Zagraj Fireball")).Allowed,
+        "reject a known hand card when current mana is insufficient");
+    Check(!AdviceLegality.Validate(observedState,
+        AdviceCard.Parse("RUCH: Użyj mocy bohatera")).Allowed,
+        "reject unaffordable hero power");
+    Check(!AdviceLegality.Validate(observedState,
+        AdviceCard.Parse("RUCH: Zaatakuj Zmęczonym stronnikiem")).Allowed,
+        "reject exhausted attacker");
+    Check(!AdviceLegality.Validate(observedState,
+        AdviceCard.Parse("RUCH: Zaatakuj Zamrożonym stronnikiem")).Allowed,
+        "reject frozen attacker");
+    Check(!AdviceLegality.Validate(observedState,
+        AdviceCard.Parse("RUCH: Zaatakuj Bez ataku")).Allowed,
+        "reject minion with zero attack");
+    Check(!AdviceLegality.Validate(observedState,
+        AdviceCard.Parse("RUCH: Zaatakuj Gotowym stronnikiem\nCEL: Bohater przeciwnika")).Allowed,
+        "taunt blocks face attack");
+    Check(AdviceLegality.Validate(observedState,
+        AdviceCard.Parse("RUCH: Zaatakuj Gotowym stronnikiem\nCEL: Strażnik")).Allowed,
+        "do not reject an otherwise plausible trade into taunt");
+    Check(AdviceLegality.Validate(observedState,
+        AdviceCard.Parse("RUCH: Zagraj Fireball")).Reason.Contains("many"),
+        "reason for rejected move is explicit");
+
     Console.WriteLine("Hearthstone Coach core checks: PASS");
 }
 finally { try { File.Delete(path); } catch { } }
