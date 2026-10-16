@@ -780,13 +780,13 @@ public partial class MainWindow : Window
                 target = release.Version });
             await AppUpdater.PrepareAndStartAsync(release,
                 message => Dispatcher.Invoke(() => AppUpdateStatus.Text = message),
+                () =>
+                {
+                    RefreshState();
+                    return !_closing && !_snapshot.InGame;
+                },
                 CancellationToken.None);
             if (_closing) return;
-            RefreshState();
-            if (_snapshot.InGame)
-                throw new InvalidOperationException(
-                    "W trakcie pobierania rozpoczął się mecz. Nie zamykam aplikacji; " +
-                    "poczekaj na zakończenie rozgrywki.");
             DiagnosticLog.Write("app.update.restart_requested", new { target = release.Version });
             Close();
         }
