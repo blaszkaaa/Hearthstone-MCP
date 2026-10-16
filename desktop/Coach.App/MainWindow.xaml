@@ -35,49 +35,97 @@
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="66"/>
+            <RowDefinition Height="72"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Title bar -->
-        <Border Grid.Row="0" Background="#111A25"
-                BorderBrush="{StaticResource Stroke}" BorderThickness="0,0,0,1"
-                MouseLeftButtonDown="TitleDrag">
-            <Grid Margin="23,0,19,0">
+        <!-- Compact, integrated desktop title bar. The open center remains draggable. -->
+        <Border Grid.Row="0" BorderBrush="{StaticResource Stroke}"
+                BorderThickness="0,0,0,1" MouseLeftButtonDown="TitleDrag">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#172B2E" Offset="0"/>
+                    <GradientStop Color="#13232C" Offset="0.38"/>
+                    <GradientStop Color="#101A25" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Grid Margin="22,0,16,0">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Width="34" Height="34" CornerRadius="11"
-                            Background="{StaticResource Accent}">
-                        <TextBlock Text="✦" Foreground="#09221A" FontSize="23"
-                                   VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                    </Border>
-                    <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
-                        <TextBlock FontSize="15" FontWeight="Bold">
-                            <Run Text="Hearthstone"/><Run Text="  AI Coach" Foreground="{StaticResource Muted}" FontWeight="Normal"/>
-                        </TextBlock>
-                        <TextBlock Text="Twój asystent rozgrywki" FontSize="11" Foreground="{StaticResource Muted}" Margin="0,3,0,0"/>
+
+                <!-- Vector mark stays sharp at different Windows DPI settings. -->
+                <Border Grid.Column="0" Width="40" Height="40" CornerRadius="12"
+                        Background="#1E443B" BorderBrush="#37695A" BorderThickness="1"
+                        VerticalAlignment="Center">
+                    <Grid>
+                        <Path Width="23" Height="23" Stretch="Uniform"
+                              Fill="{StaticResource Accent}"
+                              Data="M12,1 L14.8,8.2 22,11 14.8,13.8 12,21 9.2,13.8 2,11 9.2,8.2 Z"/>
+                        <Ellipse Width="3" Height="3" Fill="#C9FFEB"
+                                 VerticalAlignment="Top" HorizontalAlignment="Right"
+                                 Margin="0,7,6,0"/>
+                    </Grid>
+                </Border>
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="Hearthstone" FontSize="16" FontWeight="Bold"
+                                   Foreground="{StaticResource White}" VerticalAlignment="Center"/>
+                        <TextBlock Text="  AI Coach" FontSize="16" FontWeight="SemiBold"
+                                   Foreground="{StaticResource Accent}" VerticalAlignment="Center"/>
+                        <Border Margin="11,0,0,0" Padding="7,3" CornerRadius="6"
+                                BorderBrush="#376255" BorderThickness="1"
+                                Background="#1B3B33" VerticalAlignment="Center">
+                            <TextBlock Text="BETA" FontSize="9" FontWeight="SemiBold"
+                                       Foreground="{StaticResource Accent}"/>
+                        </Border>
                     </StackPanel>
-                    <Border Background="{StaticResource AccentTint}" Padding="9,5"
-                            CornerRadius="7" Margin="17,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="BETA 1.0" Foreground="{StaticResource Accent}" FontSize="10" FontWeight="SemiBold"/>
-                    </Border>
+                    <TextBlock Text="Asystent rozgrywki na żywo" FontSize="11"
+                               Foreground="{StaticResource Muted}" Margin="0,4,0,0"/>
                 </StackPanel>
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border x:Name="HeaderStateBadge" Background="{StaticResource NeutralTint}"
-                            CornerRadius="9" Padding="11,7" Margin="0,0,17,0">
-                        <StackPanel Orientation="Horizontal">
-                            <Ellipse x:Name="HeaderIndicator" Width="7" Height="7" Fill="{StaticResource Muted}"
-                                     VerticalAlignment="Center" Margin="0,0,8,0"/>
-                            <TextBlock x:Name="HeaderStatusText" Text="Sprawdzanie HDT" FontSize="11" FontWeight="SemiBold"
-                                       Foreground="{StaticResource Muted}"/>
+
+                <!-- Live game state (names are used by MainWindow.xaml.cs). -->
+                <Border x:Name="HeaderStateBadge" Grid.Column="3"
+                        Background="{StaticResource NeutralTint}" CornerRadius="11"
+                        BorderBrush="#35524D" BorderThickness="1"
+                        Padding="11,7" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Width="27" Height="27" CornerRadius="8"
+                                Background="#23443E" VerticalAlignment="Center">
+                            <Ellipse x:Name="HeaderIndicator" Width="8" Height="8"
+                                     Fill="{StaticResource Muted}" VerticalAlignment="Center"
+                                     HorizontalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Margin="10,0,2,0" VerticalAlignment="Center">
+                            <TextBlock Text="STATUS ROZGRYWKI" FontSize="9"
+                                       FontWeight="SemiBold" Foreground="{StaticResource Muted}"/>
+                            <TextBlock x:Name="HeaderStatusText" Text="Sprawdzanie HDT"
+                                       FontSize="12" FontWeight="SemiBold"
+                                       Foreground="{StaticResource Muted}" Margin="0,3,0,0"
+                                       ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
                         </StackPanel>
-                    </Border>
-                    <Button Content="−" ToolTip="Minimalizuj" Style="{StaticResource ChromeButton}"
-                            Click="MinimizeClick" Margin="0,0,7,0"/>
-                    <Button Content="×" ToolTip="Zamknij" Style="{StaticResource ChromeButton}"
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="4" Width="1" Height="26"
+                        Background="{StaticResource Stroke}" Margin="16,0,13,0"
+                        VerticalAlignment="Center"/>
+
+                <StackPanel Grid.Column="5" Orientation="Horizontal"
+                            VerticalAlignment="Center">
+                    <Button Content="−" ToolTip="Minimalizuj" 
+                            AutomationProperties.Name="Minimalizuj okno"
+                            Style="{StaticResource ChromeButton}"
+                            Click="MinimizeClick" Margin="0,0,8,0"/>
+                    <Button Content="×" ToolTip="Zamknij"
+                            AutomationProperties.Name="Zamknij okno"
+                            Style="{StaticResource CloseChromeButton}"
                             Click="CloseClick"/>
                 </StackPanel>
             </Grid>
