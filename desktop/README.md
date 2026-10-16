@@ -199,6 +199,40 @@ Testy regresyjne: zdrowie + pancerz, Prowokacja obu stron, aktualna
 gotowość jednostek, obrona przed potencjalnym atakiem następnej tury,
 nieznane statystyki oraz weryfikacja tagów HearthDb.
 
+## Wizualny plan tury i grafiki kart — Beta 1.0
+
+Aplikacja Windows prezentuje teraz **kroki planu tury z miniaturami kart**.
+Plan powstaje z rekomendacji AI (pierwszy krok `RUCH`, a do czterech
+następnych, oddzielonych średnikami, w `POTEM`). Każda karta jest
+dopasowywana **wyłącznie do identyfikatora `card_id` znanej, widocznej
+karty z HDT**. Jeżeli AI poda niedopasowaną nazwę lub grafika nie jest
+dostępna, pozostają numer kroku i opis — aplikacja nie przypisuje
+losowego obrazu.
+
+Podczas Odkrycia pojawia się **boczny panel** z grafikami i numerami
+oferowanych kart. Rekomendowana opcja zostaje wyróżniona, np.
+`WYBIERZ 2`. Plan tury **pozostaje na ekranie podczas wyboru**;
+dopiero nowa tura lub istotna późniejsza analiza mogą go zmienić.
+Lista kolejnych kroków jest warunkowa — skutki Odkrycia i losowych
+efektów nie są przewidywane z góry.
+
+Obraz pochodzi z
+[HearthstoneJSON — Card renders](https://hearthstonejson.com/docs/images.html),
+w wersji polskiej `plPL`, a gdy jest niedostępny — angielskiej
+`enUS`. Po najechaniu myszą na miniaturę można zobaczyć większy
+podgląd. Pobieranie odbywa się **asynchronicznie**, maksymalnie po trzy
+obrazy jednocześnie, i nie spowalnia analizy modelu.
+Pliki są zapisywane lokalnie w
+`%LOCALAPPDATA%\\HearthstoneCoach\\card-images` (limit około 160 MiB).
+Przy braku internetu wyświetlany jest czytelny tekstowy zamiennik.
+Aplikacja pobiera obrazy kart z zewnętrznej domeny
+`art.hearthstonejson.com` tylko na potrzeby ich wyświetlania; nie
+przesyła tam danych konta ChatGPT ani pełnego stanu meczu.
+
+Źródłowe obrazy kart Hearthstone są własnością Blizzard Entertainment.
+HearthstoneJSON jest projektem HearthSim, niezależnym od Blizzard.
+Nie zmieniamy gry ani nie pobieramy grafiki dla kart ukrytych.
+
 ## Ochrona danych i logowanie
 
 Rejestracja zgodna z [OpenAI Sign in with ChatGPT dla aplikacji OSS](https://developers.openai.com/siwc/token-sharing-open-source/sign-in): systemowa przeglądarka, OAuth PKCE i losowe state/nonce, callback na `127.0.0.1`, walidacja OIDC JWT przez JWKS; żądania AI do oficjalnego `https://api.openai.com/v1/responses` z `store=false` i `stream=true`. Wysłany tekst zawiera **stan widocznej rozgrywki**, m.in. Twoją rękę i opcje wyboru, ale nie ukrytą rękę przeciwnika.
