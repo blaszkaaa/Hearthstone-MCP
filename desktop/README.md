@@ -2,6 +2,37 @@
 
 Natywna aplikacja **Windows 10/11, WPF/.NET 8**, ciemny interfejs. Odczytuje ten sam `%LOCALAPPDATA%\HearthstoneMCP\state.json`, który tworzy dotychczasowa wtyczka HDT. Nie potrzebuje Pythona do **interfejsu i silnika AI**; istniejący serwer MCP nadal może działać niezależnie dla ChatGPT.
 
+## Aktualizacja DLL jednym przyciskiem
+
+W zakładce **Preferencje** kliknij **Aktualizuj wtyczkę HDT ↻**, gdy nie trwa mecz.
+Program wykonuje następujące czynności:
+
+1. Pobiera oficjalne wydanie `plugin-latest` z
+   [GitHub Releases](https://github.com/blaszkaaa/Hearthstone-MCP/releases/tag/plugin-latest)
+   oraz niezależny plik SHA-256. Porównuje skróty i sprawdza nazwę biblioteki.
+   **Pobieranie odbywa się jeszcze przy uruchomionym HDT.**
+2. Wyszukuje dotychczas zainstalowaną `HearthstoneMcpPlugin.dll`
+   w typowych folderach danych HDT. Jeśli wykryje kilka instalacji albo
+   nieznany folder, przerywa zamiast nadpisywać losowy plik.
+3. Jeśli HDT jest otwarty, wysyła polecenie jego **normalnego zamknięcia**
+   i czeka maksymalnie 20 sekund. **Nigdy nie używa Force/Kill.**
+   Jeśli HDT nie chce się zamknąć, pokaże błąd i poprosi o ręczne zamknięcie.
+4. Podmienia DLL w folderze Plugins i zostawia poprzednią kopię
+   `HearthstoneMcpPlugin.dll.bak`. Sprawdza sumę po zapisaniu.
+   Nie dotyka bibliotek gry Hearthstone i nie wstrzykuje DLL do gry.
+5. Jeśli HDT był otwarty, uruchamia jego wcześniejszy plik EXE ponownie.
+   Jeśli przed aktualizacją nie działał, pozostawia go wyłączonego.
+
+Jeśli masz już dokładnie tę samą DLL, HDT nie zostanie zamknięty.
+Aktualizacja zapisuje zdarzenia `plugin.update.*` w logach.
+W przypadku braku opublikowanego wydania GitHub zostanie zachowana stara DLL,
+a aplikacja pokaże błąd. Podczas meczu przycisk odmawia aktualizacji.
+
+Publikacją nowej DLL i sumy SHA-256 zarządza
+[workflow plugin-release.yml](../.github/workflows/plugin-release.yml),
+uruchamiany po zmianach wtyczki na `main`. Wymaga uprawnień
+`contents:write` dla GitHub Actions.
+
 ## Pobieranie i start
 
 1. Zainstaluj i uruchom **Hearthstone Deck Tracker** wraz z wtyczką `HearthstoneMcpPlugin.dll` z tego repozytorium. Podczas meczu `state.json` musi się aktualizować. Wtyczka w wersji 0.2 lub nowszej obsługuje Discover.

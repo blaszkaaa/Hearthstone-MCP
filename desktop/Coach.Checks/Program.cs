@@ -618,6 +618,40 @@ try
         promptWithEvidence.Contains("unverified_text_hints"),
         "evidence status reaches model prompt");
 
+    // One-click updater: atomic replacement, checksum verification and rollback
+    // copy. These tests run on the Windows CI runner; they do not touch HDT.
+    var installFixture = Path.Combine(Path.GetTempPath(), "hs-plugin-swap-" +
+        Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(installFixture);
+    try
+    {
+        var download = Path.Combine(installFixture, "downloaded.dll");
+        var installed = Path.Combine(installFixture, "HearthstoneMcpPlugin.dll");
+        File.WriteAllText(download, "NEW_VERSION_FROM_SIGNED_RELEASE");
+        File.WriteAllText(installed, "OLD_WORKING_VERSION");
+        var expected = PluginFileSwap.Sha256Of(download);
+        Check(PluginFileSwap.ValidDigest(expected), "release SHA256 format");
+        Check(PluginFileSwap.Install(download, installed, expected), "verified DLL replaced");
+        Check(File.ReadAllText(installed) == "NEW_VERSION_FROM_SIGNED_RELEASE",
+            "destination is new release");
+        Check(File.ReadAllText(installed + ".bak") == "OLD_WORKING_VERSION",
+            "old installed DLL backed up");
+        Check(!PluginFileSwap.Install(download, installed, expected),
+            "identical installed plugin never causes unnecessary HDT restart");
+        File.WriteAllText(download, "TAMPERED");
+        bool refused = false;
+        try { PluginFileSwap.Install(download, installed, expected); }
+        catch (InvalidDataException) { refused = true; }
+        Check(refused && File.ReadAllText(installed) == "NEW_VERSION_FROM_SIGNED_RELEASE",
+            "tampered download must not overwrite the installed plugin");
+        Check(!Directory.EnumerateFiles(installFixture, "*.tmp").Any(),
+            "temporary files always cleaned up");
+    }
+    finally
+    {
+        Directory.Delete(installFixture, recursive: true);
+    }
+
     Console.WriteLine("Hearthstone Coach core checks: PASS");
 }
 finally { try { File.Delete(path); } catch { } }

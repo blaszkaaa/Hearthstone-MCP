@@ -62,7 +62,7 @@
                     </StackPanel>
                     <Border Background="{StaticResource AccentTint}" Padding="9,5"
                             CornerRadius="7" Margin="17,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="BETA 0.7" Foreground="{StaticResource Accent}" FontSize="10" FontWeight="SemiBold"/>
+                        <TextBlock Text="BETA 0.8" Foreground="{StaticResource Accent}" FontSize="10" FontWeight="SemiBold"/>
                     </Border>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
@@ -163,6 +163,15 @@
                                           Style="{StaticResource SwitchToggle}" Click="TopmostChanged"/>
                                 <TextBlock Text="Nowe podpowiedzi po zmianie sytuacji na planszy."
                                            Style="{StaticResource BodyMuted}" Margin="0,12,0,0"/>
+                                <Border Height="1" Background="{StaticResource Stroke}" Margin="0,14,0,13"/>
+                                <Button x:Name="UpdatePluginButton" Content="Aktualizuj wtyczkę HDT ↻"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Click="UpdatePluginClick"
+                                        ToolTip="Pobierz sprawdzoną DLL z oficjalnego wydania, zamknij HDT, podmień DLL i ponownie uruchom HDT"/>
+                                <TextBlock x:Name="PluginUpdateStatus"
+                                           Text="Instalacja z kopią zapasową; tylko poza meczem."
+                                           FontSize="11" Foreground="{StaticResource Muted}"
+                                           TextWrapping="Wrap" Margin="0,9,0,0"/>
                             </StackPanel>
                         </Border>
 
