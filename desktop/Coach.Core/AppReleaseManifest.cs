@@ -23,8 +23,8 @@ public sealed class AppReleaseManifest
         try { value = JsonSerializer.Deserialize<AppReleaseManifest>(json); }
         catch (JsonException ex) { throw new InvalidDataException("Nieprawidłowy manifest aktualizacji.", ex); }
         if (value is null ||
-            value.Version.Length != 40 || !value.Version.All(Uri.IsHexDigit) ||
-            value.Sha256.Length != 64 || !value.Sha256.All(Uri.IsHexDigit) ||
+            value.Version is null || value.Version.Length != 40 || !value.Version.All(Uri.IsHexDigit) ||
+            value.Sha256 is null || value.Sha256.Length != 64 || !value.Sha256.All(Uri.IsHexDigit) ||
             !string.Equals(value.Asset, PackageName, StringComparison.Ordinal))
             throw new InvalidDataException("Manifest aktualizacji zawiera nieprawidłową wersję, plik lub sumę SHA-256.");
         return value;
