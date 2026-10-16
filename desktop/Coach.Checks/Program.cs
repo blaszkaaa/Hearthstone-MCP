@@ -890,7 +890,7 @@ try
     // Regression: a busy board can require more than five distinct actions.
     var longTurn = AdviceCard.Parse("RUCH: Zagraj Ognistą Kulę\\n".Replace("\\n", "\n") +
         "POTEM: " + string.Join("; ", Enumerable.Range(2, 9)
-            .Select(i => i + ". Akcja " + i + " - sprawdz stan planszy")) +
+            .Select(i => i + ". Akcja " + i + " - sprawdz stan planszy " + new string('x', 45))) +
         "\nDLACZEGO: Test.");
     var longSteps = VisualTurnPlan.BuildSteps(pictureState, longTurn);
     Check(longSteps.Count == 10 && longSteps[^1].Number == 10 &&
