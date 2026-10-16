@@ -198,6 +198,96 @@ try
         schema_version = 1, captured_at_utc = now.ToString("O"), in_game = false
     }));
     Check(GameSnapshot.Read(path, now).Connected && !GameSnapshot.Read(path, now).InGame, "menu status");
+    // New strategic intelligence: only printed HDT effects, visible threat
+    // arithmetic and deduplicated public history observed across polling.
+    var intelligenceSample = new
+    {
+        schema_version = 1, captured_at_utc = now.ToString("O"), in_game = true,
+        turn = 4, my_turn = true, choice_tracking_supported = true,
+        choice_active = false, phase = "turn", mulligan_active = false,
+        choices = Array.Empty<object>(),
+        player = new
+        {
+            mana_available = 2, mana_max = 4, card_class = "MAGE",
+            hand = new[] { new
+            {
+                known = true, card_id = "TEST_001", name = "Testowy okrzyk",
+                cost = 2, card_text = "<b>Battlecry:</b> Deal 3 damage.",
+                card_text_en = "Battlecry: Deal 3 damage."
+            } },
+            board = new[] { new
+            {
+                known = true, name = "Własny stronnik", card_id = "TEST_002",
+                attack = 3, health = 4, exhausted = false, frozen = false, taunt = false
+            } },
+            hero = new { health = 4, armor = 1 },
+            played_this_turn = new[] { "Znany czar" }
+        },
+        opponent = new
+        {
+            card_class = "PRIEST", hand_count = 5,
+            board = new[] { new
+            {
+                known = true, name = "Wrogi prowokujący", card_id = "TEST_003",
+                attack = 5, health = 3, exhausted = false, frozen = false,
+                taunt = true, divine_shield = true
+            } },
+            hero = new { health = 3, armor = 0 },
+            played_this_turn = new[] { "Znany stronnik" }
+        }
+    };
+    File.WriteAllText(path, JsonSerializer.Serialize(intelligenceSample));
+    var intelSnapshot = GameSnapshot.Read(path, now);
+    var intellect = new MatchIntelligence();
+    intellect.Observe(intelSnapshot, now);
+    intellect.Observe(intelSnapshot, now.AddSeconds(1));
+    Check(intellect.Memory.TotalObservedPlays == 2, "no repeated plays on every HDT poll");
+    var knowledge = CardKnowledge.Collect(intelSnapshot);
+    Check(knowledge.Any(x => x.Name == "Testowy okrzyk" &&
+          x.PrintedText!.Contains("Battlecry: Deal 3 damage.") &&
+          x.Keywords.Contains("Battlecry")), "printed text and keywords from HDT");
+    Check(knowledge.All(x => x.Source != "enemy_hand"), "never synthesize enemy hand");
+
+    using (var strategic = JsonDocument.Parse(intellect.BuildContext(intelSnapshot)))
+    {
+        var ctx = strategic.RootElement;
+        var risk = ctx.GetProperty("visible_board_threats");
+        Check(risk.GetProperty("visible_enemy_board_attack_sum").GetInt32() == 5, "visible pressure");
+        Check(risk.GetProperty("board_only_enemy_lethal_warning").GetBoolean(), "enemy lethal warning");
+        Check(risk.GetProperty("enemy_taunt_present").GetBoolean(), "enemy taunt");
+        Check(!risk.GetProperty("unverified_friendly_lethal_possibility").GetBoolean(),
+              "taunt blocks naive face lethal");
+        Check(risk.GetProperty("theoretical_trades").GetArrayLength() > 0, "arithmetic-only trades");
+        Check(ctx.GetProperty("public_match_memory")
+                 .GetProperty("recent_public_plays").GetArrayLength() == 2, "public play memory");
+        Check(ctx.GetProperty("public_match_memory")
+                 .GetProperty("coverage").GetString() == "partial_from_app_start", "incomplete history");
+    }
+    var groundedPrompt = AdvicePrompt.Build(intelSnapshot, intellect.BuildContext(intelSnapshot));
+    Check(groundedPrompt.Contains("DODATKOWE DOWODY") &&
+          groundedPrompt.Contains("Battlecry") &&
+          groundedPrompt.Contains("widoczna"), "new evidence reaches one AI prompt");
+
+    File.WriteAllText(path, JsonSerializer.Serialize(new
+    {
+        schema_version = 1, captured_at_utc = now.ToString("O"), in_game = true,
+        turn = 5, my_turn = true, phase = "turn",
+        player = new { played_this_turn = new[] { "Kolejny czar" }, hand = Array.Empty<object>() },
+        opponent = new { played_this_turn = Array.Empty<string>() }
+    }));
+    var intelTurn5 = GameSnapshot.Read(path, now);
+    intellect.Observe(intelTurn5, now.AddSeconds(2));
+    Check(intellect.Memory.TotalObservedPlays == 3, "history accumulates across turns");
+    File.WriteAllText(path, JsonSerializer.Serialize(new
+    {
+        schema_version = 1, captured_at_utc = now.ToString("O"), in_game = false
+    }));
+    var intelMenu = GameSnapshot.Read(path, now);
+    intellect.Observe(intelMenu, now.AddSeconds(3));
+    Check(intellect.Memory.TotalObservedPlays == 3, "brief menu jitter preserves memory");
+    intellect.Observe(intelMenu, now.AddSeconds(16));
+    Check(intellect.Memory.TotalObservedPlays == 0, "long menu gap clears game memory");
+
     Console.WriteLine("Hearthstone Coach core checks: PASS");
 }
 finally { try { File.Delete(path); } catch { } }
