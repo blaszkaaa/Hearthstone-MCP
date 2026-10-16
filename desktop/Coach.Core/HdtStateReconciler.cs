@@ -34,6 +34,17 @@ public sealed class HdtStateReconciler
             (incoming.ChoiceActive && !_accepted.ChoiceActive ||
              incoming.MulliganActive && !_accepted.MulliganActive ||
              _accepted.InGame && incoming.Turn > _accepted.Turn);
+        // Unlike a one-frame disappearance of offers, a plugin-confirmed
+        // stale selection is positive evidence that the popup ended. Immediately
+        // discard its advice rather than keeping "Wybierz 2" on screen.
+        bool confirmedChoiceExit = _accepted.InGame && _accepted.ChoiceActive &&
+            incoming.InGame && !incoming.ChoiceActive &&
+            incoming.ChoiceValidation is "selected_offer_moved" or
+                "play_after_offer" or "hand_changed_after_offer" or
+                "board_changed_after_offer" or "offer_from_previous_turn";
+        if (confirmedChoiceExit)
+            return Accept(incoming, now, "choice_resolved_" + incoming.ChoiceValidation);
+
         if (urgent)
             return Accept(incoming, now, incoming.ChoiceActive
                 ? "choice_entered" : incoming.MulliganActive ? "mulligan_entered" : "next_turn");

@@ -24,12 +24,14 @@ namespace HearthstoneMcpPlugin
         private static readonly TimeSpan UpdateEvery = TimeSpan.FromMilliseconds(500);
         private static readonly object LogLock = new object();
         private string _lastPhaseSignature;
+        private readonly ChoiceOfferTracker _choiceTracker = new ChoiceOfferTracker();
+        private object _trackedGame;
 
         public string Name => "Hearthstone MCP";
         public string Description => "Udostepnia stan meczu i aktywne wybory kart (Odkryj / Choose One) do MCP.";
         public string ButtonText => "Pokaz plik danych";
         public string Author => "Hearthstone-MCP contributors";
-        public Version Version => new Version(0, 6, 0);
+        public Version Version => new Version(0, 7, 0);
         public MenuItem MenuItem => null;
 
         private static string StatePath
@@ -49,13 +51,17 @@ namespace HearthstoneMcpPlugin
         {
             _enabled = true;
             _lastWriteUtc = DateTime.MinValue;
-            TryDiagnostic("Plugin uruchomiony v0.6");
+            _choiceTracker.Reset();
+            _trackedGame = null;
+            TryDiagnostic("Plugin uruchomiony v0.7");
             OnUpdate();
         }
 
         public void OnUnload()
         {
             _enabled = false;
+            _choiceTracker.Reset();
+            _trackedGame = null;
             try { WriteSnapshot(false); TryDiagnostic("Wtyczka wylaczona"); } catch (Exception ex) { TryDiagnostic("OnUnload " + ex); }
         }
 
@@ -296,12 +302,18 @@ namespace HearthstoneMcpPlugin
         private void WriteSnapshot(bool allowGame)
         {
             var game = Core.Game;
+            if (!ReferenceEquals(_trackedGame, game))
+            {
+                _trackedGame = game;
+                _choiceTracker.Reset();
+            }
             var inGame = allowGame && game != null && !game.IsInMenu
                 && game.Player.Id > 0 && game.Opponent.Id > 0;
             object output;
 
             if (!inGame)
             {
+                _choiceTracker.Reset();
                 output = new
                 {
                     schema_version = 1,
@@ -332,6 +344,21 @@ namespace HearthstoneMcpPlugin
                 var offeredIds = player.OfferedEntityIds == null
                     ? Array.Empty<int>()
                     : player.OfferedEntityIds.Take(20).ToArray();
+                var resolvedOffers = offeredIds.Select(id =>
+                {
+                    Entity offered;
+                    return game.Entities.TryGetValue(id, out offered) ? offered : null;
+                }).ToArray();
+                string choiceValidation;
+                bool choiceStillActive = _choiceTracker.Evaluate(
+                    offeredIds,
+                    player.Hand.Select(e => e.Id).ToArray(),
+                    player.Board.Where(e => e.IsMinion || e.IsLocation).Select(e => e.Id).ToArray(),
+                    player.CardsPlayedThisTurn.Select(e => e.Id).ToArray(),
+                    resolvedOffers.Where(e => e != null && (e.IsInHand || e.IsInPlay))
+                        .Select(e => e.Id).ToArray(),
+                    resolvedOffers.All(e => e != null),
+                    game.GetTurnNumber(), DateTime.UtcNow, out choiceValidation);
                 var choices = offeredIds.Select((id, index) =>
                 {
                     Entity offered;
@@ -354,10 +381,12 @@ namespace HearthstoneMcpPlugin
                     .OrderBy(e => e.ZonePosition).Select(e => AsCard(e, false)).ToArray()
                     : Array.Empty<object>();
 
-                string phase = mulligan ? "mulligan" : offeredIds.Length > 0 ? "choice" : "turn";
+                bool validChoice = !mulligan && choiceStillActive;
+                string phase = mulligan ? "mulligan" : validChoice ? "choice" : "turn";
                 string signature = phase + " t=" + game.GetTurnNumber()
                     + " mine=" + (playerEntity != null && playerEntity.GetTag(GameTag.CURRENT_PLAYER) == 1)
                     + " mulligan=" + mulliganCards.Length + " offered=" + offeredIds.Length
+                    + " choice_validation=" + choiceValidation + " active=" + validChoice
                     + " hand=" + player.Hand.Count();
                 if(signature != _lastPhaseSignature)
                 {
@@ -382,9 +411,10 @@ namespace HearthstoneMcpPlugin
                     // decision prompts. This is not necessarily Discover.
                     choice_tracking_supported = true,
                     card_types_supported = true,
-                    choice_active = !mulligan && offeredIds.Length > 0,
-                    choice_count = offeredIds.Length,
-                    choices = mulligan ? Array.Empty<object>() : choices,
+                    choice_active = validChoice,
+                    choice_validation = choiceValidation,
+                    choice_count = validChoice ? offeredIds.Length : 0,
+                    choices = validChoice ? choices : Array.Empty<object>(),
                     player = new
                     {
                         card_class = player.CurrentClass,

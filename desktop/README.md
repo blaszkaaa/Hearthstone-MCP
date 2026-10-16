@@ -350,3 +350,10 @@ dotnet publish desktop/Coach.App/Coach.App.csproj -c Release -r win-x64 --self-c
 - **Priorytet opóźnień:** tura gracza przerywa trwającą analizę przeciwnika, aby szybciej wygenerować poradę. Nieudana analiza w tle nie psuje obecnej rekomendacji. Dodatkowe wywołania mogą zużywać limit użycia modelu.
 - **Aktualizacja:** aby AI znało pełny skład talii, zaktualizuj **zarówno EXE, jak i DLL wtyczki HDT**; sama aplikacja bez nowej wtyczki nadal analizuje wroga na podstawie widocznych kart.
 - **Logi:** diagnostyka obejmuje `ai.opponent.scheduled`, `ai.opponent.request`, `ai.opponent.completed`, `ai.opponent.canceled`, `ai.opponent.discarded`, `ai.opponent.failure`.
+
+
+## Naprawa aktywnego Odkryj (v1.1.1, wtyczka HDT v0.7)
+
+Jeżeli ekran Hearthstone wrócił do normalnej tury, a coach nadal pokazywał wcześniejsze `Wybierz 2`, HDT mógł nie wyczyścić `OfferedEntityIds` po wyborze. Wtyczka v0.7 obserwuje teraz również rzeczywiste zmiany publicznego stanu ręki, planszy, zagrań i oferowanych kart. Nie pokazuje ponownie zakończonego wyboru, nie wymyśla upływu czasu jako dowodu zakończenia legalnego okna i zachowuje wsparcie wyborów spośród kart będących w ręce. Zatwierdzony koniec wyboru przełącza aplikację do planu bieżącej tury bez dodatkowego oczekiwania. Niekompletne oferty nie uruchamiają AI.
+
+Karty Discover prezentowane są poziomo w sekcji pełnej szerokości, z większymi ilustracjami i wyróżnioną rekomendacją. **Wymiana EXE i aktualizacja DLL HDT** są wymagane dla pełnej ochrony przed przestarzałym wyborem. W menu aplikacji: Ustawienia → Aktualizuj wtyczkę HDT (poza meczem).

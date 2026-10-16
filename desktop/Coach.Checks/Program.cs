@@ -1310,6 +1310,94 @@ try
         TurnDecisionEngine.Analyze(urgentStrategicChoice).ManaPackages.Count == 0,
         "Discover stays immediate; turn mana explorer does not override choice");
 
+
+    // Regression: HDT's OfferedEntityIds occasionally stays nonempty after
+    // CHOICES_CHOSEN is missed. The coach must not be stuck recommending a
+    // card from a popup which is no longer shown in Hearthstone.
+    var offersGate = new HearthstoneMcpPlugin.ChoiceOfferTracker();
+    int[] offered = [10, 20, 30];
+    int[] handBefore = [101, 102];
+    int[] boardBefore = [201];
+    int[] playsBefore = [301];
+    Check(offersGate.Evaluate(offered, handBefore, boardBefore, playsBefore,
+        Array.Empty<int>(), true, 2, now.UtcDateTime, out var initialOfferReason) &&
+        initialOfferReason == "active_offer", "valid Discover appears immediately");
+    Check(offersGate.Evaluate(offered, handBefore, boardBefore, playsBefore,
+        Array.Empty<int>(), true, 2, now.UtcDateTime.AddMinutes(2), out _),
+        "real unchanged Discover must not expire just because of elapsed time");
+    Check(!offersGate.Evaluate(offered, [101, 102, 20], boardBefore, playsBefore,
+        [20], true, 2, now.UtcDateTime.AddMinutes(2.1), out var selectedReason) &&
+        selectedReason == "selected_offer_moved",
+        "moving a chosen option to hand immediately resolves stale choice");
+    Check(!offersGate.Evaluate(offered, handBefore, boardBefore, playsBefore,
+        Array.Empty<int>(), true, 2, now.UtcDateTime.AddMinutes(2.2), out _),
+        "resolved choice cannot reappear from repeated HDT polling");
+
+    Check(offersGate.Evaluate([40, 50, 60], handBefore, boardBefore,
+        playsBefore, Array.Empty<int>(), true, 2, now.UtcDateTime, out _),
+        "new offered IDs start a genuinely new Discover");
+    Check(!offersGate.Evaluate([40, 50, 60], [101, 102, 777], boardBefore,
+        playsBefore, Array.Empty<int>(), true, 2, now.UtcDateTime.AddSeconds(2),
+        out var changedHandReason) && changedHandReason == "hand_changed_after_offer",
+        "hand changing after popup began dismisses stale offers");
+    Check(offersGate.Evaluate([70, 80], handBefore, boardBefore,
+        playsBefore, Array.Empty<int>(), true, 2, now.UtcDateTime, out _),
+        "another fresh choice is accepted");
+    Check(!offersGate.Evaluate([70, 80], handBefore, boardBefore,
+        [301, 302], Array.Empty<int>(), true, 2, now.UtcDateTime.AddSeconds(2),
+        out var afterPlayReason) && afterPlayReason == "play_after_offer",
+        "playing another card after a choice proves the previous popup ended");
+    Check(offersGate.Evaluate([90, 100], handBefore, boardBefore,
+        playsBefore, Array.Empty<int>(), true, 2, now.UtcDateTime, out _),
+        "new choice after completed choice");
+    Check(!offersGate.Evaluate([90, 100], handBefore, boardBefore,
+        playsBefore, Array.Empty<int>(), true, 3, now.UtcDateTime.AddSeconds(1),
+        out var olderTurnReason) && olderTurnReason == "offer_from_previous_turn",
+        "offer cannot survive into the following turn");
+
+    offersGate.Reset();
+    Check(offersGate.Evaluate([10, 20], [10, 20, 101], boardBefore,
+        playsBefore, [10, 20], true, 2, now.UtcDateTime, out _),
+        "options genuinely selected from hand are not mistaken for completed offers");
+    Check(!offersGate.Evaluate([10, 20], [20, 101], boardBefore,
+        playsBefore, [20], true, 2, now.UtcDateTime.AddSeconds(2), out _),
+        "selection from hand still resolves once player hand changes");
+    offersGate.Reset();
+    Check(!offersGate.Evaluate([10, 20, 30], handBefore, boardBefore,
+        playsBefore, Array.Empty<int>(), false, 2, now.UtcDateTime, out var missingReason) &&
+        missingReason == "missing_offer_entities",
+        "never analyze offers whose HDT entities have not yet materialized");
+    Check(offersGate.Evaluate([10, 20, 30], handBefore, boardBefore,
+        playsBefore, Array.Empty<int>(), true, 2, now.UtcDateTime.AddSeconds(1), out _),
+        "temporary missing offered entities recover when resolved");
+
+    File.WriteAllText(path, JsonSerializer.Serialize(new {
+        schema_version = 1, captured_at_utc = now.ToString("O"),
+        in_game = true, turn = 2, my_turn = true,
+        choice_tracking_supported = true, choice_active = false,
+        choice_validation = "hand_changed_after_offer",
+        choices = Array.Empty<object>(), player = sample.player, opponent = sample.opponent
+    }));
+    var noLongerChoosing = GameSnapshot.Read(path, now);
+    var choiceRecovery = new HdtStateReconciler();
+    Check(choiceRecovery.Observe(snapshot, now).ChoiceActive,
+        "former valid choice still appears before completion");
+    var reconciled = choiceRecovery.Observe(noLongerChoosing, now.AddMilliseconds(200));
+    Check(!reconciled.ChoiceActive && reconciled.Phase == "turn" &&
+          choiceRecovery.LastEvent == "choice_resolved_hand_changed_after_offer",
+        "confirmed resolution is accepted without extra debounce");
+    Check(!AdvicePrompt.Build(reconciled).Contains("TRWA WYBÓR KART"),
+        "new player turn gets normal tactical prompt instead of old Discover");
+    File.WriteAllText(path, JsonSerializer.Serialize(new {
+        schema_version = 1, captured_at_utc = now.ToString("O"),
+        in_game = true, turn = 2, my_turn = true,
+        choice_tracking_supported = true, choice_active = true,
+        choice_validation = "missing_offer_entities",
+        choices = Array.Empty<object>(), player = sample.player, opponent = sample.opponent
+    }));
+    Check(!GameSnapshot.Read(path, now).ChoiceActive,
+        "active flag with zero options must not block normal turn analysis");
+
     Console.WriteLine("Hearthstone Coach core checks: PASS");
 }
 finally { try { File.Delete(path); } catch { } }
