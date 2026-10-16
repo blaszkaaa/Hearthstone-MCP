@@ -40,7 +40,7 @@ public partial class MainWindow : Window
         _inference = new ChatGptInference(_auth);
         _timer.Tick += Poll;
         UpdateAccount();
-        DiagnosticLog.Write("app.start", new { version = "0.9", state_path = GameSnapshot.DefaultPath, log_dir = DiagnosticLog.DirectoryPath });
+        DiagnosticLog.Write("app.start", new { version = "0.9.1", state_path = GameSnapshot.DefaultPath, log_dir = DiagnosticLog.DirectoryPath });
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
@@ -488,14 +488,17 @@ public partial class MainWindow : Window
         {
             DiagnosticLog.Write("plugin.update.begin");
             var updated = await HdtPluginUpdater.UpdateAsync(Report, CancellationToken.None);
+            var versionLabel = updated.Source == "bundled-offline"
+                ? " (wersja dołączona do aplikacji — bez internetu)"
+                : " (wydanie GitHub)";
             var status = updated.Changed
-                ? "DLL zaktualizowana. " + (updated.Restarted ?
+                ? "DLL zaktualizowana" + versionLabel + ". " + (updated.Restarted ?
                     "HDT został uruchomiony ponownie." : "Uruchom HDT, aby użyć nowej DLL.")
-                : "Wtyczka jest już w najnowszej wersji.";
+                : "Zainstalowana DLL jest identyczna z dostępną" + versionLabel + ".";
             PluginUpdateStatus.Text = status;
             DiagnosticLog.Write("plugin.update.success", new
             {
-                updated.Changed, updated.Destination, updated.Restarted
+                updated.Changed, updated.Destination, updated.Restarted, updated.Source
             });
         }
         catch (Exception ex)

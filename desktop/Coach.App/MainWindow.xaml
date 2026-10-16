@@ -62,7 +62,7 @@
                     </StackPanel>
                     <Border Background="{StaticResource AccentTint}" Padding="9,5"
                             CornerRadius="7" Margin="17,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="BETA 0.9" Foreground="{StaticResource Accent}" FontSize="10" FontWeight="SemiBold"/>
+                        <TextBlock Text="BETA 0.9.1" Foreground="{StaticResource Accent}" FontSize="10" FontWeight="SemiBold"/>
                     </Border>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
@@ -167,9 +167,9 @@
                                 <Button x:Name="UpdatePluginButton" Content="Aktualizuj wtyczkę HDT ↻"
                                         Style="{StaticResource SecondaryButton}"
                                         Click="UpdatePluginClick"
-                                        ToolTip="Pobierz sprawdzoną DLL z oficjalnego wydania, zamknij HDT, podmień DLL i ponownie uruchom HDT"/>
+                                        ToolTip="Sprawdź GitHub, a przy braku połączenia użyj DLL wbudowanej w program; zamknij HDT, podmień plik i uruchom go ponownie"/>
                                 <TextBlock x:Name="PluginUpdateStatus"
-                                           Text="Instalacja z kopią zapasową; tylko poza meczem."
+                                           Text="Działa także bez GitHuba (DLL jest w aplikacji). Tylko poza meczem."
                                            FontSize="11" Foreground="{StaticResource Muted}"
                                            TextWrapping="Wrap" Margin="0,9,0,0"/>
                             </StackPanel>

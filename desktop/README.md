@@ -7,10 +7,13 @@ Natywna aplikacja **Windows 10/11, WPF/.NET 8**, ciemny interfejs. Odczytuje ten
 W zakładce **Preferencje** kliknij **Aktualizuj wtyczkę HDT ↻**, gdy nie trwa mecz.
 Program wykonuje następujące czynności:
 
-1. Pobiera oficjalne wydanie `plugin-latest` z
-   [GitHub Releases](https://github.com/blaszkaaa/Hearthstone-MCP/releases/tag/plugin-latest)
-   oraz niezależny plik SHA-256. Porównuje skróty i sprawdza nazwę biblioteki.
-   **Pobieranie odbywa się jeszcze przy uruchomionym HDT.**
+1. Przez maksymalnie 6 sekund sprawdza oficjalne wydanie `plugin-latest` w
+   [GitHub Releases](https://github.com/blaszkaaa/Hearthstone-MCP/releases/tag/plugin-latest).
+   Gdy `github.com` jest niedostępny (np. `Nieznany host (github.com:443)`),
+   **automatycznie przełącza się na sprawdzoną DLL wbudowaną w ten sam plik EXE**.
+   Nowa aplikacja Windows publikuje DLL zbudowaną z tego samego commita.
+   Sprawdza tożsamość biblioteki i sumę SHA-256 PRZED zamknięciem HDT.
+   Nie trzeba pobierać pliku DLL osobno ani mieć działającego DNS.
 2. Wyszukuje dotychczas zainstalowaną `HearthstoneMcpPlugin.dll`
    w typowych folderach danych HDT. Jeśli wykryje kilka instalacji albo
    nieznany folder, przerywa zamiast nadpisywać losowy plik.
@@ -25,8 +28,7 @@ Program wykonuje następujące czynności:
 
 Jeśli masz już dokładnie tę samą DLL, HDT nie zostanie zamknięty.
 Aktualizacja zapisuje zdarzenia `plugin.update.*` w logach.
-W przypadku braku opublikowanego wydania GitHub zostanie zachowana stara DLL,
-a aplikacja pokaże błąd. Podczas meczu przycisk odmawia aktualizacji.
+Jeśli GitHub nie działa, instalowana jest wersja **dołączona do pobranej aplikacji Windows**. Jest ona tak aktualna, jak sama aplikacja; dla nowszych wersji pobierz nowe wydanie programu. Jeśli wydanie jest uszkodzone lub nie można zweryfikować DLL, aktualizacja zostaje bezpiecznie zatrzymana. Podczas meczu przycisk odmawia aktualizacji.
 
 Publikacją nowej DLL i sumy SHA-256 zarządza
 [workflow plugin-release.yml](../.github/workflows/plugin-release.yml),

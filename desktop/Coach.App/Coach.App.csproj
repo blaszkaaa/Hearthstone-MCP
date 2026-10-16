@@ -12,4 +12,10 @@
     <ProjectReference Include="../Coach.Core/Coach.Core.csproj" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
   </ItemGroup>
+  <!-- Built plugin is copied here by Windows CI. Optional for development
+       builds, REQUIRED and verified in every published release ZIP. -->
+  <ItemGroup Condition="Exists('Resources/HearthstoneMcpPlugin.dll')">
+    <EmbeddedResource Include="Resources/HearthstoneMcpPlugin.dll"
+                      LogicalName="Coach.App.BundledHdtPlugin" />
+  </ItemGroup>
 </Project>
