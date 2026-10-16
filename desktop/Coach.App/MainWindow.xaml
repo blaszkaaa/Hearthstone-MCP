@@ -62,7 +62,7 @@
                     </StackPanel>
                     <Border Background="{StaticResource AccentTint}" Padding="9,5"
                             CornerRadius="7" Margin="17,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="BETA 0.6" Foreground="{StaticResource Accent}" FontSize="10" FontWeight="SemiBold"/>
+                        <TextBlock Text="BETA 0.7" Foreground="{StaticResource Accent}" FontSize="10" FontWeight="SemiBold"/>
                     </Border>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">

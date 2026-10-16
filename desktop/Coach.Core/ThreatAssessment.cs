@@ -91,6 +91,12 @@ public static class ThreatAssessment
         foreach (var card in board.EnumerateArray())
         {
             if (card.ValueKind != JsonValueKind.Object) continue;
+            // HDT board can also contain LOCATION. It must not contribute
+            // attack strength or be offered as an attacking minion.
+            var kind = Str(card, "card_type");
+            if (!string.IsNullOrWhiteSpace(kind) &&
+                !string.Equals(kind, "MINION", StringComparison.OrdinalIgnoreCase))
+                continue;
             minions.Add(new Minion(
                 Str(card, "name") ?? "nieznana jednostka",
                 Int(card, "attack"), Int(card, "health"),

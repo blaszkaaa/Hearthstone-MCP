@@ -16,6 +16,19 @@ public static class AdvicePrompt
         widziała. Nie wyciągaj wniosków o ukrytej ręce ani niezakrytych sekretach.
         Wskaźniki zagrożenia i wymian są TYLKO arytmetyczne, nie gwarantują
         legalności ataku, efektów ani pewnego lethal.
+        OBOWIĄZKOWO sprawdź pole card_type oraz strefę ręka/plansza PRZED poradą:
+        SPELL to ZAKLĘCIE: wyłącznie je ZAGRYWASZ, nigdy nim nie atakujesz,
+        nigdy nie atakujesz karty zaklęcia z ręki. MINION można ZAGRAĆ z ręki;
+        atakiem może działać dopiero jednostka na planszy, jeśli może atakować.
+        WEAPON wyposażasz zamiast atakować samą kartą broni z ręki.
+        LOCATION używa swojej aktywowanej zdolności, nie zwykłego ataku stronnika.
+        HERO i HERO_POWER to odrębne typy akcji; nie traktuj ich jak stronników.
+        Jeśli opis zaklęcia wskazuje LOSOWE rozdzielenie obrażeń między wrogów,
+        nie wymyślaj ręcznie wybieranego CELU.
+        Jeśli brakuje card_type, nie zakładaj, że karta w ręce jest stronnikiem.
+        Nie proponuj ataku żadną kartą, która nadal znajduje się w ręce.
+        Przy ataku sprawdź, czy wskazany napastnik znajduje się NA PLANSZY
+        (lub jest bohaterem), a nie w ręce. Nie zakładaj zdolności ataku z samego ataku > 0.
         Nie proponuj niemożliwego zagrania. Nie utożsamiaj dostępnej many z legalnością ruchu.
         Jeśli dane są niepełne, daj najlepszą bezpieczną wskazówkę i oznacz niepewność.
         """;

@@ -29,6 +29,8 @@ public partial class MainWindow : Window
     private string? _lastLoggedSnapshot;
     private DateTimeOffset _lastHeartbeat = DateTimeOffset.MinValue;
     private string _lastSchedulerReason = "";
+    private string? _rejectedActionKey;
+    private string? _rejectedActionReason;
 
 
     public MainWindow()
@@ -37,7 +39,7 @@ public partial class MainWindow : Window
         _inference = new ChatGptInference(_auth);
         _timer.Tick += Poll;
         UpdateAccount();
-        DiagnosticLog.Write("app.start", new { version = "0.6", state_path = GameSnapshot.DefaultPath, log_dir = DiagnosticLog.DirectoryPath });
+        DiagnosticLog.Write("app.start", new { version = "0.7", state_path = GameSnapshot.DefaultPath, log_dir = DiagnosticLog.DirectoryPath });
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
@@ -291,6 +293,14 @@ public partial class MainWindow : Window
         // change the meaning of an already running inference.
         var tacticalContext = _intelligence.BuildContext(original);
         var prompt = AdvicePrompt.Build(original, tacticalContext);
+        if (_rejectedActionKey == original.DecisionKey &&
+            !string.IsNullOrWhiteSpace(_rejectedActionReason))
+            prompt += "\n\nKOREKTA WYMAGANA: Twoja poprzednia porada była sprzeczna z typem/strefą karty: " +
+                _rejectedActionReason +
+                "\nWybierz INNĄ legalną akcję. Nie sugeruj atakowania kartami z ręki ani wskazywania celu przy efekcie losowym.";
+        if (!original.CardTypesSupported)
+            DiagnosticLog.Write("hdt.card_types_missing", new { request = number,
+                hint = "Zaktualizuj DLL HDT do v0.4, aby walidować typy kart." });
         DiagnosticLog.Write("ai.request", new
         {
             request = number, turn = original.Turn, phase = original.Phase, model = model.Slug,
@@ -332,6 +342,27 @@ public partial class MainWindow : Window
             if (SnapshotTransitionGuard.MatchesActionableDecision(original, _snapshot))
             {
                 var card = AdviceCard.Parse(result, original.Phase);
+                var legality = AdviceLegality.Validate(original, card);
+                if (!legality.Allowed)
+                {
+                    _rejectedActionKey = original.DecisionKey;
+                    _rejectedActionReason = legality.Reason;
+                    _scheduler.RecordFailure(original);
+                    DiagnosticLog.Write("ai.advice.rejected_illegal", new {
+                        request = number, turn = original.Turn, decision_key = original.DecisionKey,
+                        move = card.Move, target = card.Target, next = card.Next,
+                        problem = legality.Reason
+                    });
+                    AiStatus.Text = "Zablokowano niemożliwą poradę";
+                    MoveText.Text = "Sprawdzam zasady kart...";
+                    AdviceMeta.Text = legality.Reason + " Ponowię analizę.";
+                    TargetPanel.Visibility = Visibility.Collapsed;
+                    NextPanel.Visibility = Visibility.Collapsed;
+                    WhyPanel.Visibility = Visibility.Collapsed;
+                    return;
+                }
+                _rejectedActionKey = null;
+                _rejectedActionReason = null;
                 MoveText.FontSize = original.MulliganActive ? 20 : 28;
                 MoveText.Text = card.Move;
                 TargetText.Text = card.Target;

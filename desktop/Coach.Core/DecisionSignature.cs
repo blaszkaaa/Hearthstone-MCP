@@ -67,6 +67,7 @@ public static class DecisionSignature
     private static object Card(JsonElement item) => new
     {
         card_id = String(item, "card_id"),
+        card_type = String(item, "card_type"),
         name = String(item, "name"),
         known = Flag(item, "known"),
         entity_id = Integer(item, "entity_id"),
