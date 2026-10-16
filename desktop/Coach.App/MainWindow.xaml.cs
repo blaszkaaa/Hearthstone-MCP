@@ -14,6 +14,7 @@ public partial class MainWindow : Window
     private readonly ChatGptInference _inference;
     private readonly AnalysisScheduler _scheduler = new();
     private readonly MatchIntelligence _intelligence = new();
+    private readonly HdtStateReconciler _stateReconciler = new();
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
     private GameSnapshot _snapshot = new();
     private CancellationTokenSource? _requestCts;
@@ -39,7 +40,7 @@ public partial class MainWindow : Window
         _inference = new ChatGptInference(_auth);
         _timer.Tick += Poll;
         UpdateAccount();
-        DiagnosticLog.Write("app.start", new { version = "0.8", state_path = GameSnapshot.DefaultPath, log_dir = DiagnosticLog.DirectoryPath });
+        DiagnosticLog.Write("app.start", new { version = "0.9", state_path = GameSnapshot.DefaultPath, log_dir = DiagnosticLog.DirectoryPath });
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
@@ -148,7 +149,17 @@ public partial class MainWindow : Window
 
     private void RefreshState()
     {
-        _snapshot = GameSnapshot.Read();
+        var raw = GameSnapshot.Read();
+        _snapshot = _stateReconciler.Observe(raw, DateTimeOffset.UtcNow);
+        if (_stateReconciler.LastEvent != "same_decision" &&
+            _stateReconciler.LastEvent != "pending_confirmation")
+            DiagnosticLog.Write("hdt.transition", new {
+                kind = _stateReconciler.LastEvent,
+                accepted_phase = _snapshot.Phase, accepted_turn = _snapshot.Turn,
+                accepted_key = _snapshot.DecisionKey,
+                raw_status = raw.Status, raw_phase = raw.Phase,
+                raw_connected = raw.Connected
+            });
         var connected = _snapshot.Connected;
         var indicator = (Brush)FindResource(connected ? "Accent" : "Muted");
         ConnectionDot.Fill = indicator;
