@@ -1089,8 +1089,8 @@ try
         in_game = false, active_deck = deckFixture
     }));
     var menuDeck = GameSnapshot.Read(path, now);
-    Check(menuDeck.Connected && !menuDeck.InGame &&
-        DeckStrategy.TryGetUsableDeck(menuDeck, out var selectedSignature, out var selectedDeck) &&
+    bool hasMenuDeck = DeckStrategy.TryGetUsableDeck(menuDeck, out var selectedSignature, out var selectedDeck);
+    Check(menuDeck.Connected && !menuDeck.InGame && hasMenuDeck &&
         selectedSignature == deckA && selectedDeck.Contains("Ognista Kula"),
         "active HDT deck can be planned in the menu before a match");
     var strategy = new DeckStrategy();
