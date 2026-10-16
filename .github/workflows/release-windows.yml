@@ -36,10 +36,8 @@ jobs:
             throw "Invalid release version: $version"
           }
           "VERSION=$version" >> $env:GITHUB_ENV
-          gh release view "$version" --json tagName *> $null
-          if ($LASTEXITCODE -eq 0) {
-            throw "Release $version already exists; bump desktop/RELEASE_VERSION to publish a new build."
-          }
+          # gh release create (below) fails safely if a release with this tag exists.
+          # Avoid a deliberate nonzero gh exit here: PowerShell treats it as a failed step.
 
       - name: Core regression tests
         run: dotnet run --project desktop/Coach.Checks/Coach.Checks.csproj -c Release
