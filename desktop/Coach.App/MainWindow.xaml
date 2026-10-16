@@ -62,7 +62,7 @@
                     </StackPanel>
                     <Border Background="{StaticResource AccentTint}" Padding="9,5"
                             CornerRadius="7" Margin="17,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="BETA 0.9.1" Foreground="{StaticResource Accent}" FontSize="10" FontWeight="SemiBold"/>
+                        <TextBlock Text="BETA 1.0" Foreground="{StaticResource Accent}" FontSize="10" FontWeight="SemiBold"/>
                     </Border>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
@@ -238,7 +238,7 @@
                                                    HorizontalAlignment="Center"/>
                                     </Border>
                                     <StackPanel VerticalAlignment="Center">
-                                        <TextBlock Text="TWÓJ NASTĘPNY RUCH" Style="{StaticResource Kicker}"/>
+                                        <TextBlock Text="PLAN I REKOMENDACJE" Style="{StaticResource Kicker}"/>
                                         <TextBlock x:Name="AiStatus" Text="Oczekiwanie na rozgrywkę"
                                                    Foreground="{StaticResource Accent}"
                                                    FontSize="11" Margin="0,3,0,0"/>
@@ -250,43 +250,170 @@
                                                FontSize="10" FontWeight="SemiBold"/>
                                 </Border>
                             </Grid>
-                            <TextBlock x:Name="MoveText" Text="Czekam na swoją turę"
-                                       Foreground="{StaticResource White}"
-                                       FontSize="28" FontWeight="Bold" TextWrapping="Wrap"
-                                       Margin="0,23,0,10" LineHeight="36"/>
-                            <Border x:Name="TargetPanel" Visibility="Collapsed"
-                                    Background="{StaticResource AccentTint}" Padding="12,9"
-                                    CornerRadius="9" Margin="0,0,0,12">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="CEL  →" Foreground="{StaticResource Accent}"
-                                               FontWeight="Bold" FontSize="12" Margin="0,0,12,0"/>
-                                    <TextBlock x:Name="TargetText" Grid.Column="1" Foreground="{StaticResource White}"
-                                               FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                                </Grid>
-                            </Border>
-                            <Border x:Name="NextPanel" Visibility="Collapsed"
-                                    BorderBrush="{StaticResource Stroke}" BorderThickness="0,1,0,0"
-                                    Padding="0,12,0,0">
-                                <StackPanel>
-                                    <TextBlock Text="NASTĘPNIE" Style="{StaticResource Kicker}" Margin="0,0,0,7"/>
-                                    <TextBlock x:Name="AdviceText"
-                                               Text="" Foreground="#D4E3EE" FontSize="13"
-                                               LineHeight="21" TextWrapping="Wrap"/>
+                            <Grid Margin="0,14,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock x:Name="MoveText" Text="Czekam na swoją turę"
+                                               Foreground="{StaticResource White}" FontSize="26"
+                                               FontWeight="Bold" TextWrapping="Wrap"
+                                               Margin="0,8,0,12" LineHeight="34"/>
+
+                                    <!-- Compact visual plan; images are asynchronous and never hold up advice. -->
+                                    <StackPanel x:Name="TurnPlanPanel" Visibility="Collapsed">
+                                        <TextBlock Text="PLAN TURY" Style="{StaticResource Kicker}"
+                                                   Foreground="{StaticResource Accent}" Margin="0,0,0,9"/>
+                                        <ItemsControl x:Name="PlanItems">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="{StaticResource Panel2}"
+                                                            CornerRadius="12" Padding="10" Margin="0,0,0,9">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="74"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <Grid Width="66" Height="96" HorizontalAlignment="Left">
+                                                                <Border Background="{StaticResource NeutralTint}"
+                                                                        CornerRadius="7" BorderBrush="{StaticResource Stroke}"
+                                                                        BorderThickness="1">
+                                                                    <TextBlock Text="{Binding Placeholder}" Opacity=".6"
+                                                                               VerticalAlignment="Center"
+                                                                               HorizontalAlignment="Center"/>
+                                                                </Border>
+                                                                <Image Source="{Binding Art}" Stretch="Uniform">
+                                                                    <Image.ToolTip>
+                                                                        <ToolTip>
+                                                                            <Image Source="{Binding Art}" Width="240"
+                                                                                   Stretch="Uniform"/>
+                                                                        </ToolTip>
+                                                                    </Image.ToolTip>
+                                                                </Image>
+                                                            </Grid>
+                                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                                <TextBlock FontSize="10" FontWeight="SemiBold"
+                                                                           Foreground="{StaticResource Accent}"
+                                                                           Text="{Binding IndexText, StringFormat=KROK {0}}"/>
+                                                                <TextBlock Text="{Binding Caption}" FontSize="14"
+                                                                           FontWeight="SemiBold" TextWrapping="Wrap"
+                                                                           Margin="0,4,0,0"/>
+                                                                <TextBlock Text="{Binding Description}" FontSize="11"
+                                                                           TextWrapping="Wrap" Foreground="{StaticResource Muted}"
+                                                                           Margin="0,4,0,0"/>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock Text="Kolejne akcje są planem warunkowym — reaguj na zmiany planszy."
+                                                   Style="{StaticResource BodyMuted}" FontSize="10"
+                                                   Margin="2,3,0,9"/>
+                                    </StackPanel>
+
+                                    <Border x:Name="TargetPanel" Visibility="Collapsed"
+                                            Background="{StaticResource AccentTint}" Padding="12,9"
+                                            CornerRadius="9" Margin="0,0,0,12">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="CEL →" Foreground="{StaticResource Accent}"
+                                                       FontWeight="Bold" FontSize="12" Margin="0,0,12,0"/>
+                                            <TextBlock x:Name="TargetText" Grid.Column="1"
+                                                       Foreground="{StaticResource White}"
+                                                       FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                        </Grid>
+                                    </Border>
+                                    <Border x:Name="NextPanel" Visibility="Collapsed"
+                                            BorderBrush="{StaticResource Stroke}" BorderThickness="0,1,0,0"
+                                            Padding="0,12,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="NASTĘPNIE" Style="{StaticResource Kicker}" Margin="0,0,0,7"/>
+                                            <TextBlock x:Name="AdviceText" Text=""
+                                                       Foreground="#D4E3EE" FontSize="13"
+                                                       LineHeight="21" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border x:Name="WhyPanel" Visibility="Collapsed"
+                                            BorderBrush="{StaticResource Stroke}" BorderThickness="0,1,0,0"
+                                            Padding="0,12,0,0" Margin="0,13,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="DLACZEGO?" Style="{StaticResource Kicker}" Margin="0,0,0,5"/>
+                                            <TextBlock x:Name="WhyText" Foreground="{StaticResource Muted}"
+                                                       FontSize="12" LineHeight="20" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
-                            </Border>
-                            <Border x:Name="WhyPanel" Visibility="Collapsed"
-                                    BorderBrush="{StaticResource Stroke}" BorderThickness="0,1,0,0"
-                                    Padding="0,12,0,0" Margin="0,13,0,0">
-                                <StackPanel>
-                                    <TextBlock Text="DLACZEGO?" Style="{StaticResource Kicker}" Margin="0,0,0,5"/>
-                                    <TextBlock x:Name="WhyText" Foreground="{StaticResource Muted}"
-                                               FontSize="12" LineHeight="20" TextWrapping="Wrap"/>
-                                </StackPanel>
-                            </Border>
+
+                                <!-- Discover is an independent sidebar: never replaces the turn plan. -->
+                                <Border x:Name="ChoicePanel" Grid.Column="1" Visibility="Collapsed"
+                                        Width="236" Margin="14,0,0,0"
+                                        Background="{StaticResource Panel2}" CornerRadius="12"
+                                        BorderBrush="{StaticResource Stroke}" BorderThickness="1"
+                                        Padding="10" VerticalAlignment="Top">
+                                    <StackPanel>
+                                        <TextBlock Text="AKTYWNY WYBÓR" Style="{StaticResource Kicker}"
+                                                   Foreground="{StaticResource Accent}" Margin="0,1,0,6"/>
+                                        <TextBlock x:Name="ChoiceHeadline" Text="Sprawdzam opcje…"
+                                                   FontWeight="Bold" FontSize="16"
+                                                   Foreground="{StaticResource White}" TextWrapping="Wrap"
+                                                   Margin="0,0,0,10"/>
+                                        <ItemsControl x:Name="ChoiceItems">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border CornerRadius="9" BorderThickness="1"
+                                                            Margin="0,0,0,7" Padding="6">
+                                                        <Border.Style>
+                                                            <Style TargetType="{x:Type Border}">
+                                                                <Setter Property="BorderBrush" Value="{StaticResource Stroke}"/>
+                                                                <Setter Property="Background" Value="{StaticResource Panel}"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding Recommended}" Value="True">
+                                                                        <Setter Property="BorderBrush" Value="{StaticResource Accent}"/>
+                                                                        <Setter Property="Background" Value="{StaticResource AccentTint}"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="61"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <Grid Width="55" Height="80" HorizontalAlignment="Left">
+                                                                <Border Background="{StaticResource NeutralTint}" CornerRadius="6">
+                                                                    <TextBlock Text="HS" Foreground="{StaticResource Muted}"
+                                                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Border>
+                                                                <Image Source="{Binding Art}" Stretch="Uniform">
+                                                                    <Image.ToolTip>
+                                                                        <ToolTip>
+                                                                            <Image Source="{Binding Art}"
+                                                                                   Width="240" Stretch="Uniform"/>
+                                                                        </ToolTip>
+                                                                    </Image.ToolTip>
+                                                                </Image>
+                                                            </Grid>
+                                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding IndexText, StringFormat=KARTA {0}}"
+                                                                           Foreground="{StaticResource Accent}" FontSize="10"
+                                                                           FontWeight="Bold"/>
+                                                                <TextBlock Text="{Binding Caption}"
+                                                                           FontSize="12" FontWeight="SemiBold"
+                                                                           TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
                             <TextBlock x:Name="AdviceMeta"
                                        Text="Poczekaj na stabilny początek tury, aby otrzymać poradę."
                                        Foreground="{StaticResource Muted}" FontSize="11"
