@@ -50,7 +50,7 @@ internal static class AppUpdater
     }
 
     public static async Task PrepareAndStartAsync(
-        AppReleaseManifest manifest, Action<string> progress, CancellationToken ct)
+        AppReleaseManifest manifest, Action<string> progress, Func<bool> canRestart, CancellationToken ct)
     {
         var applicationDirectory = AppContext.BaseDirectory;
         if (!File.Exists(Path.Combine(applicationDirectory, "HearthstoneCoach.exe")))
@@ -126,6 +126,9 @@ internal static class AppUpdater
             await using (var output = File.Create(scriptPath))
                 await embedded.CopyToAsync(output, ct);
 
+            if (!canRestart())
+                throw new InvalidOperationException(
+                    "Podczas pobierania rozpoczął się mecz. Instalacja nie zostanie uruchomiona.");
             progress("Uruchamiam instalator. Aplikacja zostanie zamknięta i otwarta ponownie...");
             var start = new ProcessStartInfo("powershell.exe")
             {
