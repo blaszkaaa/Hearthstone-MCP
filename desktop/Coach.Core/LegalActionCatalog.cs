@@ -97,9 +97,33 @@ public static class LegalActionCatalog
         return new
         {
             mana = evidence.AvailableMana,
-            hand_candidates = evidence.Hand,
-            board_entities = evidence.OwnBoard,
-            enemy_board_entities = evidence.EnemyBoard,
+            hand_candidates = evidence.Hand.Select(card => new
+            {
+                name = card.Name,
+                card_id = card.CardId,
+                card_type = card.Type,
+                cost = card.Cost,
+                fits_available_mana = card.FitsAvailableMana
+            }).ToArray(),
+            board_entities = evidence.OwnBoard.Select(card => new
+            {
+                name = card.Name,
+                card_id = card.CardId,
+                card_type = card.Type,
+                attack = card.Attack,
+                health = card.Health,
+                exhausted = card.Exhausted,
+                frozen = card.Frozen,
+                potential_attacker = card.PotentialAttacker,
+                reason = card.Reason
+            }).ToArray(),
+            enemy_board_entities = evidence.EnemyBoard.Select(card => new
+            {
+                name = card.Name,
+                card_type = card.Type,
+                attack = card.Attack,
+                health = card.Health
+            }).ToArray(),
             enemy_taunt_present = evidence.EnemyTauntPresent,
             limits = evidence.Note
         };
