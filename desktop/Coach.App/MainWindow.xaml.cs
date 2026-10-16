@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -16,6 +17,12 @@ public partial class MainWindow : Window
     private readonly AnalysisScheduler _scheduler = new();
     private readonly OpponentTurnScheduler _opponentScheduler = new();
     private readonly MatchIntelligence _intelligence = new();
+    private readonly DeckStrategy _deckStrategy = new();
+    private CancellationTokenSource? _deckRequestCts;
+    private string? _deckObservedSignature;
+    private string? _deckAttemptSignature;
+    private DateTimeOffset _deckAttemptAt = DateTimeOffset.MinValue;
+    private bool _deckBusy;
     private readonly MatchHistoryStore _history = new();
     private readonly ObservableCollection<HistoryMatchEntry> _historyRows = new();
     private int _shownHistoryRevision = -1;
@@ -105,6 +112,7 @@ public partial class MainWindow : Window
         _cancelReason = "application_closed";
         _requestCts?.Cancel();
         _opponentRequestCts?.Cancel();
+        _deckRequestCts?.Cancel();
     }
 
     private void Poll(object? sender, EventArgs e)
@@ -112,6 +120,7 @@ public partial class MainWindow : Window
         RefreshState();
         var now = DateTimeOffset.UtcNow;
         _intelligence.Observe(_snapshot, now);
+        ObserveDeckStrategy(now);
         // Opponent inference must never compete with an actionable player turn.
         // Public played-card memory keeps collecting evidence even if canceled.
         if (_opponentBusy && (!_snapshot.InGame || _snapshot.MyTurn ||
@@ -185,7 +194,7 @@ public partial class MainWindow : Window
         }
         if (_auth.SignedIn && ModelPicker.SelectedItem is ChatGptInference.ModelChoice reviewModel &&
             _opponentScheduler.ShouldAnalyze(_snapshot, now, AutoCheck.IsChecked == true,
-                _opponentBusy || _busy))
+                _opponentBusy || _busy || _deckBusy))
         {
             DiagnosticLog.Write("ai.opponent.scheduled", new { turn = _snapshot.Turn, key = _snapshot.DecisionKey });
             _ = ReviewOpponentAsync(_snapshot, reviewModel);
@@ -194,6 +203,130 @@ public partial class MainWindow : Window
         {
             _lastSchedulerReason = _scheduler.LastDecision;
             DiagnosticLog.Write("scheduler.status", new { reason = _lastSchedulerReason, turn = _snapshot.Turn, phase = _snapshot.Phase });
+        }
+    }
+
+    private void ObserveDeckStrategy(DateTimeOffset now)
+    {
+        if (!DeckStrategy.TryGetUsableDeck(_snapshot, out var signature, out var deckJson))
+        {
+            if (_deckBusy && (_snapshot.InGame || _snapshot.Connected))
+                _deckRequestCts?.Cancel();
+            DeckStrategyName.Text = "Aktywna talia HDT";
+            DeckStrategyStatus.Text = "Brak danych";
+            DeckStrategyText.Text = !_snapshot.Connected
+                ? "Uruchom HDT z wtyczką MCP."
+                : "Wybierz aktywną talię w HDT lub zaktualizuj wtyczkę. " +
+                  "Nie analizuję talii, której zgodności nie mogę potwierdzić.";
+            return;
+        }
+
+        if (_deckObservedSignature != signature)
+        {
+            _deckRequestCts?.Cancel();
+            _deckObservedSignature = signature;
+            _deckAttemptSignature = null;
+            DeckStrategyText.Text = "Rozpoznano nowy skład talii. Przygotowuję analizę...";
+            DiagnosticLog.Write("deck.detected", new {
+                signature, status = _snapshot.ActiveDeckStatus
+            });
+        }
+        try
+        {
+            using var doc = JsonDocument.Parse(deckJson);
+            if (doc.RootElement.TryGetProperty("name", out var name) &&
+                name.ValueKind == JsonValueKind.String)
+                DeckStrategyName.Text = name.GetString() ?? "Aktywna talia HDT";
+        }
+        catch (JsonException) { DeckStrategyName.Text = "Aktywna talia HDT"; }
+
+        if (_deckStrategy.IsCurrent(_snapshot))
+        {
+            DeckStrategyStatus.Text = "Strategia gotowa";
+            DeckStrategyText.Text = _deckStrategy.Analysis;
+            return;
+        }
+        if (_snapshot.Actionable && _deckBusy)
+            _deckRequestCts?.Cancel();
+        if (_deckBusy)
+        {
+            DeckStrategyStatus.Text = "Analizuję...";
+            return;
+        }
+        if (_snapshot.InGame)
+        {
+            DeckStrategyStatus.Text = "Brak analizy wstępnej";
+            DeckStrategyText.Text = "Przed meczem zabrakło czasu na osobną analizę. " +
+                "AI nadal otrzymuje skład aktywnej talii podczas zagrywania.";
+            return;
+        }
+        if (!_auth.SignedIn || ModelPicker.SelectedItem is not ChatGptInference.ModelChoice model)
+        {
+            DeckStrategyStatus.Text = "Oczekuję na ChatGPT";
+            DeckStrategyText.Text = "Połącz konto i wybierz model, aby przeanalizować kombosy przed grą.";
+            return;
+        }
+        if (_busy || _opponentBusy) return;
+        if (_deckAttemptSignature == signature &&
+            now - _deckAttemptAt < TimeSpan.FromSeconds(45))
+        {
+            DeckStrategyStatus.Text = "Ponowię analizę";
+            return;
+        }
+        _ = AnalyzeDeckBeforeMatchAsync(_snapshot, signature, deckJson, model, now);
+    }
+
+    private async Task AnalyzeDeckBeforeMatchAsync(GameSnapshot startingState,
+        string signature, string deckJson, ChatGptInference.ModelChoice model, DateTimeOffset now)
+    {
+        if (_deckBusy || _closing || startingState.InGame) return;
+        _deckBusy = true;
+        _deckAttemptSignature = signature;
+        _deckAttemptAt = now;
+        var request = new CancellationTokenSource(TimeSpan.FromSeconds(55));
+        _deckRequestCts = request;
+        DeckStrategyStatus.Text = "Analizuję...";
+        DeckStrategyText.Text = "Badam koszty kart, interakcje, możliwe kombosy i mulligan...";
+        try
+        {
+            var prompt = DeckStrategyPrompt.Build(deckJson);
+            DiagnosticLog.Write("deck.analysis.request", new {
+                signature, model = model.Slug, prompt
+            });
+            var analysis = await _inference.AnalyzeDeckAsync(startingState, model.Slug,
+                prompt, request.Token);
+            if (!_closing &&
+                DeckStrategy.TryGetUsableDeck(_snapshot, out var current, out _) &&
+                string.Equals(signature, current, StringComparison.OrdinalIgnoreCase) &&
+                _deckStrategy.Store(_snapshot, analysis))
+            {
+                DeckStrategyText.Text = _deckStrategy.Analysis;
+                DeckStrategyStatus.Text = "Strategia gotowa";
+                DiagnosticLog.Write("deck.analysis.completed", new { signature,
+                    model = model.Slug, analysis = _deckStrategy.Analysis });
+            }
+            else
+                DiagnosticLog.Write("deck.analysis.discarded", new { signature,
+                    reason = "deck_changed_or_app_closed" });
+        }
+        catch (OperationCanceledException)
+        {
+            DiagnosticLog.Write("deck.analysis.canceled", new { signature,
+                in_game = _snapshot.InGame, actionable = _snapshot.Actionable });
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("deck.analysis.failure", ex);
+            if (!_closing && _deckObservedSignature == signature)
+                DeckStrategyText.Text = "Analiza talii nie powiodła się: " + ex.Message;
+        }
+        finally
+        {
+            if (ReferenceEquals(_deckRequestCts, request)) _deckRequestCts = null;
+            request.Dispose();
+            _deckBusy = false;
+            if (!_closing && _deckObservedSignature == signature && !_deckStrategy.IsCurrent(_snapshot))
+                DeckStrategyStatus.Text = "Oczekuję na ponowienie";
         }
     }
 
@@ -209,7 +342,7 @@ public partial class MainWindow : Window
         try
         {
             // Freeze all evidence at the instant this request starts.
-            var context = _intelligence.BuildContext(original);
+            var context = _intelligence.BuildContext(original, _deckStrategy.ForPrompt(original));
             var prompt = OpponentTurnPrompt.Build(original, context);
             DiagnosticLog.Write("ai.opponent.request", new {
                 turn = original.Turn, session, model = model.Slug,
@@ -527,7 +660,7 @@ public partial class MainWindow : Window
         var started = DateTimeOffset.UtcNow;
         // Snapshot memory at request start: future observations must never
         // change the meaning of an already running inference.
-        var tacticalContext = _intelligence.BuildContext(original);
+        var tacticalContext = _intelligence.BuildContext(original, _deckStrategy.ForPrompt(original));
         var prompt = AdvicePrompt.Build(original, tacticalContext);
         if (_rejectedActionKey == original.DecisionKey &&
             !string.IsNullOrWhiteSpace(_rejectedActionReason))
@@ -943,9 +1076,22 @@ public partial class MainWindow : Window
     private void UsageClick(object sender, RoutedEventArgs e) =>
         Process.Start(new ProcessStartInfo("https://chatgpt.com/#settings/Usage") { UseShellExecute = true });
     private void MinimizeClick(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+    private void MaximizeClick(object sender, RoutedEventArgs e) => ToggleMaximize();
+    private void ToggleMaximize() =>
+        WindowState = WindowState == WindowState.Maximized
+            ? WindowState.Normal : WindowState.Maximized;
+    private void WindowStateChanged(object sender, EventArgs e)
+    {
+        if (MaximizeButton is null) return;
+        bool maximized = WindowState == WindowState.Maximized;
+        MaximizeButton.Content = maximized ? "❐" : "□";
+        MaximizeButton.ToolTip = maximized ? "Przywróć rozmiar" : "Maksymalizuj";
+    }
     private void CloseClick(object sender, RoutedEventArgs e) => Close();
     private void TitleDrag(object sender, MouseButtonEventArgs e)
     {
-        if (e.LeftButton == MouseButtonState.Pressed) DragMove();
+        if (e.LeftButton != MouseButtonState.Pressed) return;
+        if (e.ClickCount == 2) ToggleMaximize();
+        else DragMove();
     }
 }
