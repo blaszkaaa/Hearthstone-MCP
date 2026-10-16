@@ -526,6 +526,98 @@ try
             "single-call prompt contains per-minion action evidence");
     }
 
+    // Stage 2: distinguish authoritative mechanic TAGS from text hints.
+    // Two copies with the same card ID must not collapse into one hand option.
+    var taggedCards = new
+    {
+        schema_version = 1, captured_at_utc = now.ToString("O"), in_game = true,
+        card_evidence_schema = 2,
+        card_catalog_source = "HearthDb (installed HDT)",
+        card_catalog_assembly_version = "1.2.3.4",
+        turn = 4, my_turn = true, phase = "turn",
+        player = new
+        {
+            hand = new[] {
+                new { known = true, entity_id = 101, card_id = "TEST_A",
+                    card_dbf_id = 12345, name = "Testowy Okrzyk",
+                    card_type = "MINION", cost = 2,
+                    card_text = "<b>Battlecry:</b> Deal damage.",
+                    card_text_en = "Battlecry: Deal damage.",
+                    printed_data_source = "HearthDb",
+                    printed_mechanics = new[] { "BATTLECRY", "TAUNT" } },
+                new { known = true, entity_id = 102, card_id = "TEST_A",
+                    card_dbf_id = 12345, name = "Testowy Okrzyk",
+                    card_type = "MINION", cost = 2,
+                    card_text = "<b>Battlecry:</b> Deal damage.",
+                    card_text_en = "Battlecry: Deal damage.",
+                    printed_data_source = "HearthDb",
+                    printed_mechanics = new[] { "BATTLECRY", "TAUNT" } }
+            },
+            board = Array.Empty<object>()
+        },
+        opponent = new { board = Array.Empty<object>() }
+    };
+    File.WriteAllText(path, JsonSerializer.Serialize(taggedCards));
+    var tagsSnapshot = GameSnapshot.Read(path, now);
+    var exactCards = CardKnowledge.Collect(tagsSnapshot);
+    Check(exactCards.Count(x => x.Source == "own_hand") == 2,
+        "two identical hand cards retained by entity ID");
+    Check(exactCards.All(x => x.DbfId == 12345 &&
+        x.MechanicsVerified && x.ConfirmedMechanics.Contains("BATTLECRY")),
+        "dbf ID and HearthDb mechanics are confirmed");
+    using (var d = JsonDocument.Parse(JsonSerializer.Serialize(CardKnowledge.ForPrompt(tagsSnapshot))))
+    {
+        var data = d.RootElement;
+        Check(data.GetProperty("card_evidence_schema").GetInt32() == 2,
+            "new card-evidence schema version");
+        Check(data.GetProperty("catalog_assembly_version").GetString() == "1.2.3.4",
+            "provenance reports actual installed catalog assembly");
+        var first = data.GetProperty("printed_card_effects")[0];
+        Check(first.GetProperty("mechanic_tags_status").GetString() == "catalog_confirmed",
+            "confirmed tags identified distinctly from text");
+        Check(first.GetProperty("confirmed_printed_mechanics").GetArrayLength() == 2,
+            "both HearthDb mechanics exported without guessing");
+        Check(first.GetProperty("unverified_text_hints").GetArrayLength() > 0,
+            "description words remain explicitly unverified");
+    }
+
+    // Legacy/partial HDT exports: even a keyword-looking description does NOT
+    // imply that its mechanic was confirmed by HearthDb.
+    File.WriteAllText(path, JsonSerializer.Serialize(new
+    {
+        schema_version = 1, captured_at_utc = now.ToString("O"),
+        in_game = true, turn = 4, my_turn = true, phase = "turn",
+        player = new
+        {
+            hand = new[] {
+                new { name = "Nieznana karta", card_id = "OLD_B",
+                    card_type = "MINION", card_text = "Taunt", cost = 1 },
+                new { name = "Nieznana karta", card_id = "OLD_B",
+                    card_type = "MINION", card_text = "Taunt", cost = 1 }
+            },
+            board = Array.Empty<object>()
+        },
+        opponent = new { board = Array.Empty<object>() }
+    }));
+    var olderSnapshot = GameSnapshot.Read(path, now);
+    var olderKnowledge = CardKnowledge.Collect(olderSnapshot);
+    Check(olderKnowledge.Count == 2, "duplicate legacy cards remain distinct");
+    Check(olderKnowledge.All(x => !x.MechanicsVerified &&
+        x.ConfirmedMechanics.Length == 0 && x.Keywords.Contains("Taunt")),
+        "legacy description hint must NOT become authoritative mechanic");
+    using (var d = JsonDocument.Parse(JsonSerializer.Serialize(CardKnowledge.ForPrompt(olderSnapshot))))
+    {
+        var info = d.RootElement.GetProperty("printed_card_effects")[0];
+        Check(info.GetProperty("mechanic_tags_status").GetString() == "not_provided" &&
+            info.GetProperty("confirmed_printed_mechanics").ValueKind == JsonValueKind.Null,
+            "missing mechanic tags distinguish unknown from confirmed empty list");
+    }
+    var promptWithEvidence = AdvicePrompt.Build(tagsSnapshot,
+        new MatchIntelligence().BuildContext(tagsSnapshot));
+    Check(promptWithEvidence.Contains("catalog_confirmed") &&
+        promptWithEvidence.Contains("unverified_text_hints"),
+        "evidence status reaches model prompt");
+
     Console.WriteLine("Hearthstone Coach core checks: PASS");
 }
 finally { try { File.Delete(path); } catch { } }

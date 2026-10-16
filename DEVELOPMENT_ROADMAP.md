@@ -5,7 +5,7 @@ Zasady: zachowujemy ciemny wygląd, brak automatycznego sterowania grą i brak d
 | Etap | Status | Cel i kryterium akceptacji |
 | --- | --- | --- |
 | 1. Legalne ruchy | **Zakończony (PR #13)** | Widoczne kandydatury ruchów, koszt many, blokada ataków wyczerpanymi/zamrożonymi jednostkami, kontrola Discover/mulligan; testy regresyjne. To filtr znanych błędów, nie pełna symulacja Hearthstone. |
-| 2. Baza kart i mechanik | Do zrobienia | Rzetelne identyfikatory kart, wersjonowanie i brak zgadywania nieznanych efektów. |
+| 2. Baza kart i mechanik | **Zakończony (PR #14)** | Wtyczka v0.5 eksportuje identyfikatory DBF, mechaniki z tagów HearthDb i wersję jej assembly; model oddziela potwierdzone tagi od wskazówek z tekstu. Testy i CI wymagane. |
 | 3. Śledzenie zmian HDT | Do zrobienia | Poprawna aktualizacja decyzji po mulliganie, Discover, turach, animacjach i resetach. |
 | 4. Potencjalny lethal i obrona | Do zrobienia | Wiarygodne warunkowe wyliczenia z wyraźną informacją o brakujących efektach. |
 | 5. Warianty kilku ruchów | Do zrobienia | Krótkie porównanie sekwencji bez wymyślania dostępnych akcji. |
@@ -24,5 +24,7 @@ Zasady: zachowujemy ciemny wygląd, brak automatycznego sterowania grą i brak d
 5. Rozpocznij następny nieukończony etap. Nigdy nie ogłaszaj końca bez weryfikacji.
 
 ## Historia
+
+- 2026-10-16 — etap 2: [PR #14](https://github.com/blaszkaaa/Hearthstone-MCP/pull/14). [Windows CI](https://github.com/blaszkaaa/Hearthstone-MCP/actions/runs/38899192461) oraz [MCP/HDT CI](https://github.com/blaszkaaa/Hearthstone-MCP/actions/runs/38899192517) zakończone sukcesem. Dodano mechaniki potwierdzane tagami HearthDb i jawne oznaczenie danych nieznanych.
 
 - 2026-10-16 — etap 1: [PR #13](https://github.com/blaszkaaa/Hearthstone-MCP/pull/13). [Windows CI](https://github.com/blaszkaaa/Hearthstone-MCP/actions/runs/38874279335) oraz [testy MCP/HDT](https://github.com/blaszkaaa/Hearthstone-MCP/actions/runs/38874279319) zakończone sukcesem. Walidacja ma charakter konserwatywny i nie gwarantuje kompletności zasad gry.
