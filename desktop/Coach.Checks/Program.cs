@@ -8,6 +8,27 @@ var validUpdate = AppReleaseManifest.Parse(
     JsonSerializer.Serialize(new { version, sha256 = checksum, asset = AppReleaseManifest.PackageName }));
 Check(validUpdate.IsNewerThan(new string('c', 40)), "new desktop release recognized");
 Check(!validUpdate.IsNewerThan(version), "same desktop commit never reinstalls");
+var immutableAsset = AppReleaseManifest.ImmutablePackageName(version);
+var immutableManifest = AppReleaseManifest.Parse(JsonSerializer.Serialize(new {
+    version, sha256 = checksum, asset = immutableAsset
+}));
+Check(immutableManifest.Asset == immutableAsset,
+    "SHA-specific release ZIP is accepted by the new updater");
+foreach (var invalidAsset in new[] {
+    AppReleaseManifest.ImmutablePackageName(new string('c', 40)),
+    "HearthstoneCoach-win-x64-" + version + ".exe",
+    "../../HearthstoneCoach-win-x64.zip"
+})
+{
+    bool rejected = false;
+    try {
+        AppReleaseManifest.Parse(JsonSerializer.Serialize(new {
+            version, sha256 = checksum, asset = invalidAsset
+        }));
+    }
+    catch (InvalidDataException) { rejected = true; }
+    Check(rejected, "immutable updater asset must match target commit and exact ZIP name");
+}
 foreach (var bad in new[] {
     JsonSerializer.Serialize(new { version = "v2", sha256 = checksum, asset = AppReleaseManifest.PackageName }),
     JsonSerializer.Serialize(new { version, sha256 = "not-a-digest", asset = AppReleaseManifest.PackageName }),

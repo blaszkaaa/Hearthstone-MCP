@@ -865,9 +865,11 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             if (_closing) return;
-            AppUpdateStatus.Text = "Nie udało się sprawdzić aktualizacji (brak sieci?). " +
-                "Możesz ponowić ręcznie.";
-            DiagnosticLog.Write("app.update.check_failed", new { error = ex.Message });
+            AppUpdateStatus.Text = "Błąd sprawdzania aktualizacji: " + ex.Message +
+                ". Szczegóły znajdziesz w logach aplikacji.";
+            DiagnosticLog.Write("app.update.check_failed", new {
+                type = ex.GetType().Name, error = ex.Message
+            });
         }
     }
 

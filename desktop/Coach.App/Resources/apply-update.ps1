@@ -71,6 +71,10 @@ catch {
     if (Test-Path -LiteralPath $exe) {
         try { Start-Process -FilePath $exe -WorkingDirectory $InstallDir | Out-Null } catch {}
     }
+    if ($env:CI -eq 'true') {
+        Write-Error -Message $failure -ErrorAction Continue
+        exit 1
+    }
     try {
         Add-Type -AssemblyName PresentationFramework
         [System.Windows.MessageBox]::Show(
@@ -80,4 +84,5 @@ catch {
             [System.Windows.MessageBoxImage]::Warning
         ) | Out-Null
     } catch {}
+    exit 1
 }

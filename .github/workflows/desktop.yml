@@ -65,6 +65,30 @@ jobs:
             $source = (Get-FileHash "desktop/Coach.App/Resources/apply-update.ps1" -Algorithm SHA256).Hash
             if ($actual -ne $source) { throw "Embedded desktop updater does not match verified source" }
           } finally { $embedded.Dispose(); $mem.Dispose() }
+      - name: Exercise updater against real Windows files
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP "coach-update-smoke"
+          # Real installations are OUTSIDE the disposable staging directory.
+          $installation = Join-Path $env:RUNNER_TEMP "coach-update-smoke-installed"
+          $stage = Join-Path $root "staged"
+          New-Item -ItemType Directory -Path $installation, $stage -Force | Out-Null
+          Copy-Item "$env:WINDIR/System32/where.exe" (Join-Path $installation "HearthstoneCoach.exe")
+          Copy-Item "$env:WINDIR/System32/whoami.exe" (Join-Path $stage "HearthstoneCoach.exe")
+          $targetHash = (Get-FileHash (Join-Path $stage "HearthstoneCoach.exe")).Hash
+          # Mirror the real desktop extraction: BOM is deliberately prepended.
+          $sourceScript = [System.IO.File]::ReadAllBytes((Resolve-Path "desktop/Coach.App/Resources/apply-update.ps1").Path)
+          $scriptBytes = [byte[]]::new($sourceScript.Length + 3)
+          $scriptBytes[0] = 0xef
+          $scriptBytes[1] = 0xbb
+          $scriptBytes[2] = 0xbf
+          [Array]::Copy($sourceScript, 0, $scriptBytes, 3, $sourceScript.Length)
+          $script = Join-Path $root "apply-update.ps1"
+          [System.IO.File]::WriteAllBytes($script, $scriptBytes)
+          & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $script -AppPid 999999 -InstallDir $installation -StageDir $stage -UpdateDir $root
+          if ($LASTEXITCODE -ne 0) { throw "Updater helper exited with $LASTEXITCODE" }
+          $actualHash = (Get-FileHash (Join-Path $installation "HearthstoneCoach.exe")).Hash
+          if ($actualHash -ne $targetHash) { throw "Windows helper failed to replace the executable" }
       - name: Verify embedded plugin byte-for-byte
         shell: pwsh
         run: |
@@ -97,12 +121,21 @@ jobs:
         run: |
           Compress-Archive -Path "dist/HearthstoneCoach/*" -DestinationPath "dist/HearthstoneCoach-win-x64.zip" -Force
           $sha = (Get-FileHash "dist/HearthstoneCoach-win-x64.zip" -Algorithm SHA256).Hash.ToLowerInvariant()
-          $manifest = @{
+          $immutableName = "HearthstoneCoach-win-x64-$env:GITHUB_SHA.zip"
+          Copy-Item "dist/HearthstoneCoach-win-x64.zip" (Join-Path "dist" $immutableName)
+          # Legacy manifest/ZIP must remain available for ALL installed old clients.
+          $legacyManifest = @{
             version = "$env:GITHUB_SHA"
             sha256 = $sha
             asset = "HearthstoneCoach-win-x64.zip"
           } | ConvertTo-Json -Compress
-          [System.IO.File]::WriteAllText("dist/HearthstoneCoach-update.json", $manifest, [System.Text.UTF8Encoding]::new($false))
+          $manifestV2 = @{
+            version = "$env:GITHUB_SHA"
+            sha256 = $sha
+            asset = $immutableName
+          } | ConvertTo-Json -Compress
+          [System.IO.File]::WriteAllText("dist/HearthstoneCoach-update.json", $legacyManifest, [System.Text.UTF8Encoding]::new($false))
+          [System.IO.File]::WriteAllText("dist/HearthstoneCoach-update-v2.json", $manifestV2, [System.Text.UTF8Encoding]::new($false))
       - name: Publish rolling self-update release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
@@ -110,14 +143,33 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $repo = "$env:GITHUB_REPOSITORY"
+          $immutableName = "HearthstoneCoach-win-x64-$env:GITHUB_SHA.zip"
+          $immutablePath = Join-Path "dist" $immutableName
           gh release view app-latest --repo $repo *> $null
           if ($LASTEXITCODE -ne 0) {
-            gh release create app-latest "dist/HearthstoneCoach-win-x64.zip" "dist/HearthstoneCoach-update.json" --repo $repo --target "$env:GITHUB_SHA" --title "Hearthstone AI Coach — najnowsza wersja" --notes "Wydanie dla aktualizacji bezpośrednio w aplikacji."
+            gh release create app-latest $immutablePath "dist/HearthstoneCoach-win-x64.zip" "dist/HearthstoneCoach-update.json" "dist/HearthstoneCoach-update-v2.json" --repo $repo --target "$env:GITHUB_SHA" --title "Hearthstone AI Coach — najnowsza wersja" --notes "Wydanie dla aktualizacji bezpośrednio w aplikacji."
             if ($LASTEXITCODE -ne 0) { throw "Nie udało się utworzyć release aplikacji." }
           } else {
-            # Publish the manifest last so an incomplete upload cannot advertise a new package.
+            # Publish BOTH new SHA-immutable ZIP and legacy ZIP before ANY manifests.
+            gh release upload app-latest $immutablePath --clobber --repo $repo
+            if ($LASTEXITCODE -ne 0) { throw "Nie udało się opublikować wersjonowanego ZIP." }
             gh release upload app-latest "dist/HearthstoneCoach-win-x64.zip" --clobber --repo $repo
-            if ($LASTEXITCODE -ne 0) { throw "Nie udało się opublikować ZIP aplikacji." }
+            if ($LASTEXITCODE -ne 0) { throw "Nie udało się opublikować starego ZIP aplikacji." }
             gh release upload app-latest "dist/HearthstoneCoach-update.json" --clobber --repo $repo
-            if ($LASTEXITCODE -ne 0) { throw "Nie udało się opublikować manifestu aplikacji." }
+            if ($LASTEXITCODE -ne 0) { throw "Nie udało się opublikować starego manifestu aplikacji." }
+            # Publish v2 manifest last: it can only refer to an already uploaded immutable ZIP.
+            gh release upload app-latest "dist/HearthstoneCoach-update-v2.json" --clobber --repo $repo
+            if ($LASTEXITCODE -ne 0) { throw "Nie udało się opublikować manifestu v2 aplikacji." }
+          }
+          # Keep a few immutable archives for rollbacks without storing every build forever.
+          $releases = gh release view app-latest --repo $repo --json assets | ConvertFrom-Json
+          $old = @($releases.assets |
+            Where-Object { $_.name -match '^HearthstoneCoach-win-x64-[a-f0-9]{40}\.zip$' } |
+            Sort-Object -Property createdAt -Descending |
+            Select-Object -Skip 4)
+          foreach ($asset in $old) {
+            gh release delete-asset app-latest $asset.name --repo $repo --yes
+            if ($LASTEXITCODE -ne 0) {
+              Write-Warning "Nie udało się oczyścić starszego archiwum: $($asset.name)"
+            }
           }

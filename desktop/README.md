@@ -56,8 +56,11 @@ Program automatycznie sprawdza nową wersję przy uruchomieniu, ale **nie pobier
 ani nie zamyka się bez kliknięcia użytkownika**. Jeśli na GitHubie jest nowa
 wersja, wybierz **Zainstaluj aktualizację** i potwierdź restart.
 
-- Wydanie aplikacji `app-latest` zawiera archiwum Windows x64 i manifest
-  `HearthstoneCoach-update.json` z wersją (SHA commita) i sumą SHA-256.
+- Wydanie aplikacji `app-latest` zawiera archiwum Windows x64 oraz
+  `HearthstoneCoach-update-v2.json` z adresem paczki **unikalnym dla
+  danego SHA commita**. Starszy manifest `HearthstoneCoach-update.json`
+  i stary ZIP pozostają dla wcześniej wydanych aplikacji.
+  Każde pobranie jest dodatkowo weryfikowane sumą SHA-256.
 - Aplikacja pobiera i **sprawdza SHA-256 całej paczki** przed podmianą plików.
   Instalator działa w osobnym procesie dopiero po zamknięciu HearthstoneCoach.exe,
   zachowuje poprzednie pliki do ewentualnego cofnięcia i uruchamia program ponownie.
@@ -68,9 +71,16 @@ wersja, wybierz **Zainstaluj aktualizację** i potwierdź restart.
 - W przypadku nieudanego kopiowania skrypt próbuje przywrócić stare pliki,
   a szczegóły zapisuje w `%LOCALAPPDATA%\HearthstoneMCP\desktop-update-error.log`.
 
-**Pierwszy raz** pobierz i rozpakuj wydanie z
-[GitHub Releases — app-latest](https://github.com/blaszkaaa/Hearthstone-MCP/releases/tag/app-latest).
-Od tego momentu kolejne aktualizacje instalujesz w aplikacji.
+**Ważne po naprawie z 16 października 2026:** starszy aktualizator
+miał błąd w uruchamianiu skryptu przez Windows PowerShell 5.1:
+niezapisaną sygnaturę UTF-8 BOM i polskie znaki w skrypcie.
+Tak zainstalowany program **nie naprawi się sam**. Zamknij go,
+[raz pobierz najnowszy ZIP z app-latest](https://github.com/blaszkaaa/Hearthstone-MCP/releases/download/app-latest/HearthstoneCoach-win-x64.zip)
+i rozpakuj całą paczkę do dotychczasowego folderu (nadpisz pliki).
+Kolejne aktualizacje powinny już działać bez ręcznego pobierania,
+ponieważ skrypt otrzymuje UTF-8 BOM, ma test uruchomienia w Windows
+PowerShell 5.1, a nowy manifest wskazuje paczkę o niezmiennym adresie.
+Niezależny przycisk aktualizacji wtyczki HDT nie jest objęty tym błędem.
 Dla Windows używaj katalogu z prawem zapisu (np. w folderze użytkownika);
 nie trzeba uruchamiać programu jako administrator.
 
@@ -329,7 +339,7 @@ dotnet publish desktop/Coach.App/Coach.App.csproj -c Release -r win-x64 --self-c
 - Kompilacja/testy automatyczne nie zastępują testu OAuth i analizy w uruchomionej grze na koncie użytkownika.
 - HDT i jego logi nie udostępniają pełnego zbioru legalnych akcji ani ukrytych kart. AI może się mylić. Gra pozostaje wyłącznie pod kontrolą użytkownika.
 - Aplikacja nie gwarantuje dopuszczalności porad AI w turniejach i określonych trybach. Sprawdź odpowiednie zasady.
-- Początkowa wersja nie ma automatycznych aktualizacji, instalatora MSI, historii analiz, wyboru różnych kont ani podświetlania kart na ekranie gry.
+- Aplikacja nie posiada instalatora MSI ani narzędzia do podświetlania kart bezpośrednio wewnątrz gry; aktualizacje włącza użytkownik przyciskiem w Ustawieniach.
 
 
 ## Rozpoznawanie talii i analiza tury rywala
