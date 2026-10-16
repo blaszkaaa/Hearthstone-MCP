@@ -146,6 +146,25 @@ nieznane, a AI nie może twierdzić, że zna jej mechaniczną specyfikację.
 Jest to nadal baza wydrukowanych informacji zainstalowanego HDT, nie
 automatycznie synchronizowana globalna baza wszystkich kart.
 
+## Stabilność odczytów HDT — etap 3
+
+Silnik `HdtStateReconciler` łączy kolejno odebrane stany HDT.
+Wejście w Odkryj, mulligan oraz potwierdzona następna tura mają
+priorytet i nie są opóźniane; chwilowy zanik oferty Odkryj lub
+jednorazowa zmiana planszy w animacji wymaga ponownego potwierdzenia
+przez ok. 0,8 s. Chwilowy błąd odczytu/menu jest tolerowany maksymalnie
+przez 2 s, potem rozłączenie lub wyjście z meczu jest pokazywane.
+AI nie traci więc bieżącego stanu z powodu pojedynczej klatki odczytu.
+
+Logi `hdt.transition` pokazują przyczyny zaakceptowanych zmian
+i odrzuconych przejściowych odczytów, co ułatwia dalszą diagnostykę.
+Przy usterkach prześlij logi JSONL z chwili awarii. Testy automatyczne
+odtwarzają przejścia mulligan → tura → Odkryj → zakończenie wyboru,
+przejście do następnej tury i rzeczywiste wyjście do menu.
+
+Nie zmienia się interfejs ani DLL HDT — etap 3 wymaga tylko aktualizacji
+aplikacji Windows.
+
 ## Ochrona danych i logowanie
 
 Rejestracja zgodna z [OpenAI Sign in with ChatGPT dla aplikacji OSS](https://developers.openai.com/siwc/token-sharing-open-source/sign-in): systemowa przeglądarka, OAuth PKCE i losowe state/nonce, callback na `127.0.0.1`, walidacja OIDC JWT przez JWKS; żądania AI do oficjalnego `https://api.openai.com/v1/responses` z `store=false` i `stream=true`. Wysłany tekst zawiera **stan widocznej rozgrywki**, m.in. Twoją rękę i opcje wyboru, ale nie ukrytą rękę przeciwnika.
