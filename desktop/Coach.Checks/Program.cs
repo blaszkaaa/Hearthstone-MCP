@@ -437,6 +437,79 @@ try
     Check(volcanoState.DecisionKey != minionState.DecisionKey,
         "card type changes the tactical fingerprint");
 
+    // Stage 1: action candidates and conservative legality verification.
+    var legalityFixture = new
+    {
+        schema_version = 1, captured_at_utc = now.ToString("O"),
+        in_game = true, card_types_supported = true, turn = 5, my_turn = true,
+        phase = "turn", mulligan_active = false, choice_active = false,
+        player = new
+        {
+            mana_available = 2, mana_max = 5,
+            hand = new[]
+            {
+                new { name = "Drogi Smok", card_type = "MINION", card_id = "T1", cost = 5 },
+                new { name = "Tani Czar", card_type = "SPELL", card_id = "T2", cost = 1 },
+            },
+            board = new[]
+            {
+                new { name = "Zmrożony Sługa", card_type = "MINION", card_id = "B1",
+                    attack = 5, health = 3, exhausted = false, frozen = true },
+                new { name = "Wyczerpany Strażnik", card_type = "MINION", card_id = "B2",
+                    attack = 3, health = 4, exhausted = true, frozen = false },
+                new { name = "Pacyfista", card_type = "MINION", card_id = "B3",
+                    attack = 0, health = 4, exhausted = false, frozen = false },
+                new { name = "Gotowy Stronnik", card_type = "MINION", card_id = "B4",
+                    attack = 2, health = 4, exhausted = false, frozen = false }
+            }
+        },
+        opponent = new
+        {
+            board = new[]
+            {
+                new { name = "Wrogi Stronnik", card_type = "MINION", card_id = "E1",
+                    attack = 1, health = 2, exhausted = false, frozen = false }
+            }
+        }
+    };
+    File.WriteAllText(path, JsonSerializer.Serialize(legalityFixture));
+    var legalState = GameSnapshot.Read(path, now);
+    var catalog = LegalActionCatalog.Build(legalState);
+    Check(catalog.AvailableMana == 2 && catalog.Hand.Count == 2, "candidate catalog reads mana and hand");
+    Check(catalog.Hand.First(x => x.Name == "Drogi Smok").FitsAvailableMana == false,
+        "expensive card not payable with available mana");
+    Check(catalog.Hand.First(x => x.Name == "Tani Czar").FitsAvailableMana == true,
+        "affordable card passes visible mana check");
+    Check(catalog.OwnBoard.First(x => x.Name == "Zmrożony Sługa").PotentialAttacker == false,
+        "frozen minion excluded");
+    Check(catalog.OwnBoard.First(x => x.Name == "Wyczerpany Strażnik").PotentialAttacker == false,
+        "exhausted minion excluded");
+    Check(catalog.OwnBoard.First(x => x.Name == "Pacyfista").PotentialAttacker == false,
+        "zero-attack minion excluded");
+    Check(catalog.OwnBoard.First(x => x.Name == "Gotowy Stronnik").PotentialAttacker == true,
+        "ready minion is only a potential attacker");
+    Check(!AdviceLegality.Validate(legalState, AdviceCard.Parse("RUCH: Zagraj Drogiego Smoka")).Allowed,
+        "block playing 5-cost card with only 2 mana");
+    Check(AdviceLegality.Validate(legalState, AdviceCard.Parse("RUCH: Zagraj Tani Czar")).Allowed,
+        "allow visible affordable spell");
+    Check(!AdviceLegality.Validate(legalState, AdviceCard.Parse("RUCH: Zaatakuj Zmrożonym Sługą")).Allowed,
+        "block frozen attacker");
+    Check(!AdviceLegality.Validate(legalState, AdviceCard.Parse("RUCH: Zaatakuj Wyczerpanym Strażnikiem")).Allowed,
+        "block exhausted attacker");
+    Check(!AdviceLegality.Validate(legalState, AdviceCard.Parse("RUCH: Zaatakuj Pacyfistą")).Allowed,
+        "block attacker with zero attack");
+    Check(AdviceLegality.Validate(legalState, AdviceCard.Parse("RUCH: Zaatakuj Gotowym Stronnikiem")).Allowed,
+        "do not block attack supported by visible tags");
+    var enriched = new MatchIntelligence().BuildContext(legalState);
+    using (var contextDoc = JsonDocument.Parse(enriched))
+    {
+        var candidates = contextDoc.RootElement.GetProperty("candidate_actions");
+        Check(candidates.GetProperty("hand_candidates").GetArrayLength() == 2,
+            "single-call prompt contains visible hand candidates");
+        Check(candidates.GetProperty("board_entities").GetArrayLength() == 4,
+            "single-call prompt contains per-minion action evidence");
+    }
+
     Console.WriteLine("Hearthstone Coach core checks: PASS");
 }
 finally { try { File.Delete(path); } catch { } }
