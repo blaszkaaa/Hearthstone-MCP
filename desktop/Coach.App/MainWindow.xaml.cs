@@ -42,6 +42,7 @@ public partial class MainWindow : Window
     private bool _cancelRequested;
     private string _cancelReason = "";
     private bool _closing;
+    private bool _appUpdateBusy;
     private string? _lastLoggedSnapshot;
     private DateTimeOffset _lastHeartbeat = DateTimeOffset.MinValue;
     private string _lastSchedulerReason = "";
@@ -59,7 +60,10 @@ public partial class MainWindow : Window
         _inference = new ChatGptInference(_auth);
         _timer.Tick += Poll;
         UpdateAccount();
-        DiagnosticLog.Write("app.start", new { version = "1.0", state_path = GameSnapshot.DefaultPath, log_dir = DiagnosticLog.DirectoryPath });
+        AppVersionText.Text = "Zainstalowana wersja: " +
+            (AppUpdater.InstalledVersion.Length > 7 ?
+                AppUpdater.InstalledVersion[..7] : AppUpdater.InstalledVersion);
+        DiagnosticLog.Write("app.start", new { version = AppUpdater.InstalledVersion, state_path = GameSnapshot.DefaultPath, log_dir = DiagnosticLog.DirectoryPath });
     }
 
     private void NavigateClick(object sender, RoutedEventArgs e)
@@ -88,6 +92,7 @@ public partial class MainWindow : Window
         RefreshState();
         _history.Observe(_snapshot, DateTimeOffset.UtcNow);
         RefreshHistory();
+        _ = CheckForAppUpdateOnStartupAsync();
         if (_auth.SignedIn) await LoadModelsAsync();
     }
 
@@ -709,6 +714,98 @@ public partial class MainWindow : Window
             "Automatyczna analiza wyłączona • możesz kliknąć „Analizuj teraz”.";
     }
     private void TopmostChanged(object sender, RoutedEventArgs e) => Topmost = TopmostCheck.IsChecked == true;
+    private async Task CheckForAppUpdateOnStartupAsync()
+    {
+        try
+        {
+            var release = await AppUpdater.CheckAsync(CancellationToken.None);
+            if (_closing) return;
+            if (release.IsNewerThan(AppUpdater.InstalledVersion))
+            {
+                AppUpdateStatus.Text = "Dostępna nowa wersja: " + release.Version[..7] +
+                    ". Kliknij, aby pobrać i uruchomić aktualizację.";
+                UpdateAppButton.Content = "Zainstaluj aktualizację ↻";
+            }
+            else
+                AppUpdateStatus.Text = "Masz aktualną wersję aplikacji.";
+        }
+        catch (Exception ex)
+        {
+            if (_closing) return;
+            AppUpdateStatus.Text = "Nie udało się sprawdzić aktualizacji (brak sieci?). " +
+                "Możesz ponowić ręcznie.";
+            DiagnosticLog.Write("app.update.check_failed", new { error = ex.Message });
+        }
+    }
+
+    private async void UpdateAppClick(object sender, RoutedEventArgs e)
+    {
+        if (_appUpdateBusy) return;
+        RefreshState();
+        if (_snapshot.InGame)
+        {
+            MessageBox.Show(this, "Zakończ mecz przed aktualizacją aplikacji.",
+                "Aktualizacja aplikacji", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        _appUpdateBusy = true;
+        UpdateAppButton.IsEnabled = false;
+        UpdatePluginButton.IsEnabled = false;
+        try
+        {
+            AppUpdateStatus.Text = "Sprawdzanie najnowszego wydania...";
+            var release = await AppUpdater.CheckAsync(CancellationToken.None);
+            if (_closing) return;
+            if (!release.IsNewerThan(AppUpdater.InstalledVersion))
+            {
+                AppUpdateStatus.Text = "Masz już najnowszą wersję.";
+                UpdateAppButton.Content = "Sprawdź aktualizacje ↻";
+                return;
+            }
+            var reply = MessageBox.Show(this,
+                "Dostępna jest aktualizacja " + release.Version[..7] +
+                ". Aplikacja pobierze ją, sprawdzi SHA-256, zamknie się, " +
+                "zachowa kopię starych plików i uruchomi się ponownie. " +
+                "Historia meczów i ustawienia pozostaną na komputerze. Kontynuować?",
+                "Aktualizuj Hearthstone AI Coach",
+                MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (reply != MessageBoxResult.Yes)
+            {
+                AppUpdateStatus.Text = "Aktualizacja została anulowana.";
+                return;
+            }
+
+            DiagnosticLog.Write("app.update.begin", new { current = AppUpdater.InstalledVersion,
+                target = release.Version });
+            await AppUpdater.PrepareAndStartAsync(release,
+                message => Dispatcher.Invoke(() => AppUpdateStatus.Text = message),
+                CancellationToken.None);
+            if (_closing) return;
+            RefreshState();
+            if (_snapshot.InGame)
+                throw new InvalidOperationException(
+                    "W trakcie pobierania rozpoczął się mecz. Nie zamykam aplikacji; " +
+                    "poczekaj na zakończenie rozgrywki.");
+            DiagnosticLog.Write("app.update.restart_requested", new { target = release.Version });
+            Close();
+        }
+        catch (Exception ex)
+        {
+            if (_closing) return;
+            DiagnosticLog.Error("app.update.failure", ex);
+            AppUpdateStatus.Text = "Aktualizacja nieudana: " + ex.Message;
+            MessageBox.Show(this, ex.Message, "Aktualizacja aplikacji",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            _appUpdateBusy = false;
+            UpdateAppButton.IsEnabled = true;
+            UpdatePluginButton.IsEnabled = true;
+        }
+    }
+
     private async void UpdatePluginClick(object sender, RoutedEventArgs e)
     {
         RefreshState();
