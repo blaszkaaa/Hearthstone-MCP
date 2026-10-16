@@ -2,6 +2,30 @@
 
 Natywna aplikacja **Windows 10/11, WPF/.NET 8**, ciemny interfejs. Odczytuje ten sam `%LOCALAPPDATA%\HearthstoneMCP\state.json`, który tworzy dotychczasowa wtyczka HDT. Nie potrzebuje Pythona do **interfejsu i silnika AI**; istniejący serwer MCP nadal może działać niezależnie dla ChatGPT.
 
+## Pasek okna, cały plan tury i analiza talii przed meczem
+
+- Pasek aplikacji ma teraz trzy osobne przyciski Windows: **Minimalizuj**,
+  **Maksymalizuj / Przywróć** i **Zamknij**. Dwuklik pustego obszaru paska
+  przełącza maksymalizację; okno można zmieniać rozmiar.
+- **Plan tury** nie ma dawnego limitu pięciu kroków. Interfejs wyświetla każdą
+  akcję z otrzymanej sekwencji, a prompt prosi o wszystkie uzasadnione,
+  legalne kroki: zagrania z ręki, ataki, moc bohatera oraz warunki.
+  Kolejnych zdarzeń (np. rezultat Odkryj) nie wolno zgadywać.
+- **Przed meczem** HDT udostępnia aktywnie wybraną talię w menu.
+  Po połączeniu konta ChatGPT i wybraniu modelu program analizuje jej
+  synergie, kolejność kombosów, strategię, mulligan i zarządzanie maną.
+  Rezultat widać w sekcji **Strategia mojej talii** na stronie głównej.
+  Dodatkowy prompt analityczny wykonuje się raz dla danego składu
+  (sygnatura SHA-256); powtórny wybór tych samych kart korzysta z pamięci
+  bieżącego uruchomienia aplikacji.
+- Analiza poprzedniej talii **nie jest używana po zmianie składu**.
+  Wskazówki kombosów są hipotezami o efektach opisanych w katalogu
+  HearthDb, a nie gwarancją legalnego ruchu. AI sprawdza aktualny stan
+  ręki, many i planszy przed każdą poradą. Jeśli mecz rozpocznie się
+  przed ukończeniem analizy, priorytet mają ruchy w bieżącej turze.
+- Aktualizację **wtyczki HDT** nadal wykonujesz osobnym przyciskiem
+  w Ustawieniach. Starsza DLL nie udostępni talii w menu.
+
 ## Aktualizacja całej aplikacji jednym przyciskiem
 
 W **Ustawieniach → Aktualizacje aplikacji** kliknij **Sprawdź aktualizacje**.
