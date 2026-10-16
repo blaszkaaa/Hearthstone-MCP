@@ -165,6 +165,38 @@ przejście do następnej tury i rzeczywiste wyjście do menu.
 Nie zmienia się interfejs ani DLL HDT — etap 3 wymaga tylko aktualizacji
 aplikacji Windows.
 
+## Etap 4 — prognoza lethal i obrony z jawnych danych
+
+`DamageForecast` liczy **tylko warunkową** siłę ataku widocznych
+stronników i oblicza zdrowie bohaterów z pancerzem. Dzieli:
+
+- **Nasza tura:** atak własnych, niezamrożonych, niewyczerpanych
+  jednostek o znanych statystykach.
+- **Następna tura przeciwnika:** atak niezamrożonych wrogich jednostek.
+  Ważne: `exhausted=true` na naszej turze nie oznacza, że wróg nie
+  będzie mógł atakować po rozpoczęciu swojej następnej tury.
+- **Prowokacja:** obecna Prowokacja blokuje proste założenie o
+  bezpośrednim ataku w bohatera; oddzielnie pokazujemy zagrożenie
+  po jej ewentualnym usunięciu.
+- **Kandydaci obronni:** stronniki z ręki, którym zainstalowany HearthDb
+  nadał tag `TAUNT` i których wydrukowany koszt mieści się w aktualnej
+  manie. Nie jest to gwarancja ich legalności ani skuteczności w meczu.
+
+Nie liczymy pewnego lethal z samych sum ataku. Nie przewidujemy
+niewidocznych kart, sekretów, obrażeń zaklęć, broni, mocy bohatera,
+aur, bonusów w czasie tury, zdolności jednostek, leczenia, zdolności
+Rush/Charge ani wszystkich ograniczeń i zmian kosztu. Jeśli nie znamy
+zdrowia czy typu karty, wynik pozostaje nieznany zamiast udawać zero.
+
+AI otrzymuje `conditional_lethal_forecast` jako dodatkową
+część **istniejącego pojedynczego** promptu. Nie wykonuje dodatkowych
+zapytań do modelu i nie steruje grą. W razie sprzeczności lub braków
+w danych opisuje warunki i niepewność.
+
+Testy regresyjne: zdrowie + pancerz, Prowokacja obu stron, aktualna
+gotowość jednostek, obrona przed potencjalnym atakiem następnej tury,
+nieznane statystyki oraz weryfikacja tagów HearthDb.
+
 ## Ochrona danych i logowanie
 
 Rejestracja zgodna z [OpenAI Sign in with ChatGPT dla aplikacji OSS](https://developers.openai.com/siwc/token-sharing-open-source/sign-in): systemowa przeglądarka, OAuth PKCE i losowe state/nonce, callback na `127.0.0.1`, walidacja OIDC JWT przez JWKS; żądania AI do oficjalnego `https://api.openai.com/v1/responses` z `store=false` i `stream=true`. Wysłany tekst zawiera **stan widocznej rozgrywki**, m.in. Twoją rękę i opcje wyboru, ale nie ukrytą rękę przeciwnika.
