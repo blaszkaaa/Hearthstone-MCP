@@ -708,6 +708,139 @@ try
     Check(ReferenceEquals(transitions.Observe(openingState, now.AddSeconds(13)), openingState) &&
           transitions.LastEvent == "mulligan_entered", "next game's mulligan starts fresh");
 
+    // Stage 4: lethal/defense must use explicit visible HDT state, NOT assume
+    // opponent EXHAUSTED this turn implies they cannot attack NEXT turn.
+    var forecastFixture = new
+    {
+        schema_version = 1, captured_at_utc = now.ToString("O"),
+        in_game = true, card_types_supported = true, turn = 6, my_turn = true,
+        phase = "turn", mulligan_active = false, choice_active = false,
+        player = new
+        {
+            mana_available = 2, mana_max = 6,
+            hero = new { health = 4, armor = 1 },
+            hand = new object[] {
+                new { name = "Obronny Mur", card_type = "MINION", card_id = "TAUNT_A",
+                    known = true, cost = 2, printed_data_source = "HearthDb",
+                    printed_mechanics = new[] { "TAUNT" } },
+                new { name = "Drogie Wsparcie", card_type = "MINION", card_id = "TAUNT_B",
+                    known = true, cost = 7, printed_data_source = "HearthDb",
+                    printed_mechanics = new[] { "TAUNT" } },
+                new { name = "Pozorna Prowokacja", card_type = "MINION", card_id = "TAUNT_C",
+                    known = true, cost = 1, card_text = "Taunt" }
+            },
+            board = new object[] {
+                new { name = "Gotowy A", card_type = "MINION",
+                    attack = 3, health = 3, frozen = false, exhausted = false,
+                    taunt = false },
+                new { name = "Gotowy B", card_type = "MINION",
+                    attack = 2, health = 3, frozen = false, exhausted = false,
+                    taunt = true },
+                new { name = "Zamrożony", card_type = "MINION",
+                    attack = 8, health = 5, frozen = true, exhausted = false,
+                    taunt = false },
+                new { name = "Wyczerpany", card_type = "MINION",
+                    attack = 7, health = 5, frozen = false, exhausted = true,
+                    taunt = false },
+                new { name = "Lokalizacja", card_type = "LOCATION",
+                    attack = 20, health = 5, frozen = false, exhausted = false,
+                    taunt = false }
+            }
+        },
+        opponent = new {
+            hero = new { health = 5, armor = 0 },
+            board = new object[] {
+                new { name = "Wróg A", card_type = "MINION",
+                    attack = 4, health = 4, frozen = false, exhausted = true,
+                    taunt = false },
+                new { name = "Wrogi prowokator", card_type = "MINION",
+                    attack = 1, health = 1, frozen = false, exhausted = true,
+                    taunt = true },
+                new { name = "Wrogi zamrożony", card_type = "MINION",
+                    attack = 6, health = 2, frozen = true, exhausted = true,
+                    taunt = false }
+            }
+        }
+    };
+    File.WriteAllText(path, JsonSerializer.Serialize(forecastFixture));
+    var forecastState = GameSnapshot.Read(path, now);
+    var forecast = DamageForecast.Calculate(forecastState);
+    Check(forecast.OwnEffectiveHealth == 5 &&
+          forecast.EnemyEffectiveHealth == 5, "lethal accounts for hero armor");
+    Check(forecast.ReadyFriendlyBoardDamage == 5,
+        "frozen exhausted and location excluded from ready damage");
+    Check(forecast.EnemyNextTurnBoardDamage == 5,
+        "enemy exhausted on our turn is still a NEXT turn threat");
+    Check(forecast.EnemyTauntPresent && forecast.OwnTauntPresent,
+        "both sides taunt restrictions detected");
+    Check(forecast.PotentialFriendlyBoardLethal == false &&
+          forecast.PotentialEnemyBoardLethal == false &&
+          forecast.PotentialEnemyLethalIfTauntRemoved == true,
+        "taunt prevents unqualified face lethal claim on both sides");
+    Check(forecast.AffordableConfirmedTaunts.Count == 1 &&
+          forecast.AffordableConfirmedTaunts[0].Name == "Obronny Mur",
+        "defensive taunts require verified HearthDb tags and enough mana");
+    Check(forecast.Limitations.Any(x => x.Contains("nie jest symulacją")),
+        "lethal warning must contain explicit limitations");
+    using (var structured = JsonDocument.Parse(
+        JsonSerializer.Serialize(DamageForecast.ForPrompt(forecastState))))
+    {
+        var data = structured.RootElement;
+        Check(data.GetProperty("candidate_board_lethal_if_unblocked").GetBoolean() == false,
+            "blocked lethal exposed conservatively");
+        Check(data.GetProperty("opponent_board_lethal_if_own_taunt_removed").GetBoolean(),
+            "conditional enemy lethal warnings available to model");
+        Check(data.GetProperty("affordable_confirmed_taunt_candidates").GetArrayLength() == 1,
+            "affordable defensive option available to the AI");
+    }
+    var detailedPrompt = AdvicePrompt.Build(forecastState,
+        new MatchIntelligence().BuildContext(forecastState));
+    Check(detailedPrompt.Contains("conditional_lethal_forecast") &&
+          detailedPrompt.Contains("Wrogi EXHAUSTED"),
+        "model receives warning that exhaustion expires on enemy's next turn");
+
+    // A case without Taunt can be lethal by board arithmetic, still conditional
+    // because gameplay effects and secret cards have not been simulated.
+    var unblockedScenario = new {
+        schema_version = 1, captured_at_utc = now.ToString("O"),
+        in_game = true, turn = 6, my_turn = true, phase = "turn",
+        player = new {
+            hero = new { health = 4, armor = 0 },
+            board = new[] {
+                new { name = "Atak", card_type = "MINION", attack = 5, health = 3,
+                    frozen = false, exhausted = false, taunt = false }
+            }, hand = Array.Empty<object>()
+        },
+        opponent = new {
+            hero = new { health = 5, armor = 0 },
+            board = new[] {
+                new { name = "Wróg", card_type = "MINION", attack = 4, health = 2,
+                    frozen = false, exhausted = true, taunt = false }
+            }
+        }
+    };
+    File.WriteAllText(path, JsonSerializer.Serialize(unblockedScenario));
+    var unblockedState = GameSnapshot.Read(path, now);
+    var unblockedForecast = DamageForecast.Calculate(unblockedState);
+    Check(unblockedForecast.PotentialFriendlyBoardLethal == true,
+        "potential friendly lethal requires no taunt and enough visible damage");
+    Check(unblockedForecast.PotentialEnemyBoardLethal == true,
+        "enemy next-turn lethal potential includes exhausted enemy attacker");
+
+    // No health or card type => unknown, NOT an optimistic lethal calculation.
+    File.WriteAllText(path, JsonSerializer.Serialize(new {
+        schema_version = 1, captured_at_utc = now.ToString("O"),
+        in_game = true, turn = 6, my_turn = true, phase = "turn",
+        player = new { hero = new { armor = 5 }, hand = Array.Empty<object>(),
+            board = new[] { new { name = "Niewiadoma", attack = 99, health = 4 } } },
+        opponent = new { hero = new { armor = 0 }, board = Array.Empty<object>() }
+    }));
+    var unknownForecast = DamageForecast.Calculate(GameSnapshot.Read(path, now));
+    Check(unknownForecast.PotentialFriendlyBoardLethal is null &&
+          unknownForecast.PotentialEnemyBoardLethal is null &&
+          unknownForecast.ReadyFriendlyBoardDamage == 0,
+        "missing hero health and card types must not create imaginary lethal");
+
     Console.WriteLine("Hearthstone Coach core checks: PASS");
 }
 finally { try { File.Delete(path); } catch { } }
