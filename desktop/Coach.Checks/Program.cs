@@ -357,6 +357,86 @@ try
     intellect.Observe(intelMenu, now.AddSeconds(16));
     Check(intellect.Memory.TotalObservedPlays == 0, "long menu gap clears game memory");
 
+    // Regression: Wybuchający wulkan is a SPELL in HAND, NOT a minion.
+    // The effect splits damage randomly and therefore has no manually chosen target.
+    var volcano = new
+    {
+        schema_version = 1, captured_at_utc = now.ToString("O"), in_game = true,
+        card_types_supported = true, turn = 3, my_turn = true,
+        phase = "turn", mulligan_active = false, choice_active = false,
+        player = new
+        {
+            mana_available = 3, mana_max = 3,
+            hand = new[] { new
+            {
+                name = "Wybuchający wulkan", card_id = "TEST_VOLCANO",
+                known = true, card_type = "SPELL", spell_school = 3, cost = 3,
+                card_text = "Rozdziel losowo 3 pkt. obrażeń między wrogów."
+            } },
+            board = new[] { new {
+                name = "Własny stronnik", card_type = "MINION",
+                attack = 2, health = 3, exhausted = false
+            } }
+        },
+        opponent = new
+        {
+            board = new[] { new {
+                name = "Wroga jednostka", card_type = "MINION",
+                attack = 2, health = 2, exhausted = false
+            } }
+        }
+    };
+    File.WriteAllText(path, JsonSerializer.Serialize(volcano));
+    var volcanoState = GameSnapshot.Read(path, now);
+    Check(volcanoState.CardTypesSupported, "HDT announces type support");
+    Check(CardKnowledge.Collect(volcanoState).Any(x =>
+        x.Name == "Wybuchający wulkan" && x.CardType == "SPELL"),
+        "card type reaches AI knowledge");
+    Check(AdvicePrompt.Build(volcanoState).Contains("SPELL to ZAKLĘCIE"),
+        "model cannot conflate spells and minions");
+    var wrongAttack = AdviceCard.Parse("RUCH: Zaatakuj Wybuchającym wulkanem");
+    Check(!AdviceLegality.Validate(volcanoState, wrongAttack).Allowed,
+        "block attacking with a spell in hand in Polish inflection");
+    var wrongTarget = AdviceCard.Parse(
+        "RUCH: Zagraj Wybuchający wulkan\\nCEL: Wroga jednostka");
+    Check(!AdviceLegality.Validate(volcanoState, wrongTarget).Allowed,
+        "block manually targeting a random-split spell");
+    var wrongHandTarget = AdviceCard.Parse(
+        "RUCH: Zaatakuj Wybuchający wulkan\\nCEL: Wybuchający wulkan");
+    Check(!AdviceLegality.Validate(volcanoState, wrongHandTarget).Allowed,
+        "spell in own hand is not a board attack target");
+    Check(AdviceLegality.Validate(volcanoState,
+        AdviceCard.Parse("RUCH: Zagraj Wybuchający wulkan")).Allowed,
+        "allow casting spell without invented target");
+    Check(AdviceLegality.Validate(volcanoState,
+        AdviceCard.Parse("RUCH: Zaatakuj Wrogą jednostkę")).Allowed,
+        "do not block attacks when no hand card is mentioned");
+
+    // A changed card type is decision-relevant, even if its name, costs and
+    // visible stats match; we must not reuse an earlier type-based recommendation.
+    var fakeMinion = new
+    {
+        schema_version = 1, captured_at_utc = now.ToString("O"), in_game = true,
+        card_types_supported = true, turn = 3, my_turn = true,
+        phase = "turn", mulligan_active = false, choice_active = false,
+        player = new
+        {
+            mana_available = 3, mana_max = 3,
+            hand = new[] { new
+            {
+                name = "Wybuchający wulkan", card_id = "TEST_VOLCANO",
+                known = true, card_type = "MINION", spell_school = 3, cost = 3,
+                card_text = "Rozdziel losowo 3 pkt. obrażeń między wrogów."
+            } },
+            board = volcano.player.board
+        },
+        opponent = volcano.opponent
+    };
+    File.WriteAllText(path, JsonSerializer.Serialize(fakeMinion));
+    var minionState = GameSnapshot.Read(path, now);
+    Check(volcanoState.DecisionKey != minionState.DecisionKey,
+        "card type changes the tactical fingerprint");
+
     Console.WriteLine("Hearthstone Coach core checks: PASS");
 }
 finally { try { File.Delete(path); } catch { } }
