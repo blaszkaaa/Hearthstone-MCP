@@ -66,24 +66,26 @@ public sealed class ChatGptInference
     {
         if (string.IsNullOrWhiteSpace(model)) throw new InvalidOperationException("Wybierz model ChatGPT.");
         string token = await _auth.AccessTokenAsync(ct);
+        // Spend extra reasoning only on complex normal turns. Mulligan / Discover
+        // remain low-latency and opponent checks never compete with player's move.
+        var (effort, limit) = DecisionReasoningBudget.Choose(snapshot, opponentReview, deckAnalysis);
         var body = new
         {
             model,
             input = new[] { new { role = "user", content = prompt } },
             store = false,
             stream = true,
-            // GPT-6.1 Sol defaults to medium. Low reduces latency and prevents
-            // all output budget being spent on hidden reasoning for short turns.
-            reasoning = new { effort = deckAnalysis ? "medium" : "low" },
+            reasoning = new { effort },
             text = new { verbosity = deckAnalysis ? "medium" : "low" },
-            max_output_tokens = deckAnalysis ? 1700 : opponentReview ? 650 :
-                snapshot.MulliganActive ? 800 : snapshot.ChoiceActive ? 650 : 1850
+            max_output_tokens = limit
         };
         using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/responses");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         request.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
         using var response = await Http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-        DiagnosticLog.Write("api.response_status", new { status = (int)response.StatusCode, phase = deckAnalysis ? "deck_strategy" : opponentReview ? "opponent_review" : snapshot.Phase, model });
+        DiagnosticLog.Write("api.response_status", new { status = (int)response.StatusCode,
+            phase = deckAnalysis ? "deck_strategy" : opponentReview ? "opponent_review" : snapshot.Phase,
+            model, reasoning_effort = effort, output_token_limit = limit });
         if (!response.IsSuccessStatusCode)
         {
             if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
