@@ -907,6 +907,74 @@ try
     Check(VisualTurnPlan.TryChoiceNumber("Wybierz opcję 3 — karta") == 3,
         "choice parser accepts Polish option numbering");
 
+    // Mulligan layout receives one safe label per indexed physical card.
+    var mulliganPictureCards = VisualTurnPlan.BuildChoices(openingState, null);
+    Check(mulliganPictureCards.Count == 3 &&
+        mulliganPictureCards[0].Name == "Karta A" &&
+        mulliganPictureCards[1].Name == "Karta B",
+        "mulligan card art strip preserves HDT order");
+    var mulliganLabels = VisualTurnPlan.ParseMulliganDecisions(mulliganAdvice.Move);
+    Check(mulliganLabels.Count == 3 &&
+        mulliganLabels[1] == "ZOSTAW" &&
+        mulliganLabels[2] == "ODRZUĆ" &&
+        mulliganLabels[3] == "ZOSTAW",
+        "each mulligan card gets a distinct visible keep/discard label");
+    Check(VisualTurnPlan.ParseMulliganDecisions("1 ODRZUC — A\n4 ZOSTAW — D")[1] == "ODRZUĆ",
+        "ASCII mulligan spelling supported");
+    Check(!VisualTurnPlan.ParseMulliganDecisions("1 ZOSTAW — A\n1 ODRZUĆ — A")
+        .ContainsKey(1), "conflicting duplicate mulligan answer is not displayed as certain");
+
+    // Torch / Pochodnia has a mutable script tag: 8 printed damage is NOT
+    // proof of its real value after returning to the player's hand.
+    var torchFixture = new
+    {
+        schema_version = 1, captured_at_utc = now.ToString("O"),
+        in_game = true, turn = 7, my_turn = true, phase = "turn",
+        player = new
+        {
+            mana_available = 3, mana_max = 7,
+            hand = new[] { new
+            {
+                known = true, card_id = "CATA_585", name = "Pochodnia",
+                card_type = "SPELL", cost = 1, card_text = "Zadaj 8 obrażeń",
+                live_damage = 2, live_damage_source = "TAG_SCRIPT_DATA_NUM_1"
+            } },
+            board = Array.Empty<object>(), played_this_turn = new[] { "Pochodnia" }
+        },
+        opponent = sample.opponent
+    };
+    var torchJson = JsonSerializer.Serialize(torchFixture);
+    File.WriteAllText(path, torchJson);
+    var torchState = GameSnapshot.Read(path, now);
+    var torchCard = CardKnowledge.Collect(torchState).Single(x => x.CardId == "CATA_585");
+    Check(torchCard.LiveDamage == 2 && torchCard.PrintedText!.Contains("8"),
+        "live Torch damage overrides printed catalog damage in AI evidence");
+    var intelTorch = new MatchIntelligence();
+    intelTorch.Observe(torchState, now);
+    intelTorch.Observe(torchState, now.AddSeconds(1));
+    using (var context = JsonDocument.Parse(intelTorch.BuildContext(torchState)))
+    {
+        var root = context.RootElement;
+        var printed = root.GetProperty("card_knowledge").GetProperty("printed_card_effects")[0];
+        Check(printed.GetProperty("current_live_damage").GetInt32() == 2 &&
+              printed.GetProperty("live_damage_status").GetString() == "verified_entity_tag",
+              "prompt includes verified actual Torch damage");
+        Check(root.GetProperty("public_match_memory")
+                  .GetProperty("observed_own_torch_plays").GetInt32() == 1,
+              "Torch history survives polling without duplicate plays");
+    }
+    Check(AdvicePrompt.Build(torchState).Contains("current_live_damage"),
+        "AI must consider Torch remaining damage rather than printed amount");
+    File.WriteAllText(path, torchJson.Replace("\"live_damage\":2", "\"live_damage\":1"));
+    var weakerTorch = GameSnapshot.Read(path, now);
+    Check(weakerTorch.DecisionKey != torchState.DecisionKey &&
+          CardKnowledge.Collect(weakerTorch).Single(x => x.CardId == "CATA_585").LiveDamage == 1,
+          "remaining damage change triggers fresh advice");
+    File.WriteAllText(path, torchJson.Replace("\"live_damage\":2", "\"live_damage\":null"));
+    var unknownTorch = GameSnapshot.Read(path, now);
+    Check(CardKnowledge.Collect(unknownTorch).Single(x => x.CardId == "CATA_585").LiveDamage == null,
+          "absent live tag must not be replaced with the printed base value");
+
     Console.WriteLine("Hearthstone Coach core checks: PASS");
 }
 finally { try { File.Delete(path); } catch { } }
