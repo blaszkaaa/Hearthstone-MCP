@@ -86,14 +86,19 @@ public static class AdvicePrompt
         """;
 
     private const string Turn = """
-        TRWA TWOJA TURA. Rekomenduj konkretny NASTĘPNY ruch na podstawie widocznych kart.
-        Nie rozpisuj długiej strategii. Jeśli jest znany cel, wpisz go.
-        Maksymalnie 2 kolejne akcje, jeśli są logiczne i uzasadnione.
-        Format dokładnie:
-        RUCH: [zagraj/zaatakuj/użyj mocy + dokładna karta lub jednostka]
-        CEL: [tylko gdy pewny cel]
-        POTEM: [najwyżej 2 krótkie akcje, w przeciwnym razie pomiń]
-        DLACZEGO: [jedno zdanie do 12 słów]
+        TRWA TWOJA TURA. UŁÓŻ PLAN CAŁEJ TURY w kolejności legalnych kroków.
+        Oceń manę, rękę, gotowość do ataku, cele i potencjalne zagrożenia.
+        Podaj najpierw KONKRETNY pierwszy ruch, potem do 4 następnych akcji
+        w POLU POTEM, każda oddzielona średnikiem i ponumerowana 2., 3., 4., 5.
+        Nie zgaduj kart uzyskanych później przez Odkryj: dalsze kroki zależne
+        od wyboru oznacz jako warunkowe zamiast zmyślać jego wynik.
+        Zachowaj dokładne NAZWY KART z HDT, by interfejs mógł dopasować grafiki.
+        Nigdy nie proponuj ataku bohaterem bez potwierdzenia jego możliwości ataku.
+        Krótki format dokładnie:
+        RUCH: [pierwszy ruch z dokładną kartą lub jednostką]
+        CEL: [cel pierwszego ruchu tylko jeśli faktycznie wybierany]
+        POTEM: 2. [ruch]; 3. [ruch]; 4. [ruch] (pomijaj niepewne lub zbędne)
+        DLACZEGO: [krótkie uzasadnienie, maksymalnie 12 słów]
         """;
 
     public static string Build(GameSnapshot state, string? extraContext = null)
