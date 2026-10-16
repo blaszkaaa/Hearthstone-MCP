@@ -32,10 +32,12 @@ internal static class AppUpdater
     public static async Task<AppReleaseManifest> CheckAsync(CancellationToken ct)
     {
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        deadline.CancelAfter(TimeSpan.FromSeconds(10));
+        // GitHub may require more than 10 seconds for the first TLS request.
+        deadline.CancelAfter(TimeSpan.FromSeconds(25));
         using var request = new HttpRequestMessage(HttpMethod.Get,
-            ReleaseBase + "HearthstoneCoach-update.json");
-        request.Headers.CacheControl = new CacheControlHeaderValue { NoCache = true };
+            ReleaseBase + "HearthstoneCoach-update.json?nocache=" +
+            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+        request.Headers.CacheControl = new CacheControlHeaderValue { NoCache = true, NoStore = true };
         using var response = await Http.SendAsync(request,
             HttpCompletionOption.ResponseHeadersRead, deadline.Token);
         response.EnsureSuccessStatusCode();
@@ -69,7 +71,7 @@ internal static class AppUpdater
 
         var updateDirectory = Path.Combine(Path.GetTempPath(), "HearthstoneCoach-update-" +
             Guid.NewGuid().ToString("N"));
-        var zipPath = Path.Combine(updateDirectory, AppReleaseManifest.PackageName);
+        var zipPath = Path.Combine(updateDirectory, manifest.Asset);
         var stageDir = Path.Combine(updateDirectory, "staged");
         var scriptPath = Path.Combine(updateDirectory, "apply-update.ps1");
         Directory.CreateDirectory(updateDirectory);
@@ -77,7 +79,11 @@ internal static class AppUpdater
         try
         {
             progress("Pobieranie aktualnej wersji aplikacji...");
-            using (var response = await Http.GetAsync(ReleaseBase + AppReleaseManifest.PackageName,
+            using var packageRequest = new HttpRequestMessage(HttpMethod.Get,
+                ReleaseBase + manifest.Asset + "?version=" + manifest.Version);
+            packageRequest.Headers.CacheControl = new CacheControlHeaderValue
+                { NoCache = true, NoStore = true };
+            using (var response = await Http.SendAsync(packageRequest,
                 HttpCompletionOption.ResponseHeadersRead, ct))
             {
                 response.EnsureSuccessStatusCode();
@@ -97,12 +103,23 @@ internal static class AppUpdater
                     await target.WriteAsync(buffer.AsMemory(0, read), ct);
                 }
             }
+            DiagnosticLog.Write("app.update.downloaded", new { manifest.Version,
+                asset = manifest.Asset, expected_sha256 = manifest.Sha256,
+                bytes = new FileInfo(zipPath).Length });
             progress("Weryfikacja sumy SHA-256...");
             await using (var downloaded = File.OpenRead(zipPath))
             {
                 var actual = Convert.ToHexString(await SHA256.HashDataAsync(downloaded, ct));
                 if (!string.Equals(actual, manifest.Sha256, StringComparison.OrdinalIgnoreCase))
-                    throw new InvalidDataException("Paczka nie zgadza się z manifestem SHA-256. Nie instaluję jej.");
+                {
+                    DiagnosticLog.Write("app.update.hash_mismatch", new {
+                        expected = manifest.Sha256, actual, asset = manifest.Asset,
+                        target_version = manifest.Version
+                    });
+                    throw new InvalidDataException(
+                        "Pobrany ZIP ma inną sumę SHA-256 niż wydanie na GitHub. " +
+                        "Nie instaluję go. Spróbuj ponownie później (pamięć podręczna GitHub).");
+                }
             }
 
             progress("Przygotowanie nowej wersji...");
