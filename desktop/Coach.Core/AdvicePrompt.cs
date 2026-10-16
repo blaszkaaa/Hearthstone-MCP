@@ -52,6 +52,11 @@ public static class AdvicePrompt
         nigdy potwierdzonym stanem gry. Zweryfikuj ją względem TERAZ widocznej
         planszy, historii publicznych zagrań i zagrożeń. Wykorzystaj ją
         do wyboru obrony, wymian i tempa, a nie do zgadywania ukrytych kart.
+        deck_strategy (jeśli przekazano) to WCZEŚNIEJSZA analiza AKTYWNEJ
+        talii z HDT. Jej kombinacje są hipotezami opartymi na opisach kart,
+        a NIE dowodem posiadania kart w ręce ani ich aktualnej grywalności.
+        Stosuj strategię do mulliganu i wyboru sekwencji tylko przy zgodnym
+        podpisie aktywnej talii i po sprawdzeniu bieżącej sytuacji.
         Wskaźniki zagrożenia i wymian są TYLKO arytmetyczne, nie gwarantują
         legalności ataku, efektów ani pewnego lethal.
         OBOWIĄZKOWO sprawdź pole card_type oraz strefę ręka/plansza PRZED poradą:
@@ -106,8 +111,13 @@ public static class AdvicePrompt
     private const string Turn = """
         TRWA TWOJA TURA. UŁÓŻ PLAN CAŁEJ TURY w kolejności legalnych kroków.
         Oceń manę, rękę, gotowość do ataku, cele i potencjalne zagrożenia.
-        Podaj najpierw KONKRETNY pierwszy ruch, potem do 4 następnych akcji
-        w POLU POTEM, każda oddzielona średnikiem i ponumerowana 2., 3., 4., 5.
+        Podaj KONKRETNY pierwszy ruch i WSZYSTKIE zasadne, możliwe do
+        zaplanowania akcje w POLU POTEM, numerując kolejne 2., 3., 4., ...
+        i oddzielając je średnikami. NIE urywaj planu po 5 krokach.
+        Przelicz manę w kolejności, uwzględnij efekty kart, dostępną moc
+        bohatera oraz każdy możliwy atak oddzielnie. Nie dopisuj zbędnych
+        ruchów, aby sztucznie wydłużyć plan. Gdy nie można potwierdzić
+        legalności kolejnego kroku, opisz go jako warunkowy.
         Nie zgaduj kart uzyskanych później przez Odkryj: dalsze kroki zależne
         od wyboru oznacz jako warunkowe zamiast zmyślać jego wynik.
         Zachowaj dokładne NAZWY KART z HDT, by interfejs mógł dopasować grafiki.
@@ -115,7 +125,7 @@ public static class AdvicePrompt
         Krótki format dokładnie:
         RUCH: [pierwszy ruch z dokładną kartą lub jednostką]
         CEL: [cel pierwszego ruchu tylko jeśli faktycznie wybierany]
-        POTEM: 2. [ruch]; 3. [ruch]; 4. [ruch] (pomijaj niepewne lub zbędne)
+        POTEM: 2. [ruch]; 3. [ruch]; 4. [ruch]; ... (TYLE kroków, ile jest uzasadnione; nie zgaduj)
         DLACZEGO: [krótkie uzasadnienie, maksymalnie 12 słów]
         """;
 
