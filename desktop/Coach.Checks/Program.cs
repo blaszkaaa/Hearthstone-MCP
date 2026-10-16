@@ -975,6 +975,73 @@ try
     Check(CardKnowledge.Collect(unknownTorch).Single(x => x.CardId == "CATA_585").LiveDamage == null,
           "absent live tag must not be replaced with the printed base value");
 
+
+    // Match history: visible cards, duplicate copies, persistence and boundaries.
+    var historyFile = Path.Combine(Path.GetTempPath(),
+        "hscoach-history-" + Guid.NewGuid().ToString("N") + ".json");
+    try
+    {
+        var history = new MatchHistoryStore(historyFile);
+        var recorded = new
+        {
+            schema_version = 1, captured_at_utc = now.ToString("O"),
+            in_game = true, turn = 1, my_turn = true, phase = "turn",
+            player = new
+            {
+                card_class = "MAGE", hand = Array.Empty<object>(),
+                played_this_turn = new[] { "Fireball", "Fireball" },
+                public_plays_this_turn = new[] {
+                    new { entity_id = 7, card_id = "CS2_029", name = "Fireball" },
+                    new { entity_id = 8, card_id = "CS2_029", name = "Fireball" }
+                }
+            },
+            opponent = new
+            {
+                card_class = "PRIEST", played_this_turn = new[] { "Northshire Cleric" },
+                public_plays_this_turn = new[] {
+                    new { entity_id = 9, card_id = "CS2_235", name = "Northshire Cleric" }
+                }
+            }
+        };
+        File.WriteAllText(path, JsonSerializer.Serialize(recorded));
+        var observed = GameSnapshot.Read(path, now);
+        history.Observe(observed, now);
+        history.Observe(observed, now.AddSeconds(1));
+        Check(history.Matches.Count == 1 && history.Matches[0].Plays.Count == 3,
+            "record unique instances without double counting polls");
+        Check(history.Matches[0].Plays[0].CardId == "CS2_029" &&
+              history.Matches[0].Plays[1].EntityId == 8 &&
+              history.Matches[0].OpponentClass == "PRIEST",
+            "persist IDs and public opponent plays");
+        Check(new MatchHistoryStore(historyFile).Matches[0].Plays.Count == 3,
+            "history survives process restart");
+
+        File.WriteAllText(path, JsonSerializer.Serialize(new {
+            schema_version = 1, captured_at_utc = now.ToString("O"), in_game = false
+        }));
+        var finished = GameSnapshot.Read(path, now);
+        history.Observe(finished, now.AddSeconds(2));
+        history.Observe(finished, now.AddSeconds(7));
+        Check(history.Matches[0].FinishedUtc.HasValue, "finished matches are archived");
+
+        File.WriteAllText(path, JsonSerializer.Serialize(new
+        {
+            schema_version = 1, captured_at_utc = now.ToString("O"),
+            in_game = true, turn = 6, my_turn = false, phase = "turn",
+            player = new { card_class = "ROGUE", hand = Array.Empty<object>(),
+                           played_this_turn = new[] { "Coin" } },
+            opponent = new { card_class = "MAGE", played_this_turn = Array.Empty<string>() }
+        }));
+        history.Observe(GameSnapshot.Read(path, now), now.AddSeconds(8));
+        Check(history.Matches.Count == 2 && history.Matches[0].Partial,
+            "late join becomes a separate partially observed match");
+        Check(history.Matches[0].Plays.Count == 1 &&
+              history.Matches[0].Plays[0].Name == "Coin" &&
+              history.Matches[0].Plays[0].CardId == null,
+            "old HDT plugin still records card names without fabricated IDs");
+    }
+    finally { try { File.Delete(historyFile); } catch { } }
+
     Console.WriteLine("Hearthstone Coach core checks: PASS");
 }
 finally { try { File.Delete(path); } catch { } }
