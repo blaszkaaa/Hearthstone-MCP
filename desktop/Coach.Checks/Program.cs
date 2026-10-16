@@ -652,6 +652,62 @@ try
         Directory.Delete(installFixture, recursive: true);
     }
 
+    // Stage 3: HDT may briefly hide Discover offers, report "menu" during a
+    // transition or reorder entity metadata. Confirm normal states without
+    // delaying urgent Discover entries or real next-turn events.
+    var transitions = new HdtStateReconciler();
+    Check(ReferenceEquals(transitions.Observe(openingState, now), openingState),
+        "initial mulligan is available immediately");
+    Check(ReferenceEquals(transitions.Observe(standard, now.AddSeconds(1)), standard),
+        "real next turn takes priority over mulligan");
+    var choiceAtTurnNine = new
+    {
+        schema_version = 1, captured_at_utc = now.ToString("O"), in_game = true,
+        turn = 9, my_turn = true, choice_tracking_supported = true,
+        mulligan_active = false, choice_active = true, phase = "choice",
+        choices = sample.choices, player = sample.player, opponent = sample.opponent
+    };
+    File.WriteAllText(path, JsonSerializer.Serialize(choiceAtTurnNine));
+    var urgentChoice = GameSnapshot.Read(path, now);
+    Check(ReferenceEquals(transitions.Observe(urgentChoice, now.AddSeconds(2)), urgentChoice) &&
+          transitions.LastEvent == "choice_entered", "Discover offer processed immediately");
+
+    // If offers briefly disappear during an animation, never replace the
+    // pending choice with a regular move. Confirm that the disappearance lasts.
+    Check(ReferenceEquals(transitions.Observe(standard, now.AddSeconds(2.3)), urgentChoice),
+        "one disappearing-choice frame ignored");
+    Check(ReferenceEquals(transitions.Observe(urgentChoice, now.AddSeconds(2.5)), urgentChoice),
+        "return of Discover resets disappearance candidate");
+    Check(ReferenceEquals(transitions.Observe(standard, now.AddSeconds(3)), urgentChoice),
+        "end of Discover is not prematurely accepted");
+    Check(ReferenceEquals(transitions.Observe(standard, now.AddSeconds(4)), standard) &&
+          transitions.LastEvent == "phase_changed", "confirmed Discover ending processed");
+
+    // Same-phase tactical changes need confirmation to survive transient
+    // animations, while a real new turn is accepted without extra waiting.
+    Check(ReferenceEquals(transitions.Observe(differentMove, now.AddSeconds(4.2)), standard),
+        "one transient same-turn change ignored");
+    Check(ReferenceEquals(transitions.Observe(standard, now.AddSeconds(4.4)), standard),
+        "transient move resets candidate");
+    Check(ReferenceEquals(transitions.Observe(differentMove, now.AddSeconds(5)), standard),
+        "new candidate stabilizes before acceptance");
+    Check(ReferenceEquals(transitions.Observe(differentMove, now.AddSeconds(6)), differentMove),
+        "stable mana/hand change eventually accepted");
+    Check(ReferenceEquals(transitions.Observe(nextTurn, now.AddSeconds(7)), nextTurn) &&
+          transitions.LastEvent == "next_turn", "following turn cannot remain stuck on previous advice");
+
+    // Brief menu or inaccessible JSON must not interrupt an in-progress turn.
+    Check(ReferenceEquals(transitions.Observe(intelMenu, now.AddSeconds(7.2)), nextTurn),
+        "short HDT menu flicker suppressed");
+    Check(ReferenceEquals(transitions.Observe(nextTurn, now.AddSeconds(8)), nextTurn),
+        "recovered HDT state restores original transition");
+    Check(ReferenceEquals(transitions.Observe(intelMenu, now.AddSeconds(9)), nextTurn),
+        "menu begins confirmation window");
+    Check(ReferenceEquals(transitions.Observe(intelMenu, now.AddSeconds(12)), intelMenu) &&
+          transitions.LastEvent == "menu_confirmed", "actual match exit is reflected");
+    Check(ReferenceEquals(transitions.Observe(openingState, now.AddSeconds(13)), openingState) &&
+          transitions.LastEvent == "mulligan_entered", "next game's mulligan starts fresh");
+
     Console.WriteLine("Hearthstone Coach core checks: PASS");
 }
 finally { try { File.Delete(path); } catch { } }
