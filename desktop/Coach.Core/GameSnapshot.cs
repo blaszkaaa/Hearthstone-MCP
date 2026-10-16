@@ -71,6 +71,9 @@ public sealed class GameSnapshot
                 my_turn = mine,
                 phase = phase,
                 mulligan_active = mulligan,
+                card_evidence_schema = ReadInt(root, "card_evidence_schema"),
+                card_catalog_source = ReadString(root, "card_catalog_source"),
+                card_catalog_assembly_version = ReadString(root, "card_catalog_assembly_version"),
                 mulligan_cards = mulligan ? GetRaw(root, "mulligan_cards") : JsonSerializer.SerializeToElement(Array.Empty<object>()),
                 player = new
                 {
