@@ -887,6 +887,19 @@ try
         visualSteps[1].CardId == "EX1_001" &&
         visualSteps[2].CardId == null,
         "full turn sequence maps only genuinely visible cards to art");
+    // Regression: a busy board can require more than five distinct actions.
+    var longTurn = AdviceCard.Parse("RUCH: Zagraj Ognistą Kulę\\n".Replace("\\n", "\n") +
+        "POTEM: " + string.Join("; ", Enumerable.Range(2, 9)
+            .Select(i => i + ". Akcja " + i + " - sprawdz stan planszy")) +
+        "\nDLACZEGO: Test.");
+    var longSteps = VisualTurnPlan.BuildSteps(pictureState, longTurn);
+    Check(longSteps.Count == 10 && longSteps[^1].Number == 10 &&
+        longSteps[^1].Instruction.Contains("Akcja 10"),
+        "turn plan renders every model-provided step without a five-action cap");
+    Check(longTurn.Next.Length > 420,
+        "AI instructions after the first move are not truncated at 420 characters");
+    Check(AdvicePrompt.Build(pictureState).Contains("NIE urywaj planu po 5 krokach"),
+        "AI no longer asks for only four follow-up actions");
     Check(visualSteps[0].Target == "Wroga jednostka" &&
         visualSteps[1].Target == null,
         "target of first move does not incorrectly carry to later steps");
@@ -1059,6 +1072,66 @@ try
             "old HDT plugin still records card names without fabricated IDs");
     }
     finally { try { File.Delete(historyFile); } catch { } }
+
+    // A deck is visible in the HDT MENU before the first mulligan.
+    var deckA = new string('A', 64);
+    var deckB = new string('B', 64);
+    var deckFixture = new {
+        source = "hdt_active_deck", status = "hdt_selected_not_game_verified",
+        name = "Kombinacje ognia", card_class = "MAGE", signature = deckA,
+        cards = new [] {
+            new { card_id = "CS2_029", name = "Ognista Kula",
+                count = 2, cost = 4, card_type = "SPELL", card_text = "Zadaj 6 obrażeń." }
+        }
+    };
+    File.WriteAllText(path, JsonSerializer.Serialize(new {
+        schema_version = 1, captured_at_utc = now.ToString("O"),
+        in_game = false, active_deck = deckFixture
+    }));
+    var menuDeck = GameSnapshot.Read(path, now);
+    Check(menuDeck.Connected && !menuDeck.InGame &&
+        DeckStrategy.TryGetUsableDeck(menuDeck, out var selectedSignature, out var selectedDeck) &&
+        selectedSignature == deckA && selectedDeck.Contains("Ognista Kula"),
+        "active HDT deck can be planned in the menu before a match");
+    var strategy = new DeckStrategy();
+    Check(strategy.Store(menuDeck, "ARCHETYP: Tempo\\nKOMBINACJE: Test".Replace("\\n", "\n")) &&
+        strategy.IsCurrent(menuDeck) && strategy.ForPrompt(menuDeck) is not null,
+        "pre-match strategy is cached against exact deck signature");
+    Check(DeckStrategyPrompt.Build(selectedDeck).Contains("KOMBINACJE"),
+        "deck planning prompt requests actionable card synergies");
+    File.WriteAllText(path, JsonSerializer.Serialize(new {
+        schema_version = 1, captured_at_utc = now.ToString("O"),
+        in_game = false, active_deck = new {
+            deckFixture.source, deckFixture.status, deckFixture.cards,
+            deckFixture.name, deckFixture.card_class, signature = deckB
+        }
+    }));
+    var differentDeck = GameSnapshot.Read(path, now);
+    Check(!strategy.IsCurrent(differentDeck) && strategy.ForPrompt(differentDeck) is null,
+        "changing the HDT deck invalidates previously prepared strategy");
+    File.WriteAllText(path, JsonSerializer.Serialize(new {
+        schema_version = 1, captured_at_utc = now.ToString("O"),
+        in_game = false, active_deck = new {
+            deckFixture.source, status = "class_mismatch", deckFixture.cards,
+            deckFixture.name, deckFixture.card_class, signature = deckA
+        }
+    }));
+    Check(!DeckStrategy.TryGetUsableDeck(GameSnapshot.Read(path, now), out _, out _),
+        "unverified mismatched class must never receive a deck strategy");
+    File.WriteAllText(path, JsonSerializer.Serialize(new {
+        schema_version = 1, captured_at_utc = now.ToString("O"),
+        in_game = true, my_turn = false, turn = 1,
+        player = new { active_deck = new {
+            deckFixture.source, status = "class_matches_not_game_verified",
+            deckFixture.cards, deckFixture.name, deckFixture.card_class, signature = deckA
+        }, hand = Array.Empty<object>(), board = Array.Empty<object>() },
+        opponent = new { board = Array.Empty<object>() }
+    }));
+    var matchingGame = GameSnapshot.Read(path, now);
+    Check(strategy.IsCurrent(matchingGame) &&
+        new MatchIntelligence().BuildContext(matchingGame, strategy.ForPrompt(matchingGame))
+            .Contains("ARCHETYP: Tempo"),
+        "only matching pre-match deck strategies enter live AI evidence");
 
     // The full currently active HDT deck is available to the player-turn AI,
     // without confusing the original list with cards still in the draw pile.
