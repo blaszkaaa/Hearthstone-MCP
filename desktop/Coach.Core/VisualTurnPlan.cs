@@ -74,7 +74,7 @@ public static class VisualTurnPlan
         Add(card.Move);
         Add(card.Next);
         var cards = VisibleOwnCards(state);
-        return chunks.Take(5).Select((text, i) =>
+        return chunks.Select((text, i) =>
         {
             var match = FindCard(text, cards);
             // A target applies only to the FIRST move unless separately encoded.
