@@ -28,7 +28,7 @@ namespace HearthstoneMcpPlugin
         public string Description => "Udostepnia stan meczu i aktywne wybory kart (Odkryj / Choose One) do MCP.";
         public string ButtonText => "Pokaz plik danych";
         public string Author => "Hearthstone-MCP contributors";
-        public Version Version => new Version(0, 3, 0);
+        public Version Version => new Version(0, 4, 0);
         public MenuItem MenuItem => null;
 
         private static string StatePath
@@ -48,7 +48,7 @@ namespace HearthstoneMcpPlugin
         {
             _enabled = true;
             _lastWriteUtc = DateTime.MinValue;
-            TryDiagnostic("Plugin uruchomiony v0.3");
+            TryDiagnostic("Plugin uruchomiony v0.4");
             OnUpdate();
         }
 
@@ -88,6 +88,12 @@ namespace HearthstoneMcpPlugin
                 entity_id = entity.Id,
                 known = true,
                 card_id = entity.CardId,
+                // HDT/HearthDb knows card kind. The client MUST NOT decide
+                // whether a card can attack from its name or printed description.
+                card_type = entity.GetTag(GameTag.CARDTYPE) > 0
+                    ? ((CardType)entity.GetTag(GameTag.CARDTYPE)).ToString()
+                    : entity.Card.Type.ToString(),
+                spell_school = entity.Card.SpellSchool,
                 name = entity.LocalizedName ?? entity.Name ?? entity.CardId,
                 card_text = entity.Card.Text,
                 card_text_en = entity.Card.EnglishText,
