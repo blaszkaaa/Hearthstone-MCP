@@ -406,11 +406,14 @@
                                 </Border>
                             </Grid>
                             <Grid Margin="0,14,0,0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0">
+                                <StackPanel Grid.Row="0" Grid.Column="0">
                                     <TextBlock x:Name="MoveText" Text="Czekam na swoją turę"
                                                Foreground="{StaticResource White}" FontSize="26"
                                                FontWeight="Bold" TextWrapping="Wrap"
@@ -504,24 +507,31 @@
                                     </Border>
                                 </StackPanel>
 
-                                <!-- Discover is an independent sidebar: never replaces the turn plan. -->
-                                <Border x:Name="ChoicePanel" Grid.Column="1" Visibility="Collapsed"
-                                        Width="252" Margin="12,0,0,0"
+                                <!-- Full-width Discover strip: three readable cards, side by side.
+                                     The selection is visible only while HDT confirms an active choice. -->
+                                <Border x:Name="ChoicePanel" Grid.Row="1" Grid.Column="0"
+                                        Visibility="Collapsed" HorizontalAlignment="Stretch"
+                                        Margin="0,14,0,0"
                                         Background="{StaticResource Panel2}" CornerRadius="12"
                                         BorderBrush="{StaticResource Stroke}" BorderThickness="1"
-                                        Padding="10" VerticalAlignment="Top">
+                                        Padding="14,12">
                                     <StackPanel>
                                         <TextBlock Text="AKTYWNY WYBÓR" Style="{StaticResource Kicker}"
                                                    Foreground="{StaticResource Accent}" Margin="0,1,0,6"/>
                                         <TextBlock x:Name="ChoiceHeadline" Text="Sprawdzam opcje…"
-                                                   FontWeight="Bold" FontSize="16"
+                                                   FontWeight="Bold" FontSize="18"
                                                    Foreground="{StaticResource White}" TextWrapping="Wrap"
-                                                   Margin="0,0,0,10"/>
+                                                   Margin="0,0,0,12"/>
                                         <ItemsControl x:Name="ChoiceItems">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel Orientation="Horizontal"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <Border CornerRadius="9" BorderThickness="1"
-                                                            Margin="0,0,0,7" Padding="6">
+                                                    <Border Width="165" CornerRadius="10"
+                                                            BorderThickness="1" Margin="0,0,10,10" Padding="10">
                                                         <Border.Style>
                                                             <Style TargetType="{x:Type Border}">
                                                                 <Setter Property="BorderBrush" Value="{StaticResource Stroke}"/>
@@ -534,15 +544,17 @@
                                                                 </Style.Triggers>
                                                             </Style>
                                                         </Border.Style>
-                                                        <Grid>
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="72"/>
-                                                                <ColumnDefinition Width="*"/>
-                                                            </Grid.ColumnDefinitions>
-                                                            <Grid Width="66" Height="93" HorizontalAlignment="Left">
-                                                                <Border Background="{StaticResource NeutralTint}" CornerRadius="6">
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding IndexText, StringFormat='KARTA {0}'}"
+                                                                       HorizontalAlignment="Center"
+                                                                       Foreground="{StaticResource Accent}"
+                                                                       FontSize="11" FontWeight="Bold"
+                                                                       Margin="0,0,0,6"/>
+                                                            <Grid Width="104" Height="148" HorizontalAlignment="Center">
+                                                                <Border Background="{StaticResource NeutralTint}" CornerRadius="8">
                                                                     <TextBlock Text="HS" Foreground="{StaticResource Muted}"
-                                                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                               HorizontalAlignment="Center"
+                                                                               VerticalAlignment="Center"/>
                                                                 </Border>
                                                                 <Image Source="{Binding Art}" Stretch="Uniform">
                                                                     <Image.ToolTip>
@@ -553,15 +565,12 @@
                                                                     </Image.ToolTip>
                                                                 </Image>
                                                             </Grid>
-                                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                                <TextBlock Text="{Binding IndexText, StringFormat='KARTA {0}'}"
-                                                                           Foreground="{StaticResource Accent}" FontSize="10"
-                                                                           FontWeight="Bold"/>
-                                                                <TextBlock Text="{Binding Caption}"
-                                                                           FontSize="12" FontWeight="SemiBold"
-                                                                           TextWrapping="Wrap" Margin="0,4,0,0"/>
-                                                            </StackPanel>
-                                                        </Grid>
+                                                            <TextBlock Text="{Binding Caption}"
+                                                                       FontSize="12" FontWeight="SemiBold"
+                                                                       HorizontalAlignment="Center"
+                                                                       TextAlignment="Center" TextWrapping="Wrap"
+                                                                       Margin="0,8,0,0"/>
+                                                        </StackPanel>
                                                     </Border>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
