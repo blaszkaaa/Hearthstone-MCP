@@ -54,6 +54,18 @@ public partial class MainWindow : Window
         DiagnosticLog.Write("app.start", new { version = "1.0", state_path = GameSnapshot.DefaultPath, log_dir = DiagnosticLog.DirectoryPath });
     }
 
+    private void NavigateClick(object sender, RoutedEventArgs e)
+    {
+        var settings = ReferenceEquals(sender, SettingsNavButton);
+        MainPage.Visibility = settings ? Visibility.Collapsed : Visibility.Visible;
+        SettingsPage.Visibility = settings ? Visibility.Visible : Visibility.Collapsed;
+
+        MainNavButton.Background = (Brush)FindResource(settings ? "Panel2" : "AccentTint");
+        MainNavButton.Foreground = (Brush)FindResource(settings ? "White" : "Accent");
+        SettingsNavButton.Background = (Brush)FindResource(settings ? "AccentTint" : "Panel2");
+        SettingsNavButton.Foreground = (Brush)FindResource(settings ? "Accent" : "White");
+    }
+
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         _timer.Start();
@@ -376,7 +388,7 @@ public partial class MainWindow : Window
         }
         if (!_auth.SignedIn || ModelPicker.SelectedItem is not ChatGptInference.ModelChoice model)
         {
-            AiStatus.Text = "Najpierw połącz konto i wybierz model";
+            AiStatus.Text = "Połącz konto i wybierz model w Ustawieniach";
             return;
         }
         if (_busy) return;
