@@ -1247,23 +1247,23 @@ try
     };
     File.WriteAllText(path, JsonSerializer.Serialize(thinkingFixture));
     var thinkingSnapshot = GameSnapshot.Read(path, now);
-    var tactical = TurnDecisionEngine.Analyze(thinkingSnapshot);
-    Check(tactical.Focus == "obrona przed potencjalnym lethal" &&
-        tactical.PossibleEnemyNextTurnDamage == 7, "exhausted enemy remains a next-turn threat");
-    Check(tactical.CardsWithUnknownCost == 1 &&
-        tactical.ManaPackages.Any(x => x.ManaSpent == 5 &&
+    var turnTactics = TurnDecisionEngine.Analyze(thinkingSnapshot);
+    Check(turnTactics.Focus == "obrona przed potencjalnym lethal" &&
+        turnTactics.PossibleEnemyNextTurnDamage == 7, "exhausted enemy remains a next-turn threat");
+    Check(turnTactics.CardsWithUnknownCost == 1 &&
+        turnTactics.ManaPackages.Any(x => x.ManaSpent == 5 &&
             x.CardCount == 3 && x.Cards.Count(c => c.StartsWith("Karta A")) == 2) &&
-        tactical.ManaPackages.All(x => x.ManaSpent <= 5 &&
+        turnTactics.ManaPackages.All(x => x.ManaSpent <= 5 &&
             x.Cards.All(card => !card.Contains("Zbyt droga") &&
                 !card.Contains("Koszt nieznany"))),
         "bounded mana explorer preserves duplicate physical cards, budget, unknown costs");
-    Check(tactical.ManaPackages.Any(x => x.CardCount == 1) &&
-        tactical.ManaPackages.Any(x => x.CardCount >= 2),
+    Check(turnTactics.ManaPackages.Any(x => x.CardCount == 1) &&
+        turnTactics.ManaPackages.Any(x => x.CardCount >= 2),
         "planner keeps competing single-card and combo branches instead of one greedy choice");
     using (var planningJson = JsonDocument.Parse(new MatchIntelligence().BuildContext(thinkingSnapshot)))
     {
         var explorer = planningJson.RootElement.GetProperty("tactical_decision_explorer");
-        Check(explorer.GetProperty("focus").GetString() == tactical.Focus &&
+        Check(explorer.GetProperty("focus").GetString() == turnTactics.Focus &&
             explorer.GetProperty("possible_card_cost_packages")[0]
                 .GetProperty("certainty").GetString() == "cost_only_hypothetical_NOT_legal_sequence",
             "tactical context marks cost-only packages as hypothetical");
@@ -1284,9 +1284,9 @@ try
         choices = new[] { new { index = 1, card = new { name = "Opcja A" } } },
         player = thinkingFixture.player, opponent = thinkingFixture.opponent
     }));
-    var urgentChoice = GameSnapshot.Read(path, now);
-    Check(DecisionReasoningBudget.Choose(urgentChoice).Effort == "low" &&
-        TurnDecisionEngine.Analyze(urgentChoice).ManaPackages.Count == 0,
+    var urgentStrategicChoice = GameSnapshot.Read(path, now);
+    Check(DecisionReasoningBudget.Choose(urgentStrategicChoice).Effort == "low" &&
+        TurnDecisionEngine.Analyze(urgentStrategicChoice).ManaPackages.Count == 0,
         "Discover stays immediate; turn mana explorer does not override choice");
 
     Console.WriteLine("Hearthstone Coach core checks: PASS");
