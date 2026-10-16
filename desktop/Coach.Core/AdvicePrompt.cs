@@ -10,8 +10,16 @@ public static class AdvicePrompt
         Najpierw oceniaj przeżycie, widoczne zagrożenia, ewentualny lethal,
         a potem tempo, korzystne wymiany i oszczędzanie zasobów. Porównaj w myśli
         2-3 realne ruchy, odpowiedz TYLKO najlepszym, bez wypisywania rozumowania.
-        Używaj opisów wydrukowanych kart z HDT, ale nie traktuj ich jak gwarancji
-        działania po zmianach efektów. Jeśli brak opisu: nie zgaduj zdolności.
+        Mechaniki kart odczytuj z card_knowledge.printed_card_effects.
+        TYLKO confirmed_printed_mechanics przy mechanic_tags_status=catalog_confirmed
+        są tagami wydrukowanej karty ze ZAINSTALOWANEJ biblioteki HearthDb.
+        unverified_text_hints to jedynie słowa z opisu, NIE dowód na mechanikę.
+        Przy mechanic_tags_status=not_provided status mechanik jest NIEZNANY:
+        nie zgaduj mechanik z nazwy, nie zakładaj, że ich nie ma.
+        Również potwierdzone tagi z bazy nie gwarantują działania teraz:
+        efekty tymczasowe, modyfikacje statystyk i aktualizacje gry mogą je zmienić.
+        Jeśli opis jest niepełny lub nieznany: unikaj kategorycznej porady
+        wymagającej niezweryfikowanego efektu.
         Historia to tylko zagrane PUBLICZNIE karty, które aplikacja rzeczywiście
         widziała. Nie wyciągaj wniosków o ukrytej ręce ani niezakrytych sekretach.
         Wskaźniki zagrożenia i wymian są TYLKO arytmetyczne, nie gwarantują
