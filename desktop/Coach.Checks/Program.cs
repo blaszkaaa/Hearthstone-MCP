@@ -398,11 +398,11 @@ try
     Check(!AdviceLegality.Validate(volcanoState, wrongAttack).Allowed,
         "block attacking with a spell in hand in Polish inflection");
     var wrongTarget = AdviceCard.Parse(
-        "RUCH: Zagraj Wybuchający wulkan\\nCEL: Wroga jednostka");
+        "RUCH: Zagraj Wybuchający wulkan\nCEL: Wroga jednostka");
     Check(!AdviceLegality.Validate(volcanoState, wrongTarget).Allowed,
         "block manually targeting a random-split spell");
     var wrongHandTarget = AdviceCard.Parse(
-        "RUCH: Zaatakuj Wybuchający wulkan\\nCEL: Wybuchający wulkan");
+        "RUCH: Zaatakuj Wybuchający wulkan\nCEL: Wybuchający wulkan");
     Check(!AdviceLegality.Validate(volcanoState, wrongHandTarget).Allowed,
         "spell in own hand is not a board attack target");
     Check(AdviceLegality.Validate(volcanoState,
