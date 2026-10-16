@@ -25,12 +25,13 @@ public static class ThreatAssessment
 
         int? ownHp = EffectiveHealth(player);
         int? theirHp = EffectiveHealth(opponent);
-        int knownEnemyAttack = theirs.Where(x => x.Attack is > 0).Sum(x => x.Attack ?? 0);
+        int knownEnemyAttack = theirs.Where(x => x.Attack is > 0 && !x.Frozen).Sum(x => x.Attack ?? 0);
         int ourPotentialAttack = ours.Where(x =>
             x.Attack is > 0 && !x.Frozen && x.Exhausted == false)
             .Sum(x => x.Attack ?? 0);
 
         bool taunt = theirs.Any(x => x.Taunt);
+        bool ownTaunt = ours.Any(x => x.Taunt);
         var candidateTrades = new List<TheoreticalTrade>();
         foreach (var attacker in ours.Where(x =>
             x.Attack is > 0 && x.Health is > 0 && !x.Frozen &&
@@ -64,7 +65,7 @@ public static class ThreatAssessment
             problems.Add("Część wrogich jednostek jest zamrożona.");
         if (theirHp is > 0 && ourPotentialAttack >= theirHp && !taunt)
             problems.Add("Atak z planszy może osiągać lethal liczbami, ale efekty i ograniczenia nie są zweryfikowane.");
-        if (ownHp is > 0 && knownEnemyAttack >= ownHp)
+        if (ownHp is > 0 && knownEnemyAttack >= ownHp && !ownTaunt)
             problems.Add("Sama widoczna siła ataku wrogiej planszy osiąga wartość naszego zdrowia+zbroi; to ostrzeżenie, nie pewny lethal.");
 
         return new
@@ -75,12 +76,11 @@ public static class ThreatAssessment
             visible_enemy_board_attack_sum = knownEnemyAttack,
             visibly_ready_friendly_board_attack_sum = ourPotentialAttack,
             enemy_taunt_present = taunt,
-            board_only_enemy_lethal_warning = ownHp is > 0 && knownEnemyAttack >= ownHp,
+            board_only_enemy_lethal_warning = ownHp is > 0 && knownEnemyAttack >= ownHp && !ownTaunt,
             unverified_friendly_lethal_possibility = theirHp is > 0 && ourPotentialAttack >= theirHp && !taunt,
             theoretical_trades = topTrades,
-            conditional_lethal_forecast = DamageForecast.ForPrompt(snapshot),
             caution = problems.Take(5).ToArray(),
-            note = "To tylko liczby z JAWNEJ planszy, nie symulacja. Brak kart z ręki przeciwnika, sekretów, efektów zaklęć, ograniczeń celów, uzdrowień i pełnej legalności ataków. W razie sprzeczności liczb pierwszeństwo ma conditional_lethal_forecast. NIE stwierdzaj pewnego lethal i NIE obiecuj opłacalnych wymian bez uwzględnienia efektów, Prowokacji i Boskiej Tarczy."
+            note = "To tylko liczby z JAWNEJ planszy, nie symulacja. Brak kart z ręki przeciwnika, sekretów, efektów zaklęć, ograniczeń celów, uzdrowień i pełnej legalności ataków. Do prognozy na następną turę przeciwnika i blokad Prowokacji stosuj osobny conditional_lethal_forecast. NIE stwierdzaj pewnego lethal i NIE obiecuj opłacalnych wymian bez uwzględnienia efektów, Prowokacji i Boskiej Tarczy."
         };
     }
 
