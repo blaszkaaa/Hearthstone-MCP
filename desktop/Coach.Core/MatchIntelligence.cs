@@ -42,10 +42,11 @@ public sealed class MatchIntelligence
         return true;
     }
 
-    public string BuildContext(GameSnapshot snapshot) =>
+    public string BuildContext(GameSnapshot snapshot, object? deckStrategy = null) =>
         JsonSerializer.Serialize(new
         {
             card_knowledge = CardKnowledge.ForPrompt(snapshot),
+            deck_strategy = deckStrategy,
             public_match_memory = _memory.ForPrompt(),
             // A review is a hypothesis, NOT an HDT fact; always re-check
             // current board / heroes / legal actions before acting on it.
