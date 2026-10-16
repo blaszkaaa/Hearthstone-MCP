@@ -24,6 +24,8 @@ public sealed class GameSnapshot
     public string DecisionKey { get; private init; } = "";
     public string Status { get; private init; } = "Oczekiwanie na Hearthstone";
     public string TacticalJson { get; private init; } = "{}";
+    // Separate public play evidence for persistent history; not added to AI prompt.
+    public string PublicHistoryJson { get; private init; } = "{}";
 
     public static string DefaultPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -107,6 +109,21 @@ public sealed class GameSnapshot
                 choices = active ? GetRaw(root, "choices") : JsonSerializer.SerializeToElement(Array.Empty<object>())
             };
             var compact = JsonSerializer.Serialize(payload);
+            var history = JsonSerializer.Serialize(new
+            {
+                player = new
+                {
+                    card_class = ReadString(player, "card_class"),
+                    public_plays_this_turn = GetRaw(player, "public_plays_this_turn"),
+                    played_this_turn = GetRaw(player, "played_this_turn")
+                },
+                opponent = new
+                {
+                    card_class = ReadString(opponent, "card_class"),
+                    public_plays_this_turn = GetRaw(opponent, "public_plays_this_turn"),
+                    played_this_turn = GetRaw(opponent, "played_this_turn")
+                }
+            });
             var digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(compact)));
             // Only stable action-relevant fields drive invalidation and retries.
             var decisionKey = DecisionSignature.Compute(root);
@@ -116,7 +133,7 @@ public sealed class GameSnapshot
                 MulliganActive = mulligan, Phase = phase, CardTypesSupported = typesSupported,
                 ChoiceActive = active, Turn = ReadInt(root, "turn") ?? 0,
                 Mana = ReadInt(player, "mana_available"), HandCount = count,
-                ChoicesCount = choiceCount, TacticalJson = compact, Fingerprint = digest,
+                ChoicesCount = choiceCount, TacticalJson = compact, PublicHistoryJson = history, Fingerprint = digest,
                 DecisionKey = decisionKey,
                 Status = mulligan ? "Mulligan • zdecyduj, co zostawić" :
                     active ? "Odkryj • wybierz kartę" :

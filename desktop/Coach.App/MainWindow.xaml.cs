@@ -15,6 +15,9 @@ public partial class MainWindow : Window
     private readonly ChatGptInference _inference;
     private readonly AnalysisScheduler _scheduler = new();
     private readonly MatchIntelligence _intelligence = new();
+    private readonly MatchHistoryStore _history = new();
+    private readonly ObservableCollection<HistoryMatchEntry> _historyRows = new();
+    private int _shownHistoryRevision = -1;
     private readonly CardArtCache _cardImages = new();
     private readonly ObservableCollection<CardVisualItem> _planRows = new();
     private readonly ObservableCollection<CardVisualItem> _choiceRows = new();
@@ -48,6 +51,7 @@ public partial class MainWindow : Window
         PlanItems.ItemsSource = _planRows;
         ChoiceItems.ItemsSource = _choiceRows;
         MulliganItems.ItemsSource = _mulliganRows;
+        HistoryMatchList.ItemsSource = _historyRows;
         _inference = new ChatGptInference(_auth);
         _timer.Tick += Poll;
         UpdateAccount();
@@ -57,24 +61,35 @@ public partial class MainWindow : Window
     private void NavigateClick(object sender, RoutedEventArgs e)
     {
         var settings = ReferenceEquals(sender, SettingsNavButton);
-        MainPage.Visibility = settings ? Visibility.Collapsed : Visibility.Visible;
+        var history = ReferenceEquals(sender, HistoryNavButton);
+        MainPage.Visibility = !settings && !history ? Visibility.Visible : Visibility.Collapsed;
         SettingsPage.Visibility = settings ? Visibility.Visible : Visibility.Collapsed;
-
-        MainNavButton.Background = (Brush)FindResource(settings ? "Panel2" : "AccentTint");
-        MainNavButton.Foreground = (Brush)FindResource(settings ? "White" : "Accent");
+        HistoryPage.Visibility = history ? Visibility.Visible : Visibility.Collapsed;
+        MainNavButton.Background = (Brush)FindResource(!settings && !history ? "AccentTint" : "Panel2");
+        MainNavButton.Foreground = (Brush)FindResource(!settings && !history ? "Accent" : "White");
         SettingsNavButton.Background = (Brush)FindResource(settings ? "AccentTint" : "Panel2");
         SettingsNavButton.Foreground = (Brush)FindResource(settings ? "Accent" : "White");
+        HistoryNavButton.Background = (Brush)FindResource(history ? "AccentTint" : "Panel2");
+        HistoryNavButton.Foreground = (Brush)FindResource(history ? "Accent" : "White");
+        if (history)
+        {
+            _shownHistoryRevision = -1;
+            RefreshHistory();
+        }
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         _timer.Start();
         RefreshState();
+        _history.Observe(_snapshot, DateTimeOffset.UtcNow);
+        RefreshHistory();
         if (_auth.SignedIn) await LoadModelsAsync();
     }
 
     private void OnClosing(object? sender, CancelEventArgs e)
     {
+        _history.Flush();
         DiagnosticLog.Write("app.close");
         _closing = true;
         _timer.Stop();
@@ -87,6 +102,9 @@ public partial class MainWindow : Window
         RefreshState();
         var now = DateTimeOffset.UtcNow;
         _intelligence.Observe(_snapshot, now);
+        _history.Observe(_snapshot, now);
+        if (HistoryPage.Visibility == Visibility.Visible)
+            RefreshHistory();
         if (_lastLoggedSnapshot != _snapshot.Fingerprint || now - _lastHeartbeat > TimeSpan.FromSeconds(10))
         {
             _lastLoggedSnapshot = _snapshot.Fingerprint;
@@ -671,6 +689,72 @@ public partial class MainWindow : Window
             UpdatePluginButton.IsEnabled = true;
             _timer.Start();
             RefreshState();
+        }
+    }
+
+    private void RefreshHistory()
+    {
+        if (_shownHistoryRevision == _history.Revision) return;
+        var previouslySelected = (HistoryMatchList.SelectedItem as HistoryMatchEntry)?.Id;
+        _shownHistoryRevision = _history.Revision;
+        _historyRows.Clear();
+        foreach (var match in _history.Matches)
+            _historyRows.Add(new HistoryMatchEntry(match));
+        HistoryEmptyText.Visibility = _historyRows.Count == 0 ?
+            Visibility.Visible : Visibility.Collapsed;
+        HistoryMatchList.SelectedItem = _historyRows.FirstOrDefault(m => m.Id == previouslySelected)
+            ?? _historyRows.FirstOrDefault();
+        // ListBox selection can remain unchanged when an item was rebuilt.
+        ShowSelectedHistory();
+    }
+
+    private void HistorySelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        => ShowSelectedHistory();
+
+    private void ShowSelectedHistory()
+    {
+        if (HistoryMatchList.SelectedItem is not HistoryMatchEntry selected)
+        {
+            HistoryDetailPanel.Visibility = Visibility.Collapsed;
+            HistoryNoSelectionText.Visibility = Visibility.Visible;
+            return;
+        }
+        var match = selected.Match;
+        HistoryDetailPanel.Visibility = Visibility.Visible;
+        HistoryNoSelectionText.Visibility = Visibility.Collapsed;
+        HistoryTitle.Text = match.PlayerClass + "  vs  " + match.OpponentClass;
+        HistoryStats.Text = match.StartedUtc.ToLocalTime().ToString("dd.MM.yyyy, HH:mm") +
+            "  •  " + (match.FinishedUtc.HasValue ? "Mecz zakończony" : "Mecz w toku") +
+            "  •  " + match.Plays.Count + " zagranych kart";
+        HistoryCoverageText.Text = match.Partial
+            ? "Zapis częściowy: aplikacja dołączyła w trakcie meczu. Brakujących ruchów nie odtwarzamy."
+            : "Zapis obejmuje tylko widoczne zagrania wykryte przez HDT podczas pracy aplikacji.";
+        var turns = match.Plays.GroupBy(play => play.Turn).OrderBy(g => g.Key)
+            .Select(g => new HistoryTurnEntry(g)).ToArray();
+        HistoryNoEventsText.Visibility = turns.Length == 0 ?
+            Visibility.Visible : Visibility.Collapsed;
+        HistoryTurnList.ItemsSource = turns;
+        foreach (var turn in turns)
+        {
+            foreach (var card in turn.Mine.Concat(turn.Theirs))
+                _ = LoadHistoryArtAsync(card);
+        }
+    }
+
+    private async Task LoadHistoryArtAsync(HistoryCardEntry item)
+    {
+        if (item.CardId is null) return;
+        try
+        {
+            var art = await _cardImages.GetAsync(item.CardId);
+            if (!_closing && art is not null)
+                item.Art = art;
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Write("ui.history.card_art.failure", new {
+                card_id = item.CardId, error = ex.GetType().Name
+            });
         }
     }
 
