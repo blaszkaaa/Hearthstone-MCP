@@ -136,11 +136,15 @@ public static class VisualTurnPlan
         // Require two separate >=5-character stems; never invent a card ID.
         foreach (var card in cards.OrderByDescending(x => x.Name.Length))
         {
-            var words = Words(Normalize(card.Name)).Where(w => w.Length >= 5).ToArray();
+            var words = Words(Normalize(card.Name)).Where(w => w.Length >= 4).ToArray();
             if (words.Length < 2) continue;
             var visible = Words(normalized);
             if (words.All(w => visible.Any(v =>
-                v.Length >= 5 && v.StartsWith(w[..5], StringComparison.Ordinal))))
+            {
+                int stem = Math.Min(5, w.Length - 1);
+                return v.Length >= stem &&
+                    v.StartsWith(w[..stem], StringComparison.Ordinal);
+            })))
                 return card;
         }
         return null;
