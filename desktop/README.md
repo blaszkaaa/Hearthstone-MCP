@@ -2,6 +2,29 @@
 
 Natywna aplikacja **Windows 10/11, WPF/.NET 8**, ciemny interfejs. Odczytuje ten sam `%LOCALAPPDATA%\HearthstoneMCP\state.json`, który tworzy dotychczasowa wtyczka HDT. Nie potrzebuje Pythona do **interfejsu i silnika AI**; istniejący serwer MCP nadal może działać niezależnie dla ChatGPT.
 
+## Dokładniejsze myślenie AI w turze
+
+Silnik **TurnDecisionEngine** przygotowuje lokalnie, bez wywołań API,
+kilka alternatywnych zestawów kart mieszczących się w aktualnej manie
+(m.in. pojedyncze zagrania, małe kombinacje i wariant wysokiego zużycia
+many). Uwzględnia wielokrotne kopie kart w ręce, pomija znane zbyt drogie
+karty i oznacza brakujące koszty jako niepewne. **To nie jest pełny
+symulator zasad Hearthstone**: nie interpretuje efektów, dodatkowych
+zasobów, celów zaklęć, limitów stronników ani losowych zdarzeń. Sama
+maksymalizacja zużycia many nie jest rekomendacją.
+
+W każdej normalnej turze AI porównuje warianty według widocznego
+zagrożenia lethal, wymian, wartości zachowania zasobów oraz synergii
+wcześniej przeanalizowanej talii. Przy braku pewnych danych formułuje
+warunkowe kroki, a nie zmyśla gwarantowany wynik.
+
+Dla bardziej złożonej planszy model dostaje **średni** budżet rozumowania,
+a przy prostych sytuacjach, mulliganie i Odkryj pozostaje przy szybkim
+**niskim** budżecie. Dzięki temu nie uruchamiamy osobnego, opóźniającego
+mecz zapytania o "ocenę drugiego modelu". Wybrany budżet jest zapisywany
+w logach `api.response_status`; porównania nie ujawniają prywatnego
+łańcucha rozumowania modelu.
+
 ## Pasek okna, cały plan tury i analiza talii przed meczem
 
 - Pasek aplikacji ma teraz trzy osobne przyciski Windows: **Minimalizuj**,
