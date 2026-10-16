@@ -27,6 +27,11 @@ public static class VisualTurnPlan
 
     public static bool SafeCardId(string? id) => id != null && ValidCardId.IsMatch(id);
 
+    /// <summary>Keep current turn plan during Discover, not after turn/game ends.</summary>
+    public static bool ShouldPreserveTurnPlan(int planTurn, GameSnapshot current) =>
+        planTurn >= 0 && current.InGame && current.Turn == planTurn &&
+        !current.MulliganActive && (current.MyTurn || current.ChoiceActive);
+
     public static IReadOnlyList<Step> BuildSteps(GameSnapshot state, AdviceCard card)
     {
         if (!state.InGame || state.MulliganActive || state.ChoiceActive) return [];
