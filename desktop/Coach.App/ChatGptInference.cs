@@ -55,7 +55,14 @@ public sealed class ChatGptInference
         return RequestAsync(snapshot, model, prompt, true, ct);
     }
 
-    private async Task<string> RequestAsync(GameSnapshot snapshot, string model, string prompt, bool opponentReview, CancellationToken ct)
+    public Task<string> AnalyzeDeckAsync(GameSnapshot snapshot, string model, string prompt, CancellationToken ct)
+    {
+        if (!DeckStrategy.TryGetUsableDeck(snapshot, out _, out _))
+            throw new InvalidOperationException("Brak aktywnej talii HDT do analizy.");
+        return RequestAsync(snapshot, model, prompt, false, ct, deckAnalysis: true);
+    }
+
+    private async Task<string> RequestAsync(GameSnapshot snapshot, string model, string prompt, bool opponentReview, CancellationToken ct, bool deckAnalysis = false)
     {
         if (string.IsNullOrWhiteSpace(model)) throw new InvalidOperationException("Wybierz model ChatGPT.");
         string token = await _auth.AccessTokenAsync(ct);
@@ -67,15 +74,16 @@ public sealed class ChatGptInference
             stream = true,
             // GPT-6.1 Sol defaults to medium. Low reduces latency and prevents
             // all output budget being spent on hidden reasoning for short turns.
-            reasoning = new { effort = "low" },
-            text = new { verbosity = "low" },
-            max_output_tokens = opponentReview ? 650 : snapshot.MulliganActive ? 800 : snapshot.ChoiceActive ? 650 : 900
+            reasoning = new { effort = deckAnalysis ? "medium" : "low" },
+            text = new { verbosity = deckAnalysis ? "medium" : "low" },
+            max_output_tokens = deckAnalysis ? 1700 : opponentReview ? 650 :
+                snapshot.MulliganActive ? 800 : snapshot.ChoiceActive ? 650 : 1850
         };
         using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/responses");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         request.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
         using var response = await Http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-        DiagnosticLog.Write("api.response_status", new { status = (int)response.StatusCode, phase = opponentReview ? "opponent_review" : snapshot.Phase, model });
+        DiagnosticLog.Write("api.response_status", new { status = (int)response.StatusCode, phase = deckAnalysis ? "deck_strategy" : opponentReview ? "opponent_review" : snapshot.Phase, model });
         if (!response.IsSuccessStatusCode)
         {
             if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
