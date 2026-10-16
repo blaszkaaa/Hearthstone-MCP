@@ -30,10 +30,11 @@ public static class AdviceLegality
 
     public static Result Validate(GameSnapshot snapshot, AdviceCard advice)
     {
-        if (!snapshot.InGame || snapshot.MulliganActive || snapshot.ChoiceActive)
-            return Result.Ok; // The other phases do not recommend normal attacks.
+        if (!snapshot.InGame) return Result.Ok;
         using var doc = JsonDocument.Parse(snapshot.TacticalJson);
         var root = doc.RootElement;
+        if (snapshot.MulliganActive) return ValidateMulligan(root, advice);
+        if (snapshot.ChoiceActive) return ValidateChoice(root, advice);
         if (!root.TryGetProperty("player", out var player) ||
             !root.TryGetProperty("opponent", out var enemy)) return Result.Ok;
 
@@ -107,6 +108,41 @@ public static class AdviceLegality
             }
         }
 
+        return Result.Ok;
+    }
+
+    private static Result ValidateChoice(JsonElement root, AdviceCard advice)
+    {
+        if (!root.TryGetProperty("choices", out var choices) ||
+            choices.ValueKind != JsonValueKind.Array || choices.GetArrayLength() == 0)
+            return Result.Ok; // No reliable choice IDs: avoid guessing.
+        var match = Regex.Match(Normalize(advice.Move), @"\bwybierz\s+(\d+)\b");
+        if (!match.Success || !int.TryParse(match.Groups[1].Value, out var selected))
+            return new(false, "Wybór Odkryj wymaga numeru opcji: «Wybierz 1/2/3».");
+        var offered = choices.EnumerateArray().Select((x, index) =>
+            Int(x, "index") ?? index + 1).ToArray();
+        if (!offered.Contains(selected))
+            return new(false, "Opcja " + selected +
+                " nie występuje w aktualnym wyborze kart.");
+        return Result.Ok;
+    }
+
+    private static Result ValidateMulligan(JsonElement root, AdviceCard advice)
+    {
+        if (!root.TryGetProperty("mulligan_cards", out var offered) ||
+            offered.ValueKind != JsonValueKind.Array || offered.GetArrayLength() == 0)
+            return Result.Ok;
+        var lines = advice.Move.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        var decisions = lines.Select(x => Regex.Match(Normalize(x.Trim()),
+            @"^(\d+)[.)]?\s+(zostaw|odrzuc)\b"))
+            .Where(m => m.Success).ToArray();
+        int count = offered.GetArrayLength();
+        if (decisions.Length != count)
+            return new(false, "Mulligan wymaga ZOSTAW/ODRZUĆ osobno dla każdej z " +
+                count + " kart.");
+        var indices = decisions.Select(m => int.Parse(m.Groups[1].Value)).ToArray();
+        if (!indices.OrderBy(x => x).SequenceEqual(Enumerable.Range(1, count)))
+            return new(false, "Mulligan ma nieprawidłowe lub powtórzone numery kart.");
         return Result.Ok;
     }
 
