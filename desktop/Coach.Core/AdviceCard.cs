@@ -59,7 +59,7 @@ public sealed record AdviceCard(string Move, string Target, string Next, string 
         return new(
             Short(move, 130),
             Short(Read("CEL"), 90),
-            Short(next, 420),
+            Short(next, 3200),
             Short(reason, 200));
     }
 }
