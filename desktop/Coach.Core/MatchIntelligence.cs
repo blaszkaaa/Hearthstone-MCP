@@ -19,6 +19,7 @@ public sealed class MatchIntelligence
         {
             card_knowledge = CardKnowledge.ForPrompt(snapshot),
             public_match_memory = _memory.ForPrompt(),
-            visible_board_threats = ThreatAssessment.ForPrompt(snapshot)
+            visible_board_threats = ThreatAssessment.ForPrompt(snapshot),
+            observed_legal_move_constraints = LegalMoveCatalog.ForPrompt(snapshot)
         });
 }
