@@ -23,8 +23,8 @@ public static class DecisionSignature
             turn = Integer(root, "turn"),
             my_turn = Flag(root, "my_turn"),
             phase = mulligan ? "mulligan" : choice ? "choice" : "turn",
-            choice_cards = choice ? Options(Prop(root, "choices")) : [],
-            mulligan_cards = mulligan ? Cards(Prop(root, "mulligan_cards")) : [],
+            choice_cards = choice ? Options(Prop(root, "choices")) : Array.Empty<object>(),
+            mulligan_cards = mulligan ? Cards(Prop(root, "mulligan_cards")) : Array.Empty<object>(),
             player = new
             {
                 mana = Integer(player, "mana_available"),
