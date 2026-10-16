@@ -17,6 +17,7 @@ namespace HearthstoneMcpPlugin
         private int[] _handIds = Array.Empty<int>();
         private int[] _boardIds = Array.Empty<int>();
         private int[] _playedIds = Array.Empty<int>();
+        private int[] _offeredInHandOrPlay = Array.Empty<int>();
         private int _turn;
         private DateTime _startedUtc;
         private bool _suppressed;
@@ -28,6 +29,7 @@ namespace HearthstoneMcpPlugin
             _handIds = Array.Empty<int>();
             _boardIds = Array.Empty<int>();
             _playedIds = Array.Empty<int>();
+            _offeredInHandOrPlay = Array.Empty<int>();
             _turn = -1;
             _startedUtc = DateTime.MinValue;
             _suppressed = false;
@@ -51,6 +53,8 @@ namespace HearthstoneMcpPlugin
             int[] hand = Normalize(handEntityIds);
             int[] board = Normalize(boardEntityIds);
             int[] played = Normalize(playedEntityIds);
+            int[] offerOnBoardOrHand = Normalize(alreadyInHandOrPlay)
+                .Where(id => Array.BinarySearch(offers, id) >= 0).ToArray();
 
             if (!_offerIds.SequenceEqual(offers))
             {
@@ -58,6 +62,7 @@ namespace HearthstoneMcpPlugin
                 _handIds = hand;
                 _boardIds = board;
                 _playedIds = played;
+                _offeredInHandOrPlay = offerOnBoardOrHand;
                 _turn = turn;
                 _startedUtc = nowUtc;
                 _suppressed = false;
@@ -78,9 +83,10 @@ namespace HearthstoneMcpPlugin
                 return false;
             }
 
-            // A chosen Discover card was observed in the player's hand or on
-            // the board, even when HDT failed to clear OfferedEntityIds.
-            if (alreadyInHandOrPlay.Any(id => Array.BinarySearch(offers, id) >= 0))
+            // A choice may legitimately OFFER cards from hand, so compare the
+            // current zones with the first observed zones rather than assuming
+            // that any offered card in hand means an already completed choice.
+            if (!_offeredInHandOrPlay.SequenceEqual(offerOnBoardOrHand))
                 return Suppress("selected_offer_moved", out reason);
 
             if (turn != _turn)
