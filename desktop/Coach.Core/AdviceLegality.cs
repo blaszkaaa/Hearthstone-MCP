@@ -16,9 +16,13 @@ public static class AdviceLegality
     {
         public static readonly Result Ok = new(true, "");
     }
-    private sealed record ObservedCard(string Name, string? Type, string? Text);
+    private sealed record ObservedCard(string Name, string? Type, string? Text,
+        int? Attack, int? Health, bool? Exhausted, bool? Frozen);
     private static readonly Regex Attacking = new(
         @"\b(zaatakuj|atakuj|zaatakuje|zaatakowac|uderz|uderzyc|wykonaj atak|attack|hit with)\b",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+    private static readonly Regex Playing = new(
+        @"\b(zagraj|zagrać|wystaw|wystawiaj|rzuć|rzuc|play|cast)\b",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
     private static readonly Regex RandomResolution = new(
         @"\b(rozdziel losowo|rozloz losowo|losowo rozdziel|randomly split|split randomly|random among|random enemies)\b",
@@ -36,6 +40,20 @@ public static class AdviceLegality
         var hand = Cards(player, "hand");
         var ownBoard = Cards(player, "board");
         var enemyBoard = Cards(enemy, "board");
+        var mana = Int(player, "mana_available");
+
+        // One-card actions with a known current cost greater than available mana
+        // must never be advertised as immediately playable. We intentionally do
+        // not validate later "POTEM" actions: preceding effects can change mana.
+        if (Playing.IsMatch(Normalize(advice.Move)) && mana.HasValue)
+        {
+            foreach (var card in LegalActionCatalog.Build(snapshot).Hand)
+            {
+                if (card.Cost > mana.Value && ContainsName(advice.Move, card.Name))
+                    return new(false, "„" + card.Name + "” kosztuje " +
+                        card.Cost + " many, a dostępne jest tylko " + mana.Value + ".");
+            }
+        }
 
         foreach (var action in SplitActions(advice.Move).Concat(SplitActions(advice.Next)))
         {
@@ -48,13 +66,21 @@ public static class AdviceLegality
                         "” jest w ręce — nie może wykonywać ataku. " +
                         "Najpierw sprawdź typ i legalne zagranie.");
             }
-            foreach (var candidate in ownBoard.Where(c =>
-                !string.IsNullOrWhiteSpace(c.Type) &&
-                !string.Equals(c.Type, "MINION", StringComparison.OrdinalIgnoreCase)))
+            foreach (var candidate in ownBoard.Where(c => ContainsName(action, c.Name)))
             {
-                if (ContainsName(action, candidate.Name))
+                if (!string.IsNullOrWhiteSpace(candidate.Type) &&
+                    !string.Equals(candidate.Type, "MINION", StringComparison.OrdinalIgnoreCase))
                     return new(false, "„" + candidate.Name + "” ma typ " +
-                        candidate.Type + " i nie jest stronnikiem wykonującym atak.");
+                        candidate.Type + " i nie wykonuje ataku stronnika.");
+                if (candidate.Attack is <= 0 || candidate.Health is <= 0)
+                    return new(false, "„" + candidate.Name +
+                        "” nie ma dodatniego ataku/zdrowia potrzebnego do ataku.");
+                if (candidate.Exhausted == true)
+                    return new(false, "„" + candidate.Name +
+                        "” jest wyczerpany i nie może teraz zaatakować.");
+                if (candidate.Frozen == true)
+                    return new(false, "„" + candidate.Name +
+                        "” jest zamrożony i nie może teraz zaatakować.");
             }
             if (!string.IsNullOrWhiteSpace(advice.Target))
             {
@@ -97,13 +123,25 @@ public static class AdviceLegality
             .Select(x => new ObservedCard(
                 Str(x, "name") ?? "",
                 Str(x, "card_type"),
-                Str(x, "card_text") ?? Str(x, "card_text_en")))
+                Str(x, "card_text") ?? Str(x, "card_text_en"),
+                Int(x, "attack"), Int(x, "health"),
+                Flag(x, "exhausted"), Flag(x, "frozen")))
             .Where(x => x.Name.Length > 0).ToList();
     }
 
     private static string? Str(JsonElement value, string name) =>
         value.TryGetProperty(name, out var prop) && prop.ValueKind == JsonValueKind.String
             ? prop.GetString() : null;
+
+    private static int? Int(JsonElement value, string name) =>
+        value.TryGetProperty(name, out var p) &&
+        p.ValueKind == JsonValueKind.Number && p.TryGetInt32(out var n) ? n : null;
+    private static bool? Flag(JsonElement value, string name)
+    {
+        if (!value.TryGetProperty(name, out var p)) return null;
+        return p.ValueKind == JsonValueKind.True ? true :
+            p.ValueKind == JsonValueKind.False ? false : null;
+    }
 
     private static bool ContainsName(string sentence, string cardName)
     {
