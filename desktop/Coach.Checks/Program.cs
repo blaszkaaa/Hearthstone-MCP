@@ -613,7 +613,7 @@ try
             "missing mechanic tags distinguish unknown from confirmed empty list");
     }
     var promptWithEvidence = AdvicePrompt.Build(tagsSnapshot,
-        JsonSerializer.Serialize(new MatchIntelligence().BuildContext(tagsSnapshot)));
+        new MatchIntelligence().BuildContext(tagsSnapshot));
     Check(promptWithEvidence.Contains("catalog_confirmed") &&
         promptWithEvidence.Contains("unverified_text_hints"),
         "evidence status reaches model prompt");
