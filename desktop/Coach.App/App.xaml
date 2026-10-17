@@ -4,18 +4,18 @@
              StartupUri="MainWindow.xaml">
     <Application.Resources>
         <!-- Single, consistent dark palette. -->
-        <SolidColorBrush x:Key="Background" Color="#090F17"/>
-        <SolidColorBrush x:Key="Panel" Color="#121D29"/>
-        <SolidColorBrush x:Key="Panel2" Color="#1A2938"/>
-        <SolidColorBrush x:Key="PanelHover" Color="#253649"/>
-        <SolidColorBrush x:Key="Stroke" Color="#293848"/>
-        <SolidColorBrush x:Key="White" Color="#F4F7FA"/>
-        <SolidColorBrush x:Key="Muted" Color="#9DB0C2"/>
-        <SolidColorBrush x:Key="Accent" Color="#77DEBA"/>
-        <SolidColorBrush x:Key="AccentHover" Color="#9BEBCD"/>
-        <SolidColorBrush x:Key="AccentTint" Color="#17362E"/>
-        <SolidColorBrush x:Key="NeutralTint" Color="#202E3B"/>
-        <SolidColorBrush x:Key="Warning" Color="#E8BA77"/>
+        <SolidColorBrush x:Key="Background" Color="#101112"/>
+        <SolidColorBrush x:Key="Panel" Color="#191B1D"/>
+        <SolidColorBrush x:Key="Panel2" Color="#212326"/>
+        <SolidColorBrush x:Key="PanelHover" Color="#2C2E32"/>
+        <SolidColorBrush x:Key="Stroke" Color="#33363B"/>
+        <SolidColorBrush x:Key="White" Color="#F4F1EA"/>
+        <SolidColorBrush x:Key="Muted" Color="#A29F99"/>
+        <SolidColorBrush x:Key="Accent" Color="#D8AC68"/>
+        <SolidColorBrush x:Key="AccentHover" Color="#E8C589"/>
+        <SolidColorBrush x:Key="AccentTint" Color="#353027"/>
+        <SolidColorBrush x:Key="NeutralTint" Color="#28292C"/>
+        <SolidColorBrush x:Key="Warning" Color="#DDB06B"/>
 
         <Style TargetType="{x:Type TextBlock}">
             <Setter Property="FontFamily" Value="Segoe UI"/>
@@ -25,7 +25,7 @@
 
         <Style x:Key="PrimaryButton" TargetType="{x:Type Button}">
             <Setter Property="Background" Value="{StaticResource Accent}"/>
-            <Setter Property="Foreground" Value="#0D2620"/>
+            <Setter Property="Foreground" Value="#191711"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
@@ -72,8 +72,8 @@
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="Foreground" Value="{StaticResource Muted}"/>
-            <Setter Property="Background" Value="#1B2B38"/>
-            <Setter Property="BorderBrush" Value="#2B414F"/>
+            <Setter Property="Background" Value="#242629"/>
+            <Setter Property="BorderBrush" Value="#3A3B3D"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
@@ -101,8 +101,8 @@
             </Setter>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#2A4150"/>
-                    <Setter Property="BorderBrush" Value="#466474"/>
+                    <Setter Property="Background" Value="#34363A"/>
+                    <Setter Property="BorderBrush" Value="#6A6355"/>
                     <Setter Property="Foreground" Value="{StaticResource White}"/>
                 </Trigger>
                 <Trigger Property="IsKeyboardFocused" Value="True">
@@ -115,7 +115,7 @@
             <Setter Property="Foreground" Value="#D6B8BE"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#53303A"/>
+                    <Setter Property="Background" Value="#4B2929"/>
                     <Setter Property="BorderBrush" Value="#80505D"/>
                     <Setter Property="Foreground" Value="#FFE7E9"/>
                 </Trigger>
@@ -143,18 +143,18 @@
                                               Margin="0,0,12,0"/>
                             <Border x:Name="Track" Grid.Column="1"
                                     Width="39" Height="23" CornerRadius="12"
-                                    Background="#344354"
+                                    Background="#434346"
                                     HorizontalAlignment="Right"
                                     VerticalAlignment="Center">
                                 <Ellipse x:Name="Knob"
-                                         Width="17" Height="17" Fill="#C8D4E0"
+                                         Width="17" Height="17" Fill="#E0DBD4"
                                          Margin="3" HorizontalAlignment="Left"/>
                             </Border>
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="Track" Property="Background" Value="{StaticResource Accent}"/>
-                                <Setter TargetName="Knob" Property="Fill" Value="#0D2620"/>
+                                <Setter TargetName="Knob" Property="Fill" Value="#191711"/>
                                 <Setter TargetName="Knob" Property="HorizontalAlignment" Value="Right"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
