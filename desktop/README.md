@@ -361,3 +361,7 @@ Karty Discover prezentowane są poziomo w sekcji pełnej szerokości, z większy
 ## Interfejs v5 — jeden plan na turę (Windows v1.2.0)
 
 W aplikacji główna sekcja nazywa się **Plan na tę turę**. Coach pobiera aktualną rękę i stan planszy z Hearthstone Deck Tracker, tworzy pełną sekwencję zagrań, wyświetla ją wraz z ilustracjami kart i zachowuje niezmienioną do kolejnej tury. Po dobieraniu kart, wydawaniu many lub otwarciu Odkryj aplikacja **nie przelicza już automatycznie planu**. Osobny wybór karty jest widoczny, ale nie wymusza następnego zapytania do modelu po przyjęciu planu. Gdy efekt przyszłej karty nie jest znany, etap planu pozostaje warunkowy. Użytkownik nadal może kliknąć **Przelicz ręcznie**. Kolorystyka to grafit oraz stonowane złoto; nowy pulpit ma widoczne statusy tury, karty w ręce i panel strategii talii.
+
+## Usprawnienia pozostałych ekranów (v1.2.2)
+
+Ustawienia mają teraz konto ChatGPT na początku, a pomoc połączenia z HDT otwiera bezpośrednio sekcję instalacji wtyczki. Przy braku danych z gry przycisk planowania jest niedostępny zamiast wyświetlać mylące komunikaty. Ekran **Historia meczów** układa listę obok szczegółów na szerokich oknach, a poniżej na węższych (lista ma osobne przewijanie). Nawigacja jest po polsku. Klawisze Ctrl+1, Ctrl+2, Ctrl+3 przełączają odpowiednio Główną, Ustawienia i Historię meczów. Usunięto powtarzającą się kartę informacyjną z pulpitu.
