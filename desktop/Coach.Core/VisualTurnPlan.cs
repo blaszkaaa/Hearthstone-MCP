@@ -115,6 +115,29 @@ public static class VisualTurnPlan
         return list.Take(6).ToArray();
     }
 
+    /// <summary>Visible hand only, always mapped to genuine HDT card IDs.</summary>
+    public static IReadOnlyList<Choice> BuildHand(GameSnapshot state)
+    {
+        if (!state.InGame) return [];
+        using var doc = JsonDocument.Parse(state.TacticalJson);
+        var root = doc.RootElement;
+        if (!root.TryGetProperty("player", out var player) ||
+            !player.TryGetProperty("hand", out var cards) ||
+            cards.ValueKind != JsonValueKind.Array)
+            return [];
+        var list = new List<Choice>();
+        int position = 0;
+        foreach (var card in cards.EnumerateArray())
+        {
+            position++;
+            if (card.ValueKind != JsonValueKind.Object) continue;
+            var name = String(card, "name") ?? "Nieznana karta";
+            var id = String(card, "card_id");
+            list.Add(new Choice(position, name, SafeCardId(id) ? id : null, false));
+        }
+        return list.Take(12).ToArray();
+    }
+
     public static int? TryChoiceNumber(string? move)
     {
         var match = ChoiceIndex.Match(Normalize(move ?? ""));
