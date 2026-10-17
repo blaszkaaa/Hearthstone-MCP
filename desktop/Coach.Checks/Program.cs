@@ -1398,6 +1398,12 @@ try
     Check(!GameSnapshot.Read(path, now).ChoiceActive,
         "active flag with zero options must not block normal turn analysis");
 
+    var manuallyPlannedTurn = new AnalysisScheduler();
+    manuallyPlannedTurn.MarkTurnPlanned(standard);
+    Check(!manuallyPlannedTurn.ShouldAnalyze(standard, now.AddSeconds(5), false, true) &&
+          manuallyPlannedTurn.LastDecision == "plan_ready_for_turn",
+        "manually prepared plan cannot be scheduled again by the first auto poll");
+
     // A completed turn plan must remain fixed even when the hand, mana or
     // Discover offers change. The user asked for one sequence, not an AI call
     // after every action. Manual re-analysis stays available in the UI.
