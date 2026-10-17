@@ -1,6 +1,23 @@
 using System.Text.Json;
 using Coach.Core;
 
+// Keep the coach dashboard in a single constrained WPF column. A previous
+// version split the scrollable page into a star and fixed 232px column;
+// Windows showed an empty main area and wrapped every word vertically.
+var dashboardXaml = File.ReadAllText(Path.Combine("desktop", "Coach.App", "MainWindow.xaml"));
+var dashboardAt = dashboardXaml.IndexOf("<ScrollViewer x:Name=\"MainPage\"", StringComparison.Ordinal);
+var dashboardEnd = dashboardXaml.IndexOf("<!-- Configuration page:", dashboardAt, StringComparison.Ordinal);
+Check(dashboardAt >= 0 && dashboardEnd > dashboardAt, "dashboard markup exists");
+var dashboardMarkup = dashboardXaml[dashboardAt..dashboardEnd];
+Check(dashboardMarkup.Contains("HorizontalContentAlignment=\"Stretch\"", StringComparison.Ordinal) &&
+    !dashboardMarkup.Contains("Width=\"232\"", StringComparison.Ordinal) &&
+    !dashboardMarkup.Contains("MinWidth=\"380\"", StringComparison.Ordinal),
+    "dashboard must not force a fixed-size right column or overflow its viewport");
+Check(dashboardMarkup.Contains("x:Name=\"AnalyzeButton\"", StringComparison.Ordinal) &&
+    dashboardMarkup.Contains("x:Name=\"PlanItems\"", StringComparison.Ordinal) &&
+    dashboardMarkup.Contains("x:Name=\"HandItems\"", StringComparison.Ordinal),
+    "plan, manual analysis and visible card art stay in the full-width dashboard");
+
 // Desktop release manifest must never redirect updates to arbitrary files or accept bad digests.
 var version = new string('a', 40);
 var checksum = new string('b', 64);

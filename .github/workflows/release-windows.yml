@@ -113,6 +113,8 @@ jobs:
           Wydanie gotowe do pobrania na komputer: HearthstoneCoach.exe lub pełne archiwum ZIP.
 
           ### Nowości
+          - Naprawiono pusty środek aplikacji i panele ze zbyt wąskim tekstem.
+          - Główna rekomendacja, karta i przycisk analizy mieszczą się w szerokości okna bez poziomego przepełnienia.
           - Nowy interfejs graficzny: grafit, stonowane złoto i czytelniejsza nawigacja.
           - Plan na tę turę: jedna pełna sekwencja zagrań zamiast nowych automatycznych porad po każdym ruchu.
           - Nowy plan jest przygotowywany dopiero podczas kolejnej tury; przeliczenie w tej samej turze wymaga ręcznego kliknięcia.
