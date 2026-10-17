@@ -113,6 +113,11 @@ jobs:
           Wydanie gotowe do pobrania na komputer: HearthstoneCoach.exe lub pełne archiwum ZIP.
 
           ### Nowości
+          - Uporządkowane ustawienia: sekcja konta ChatGPT na początku, a opcje HDT z jasnymi etykietami.
+          - Historia meczów dopasowuje listę i szczegóły do szerokości okna (pionowo w węższym oknie).
+          - Pulpit bez danych HDT pokazuje instrukcję oraz skrót bezpośrednio do ustawień wtyczki.
+          - Skróty Ctrl+1/2/3, spójna polska nawigacja i ukrycie niedostępnej analizy.
+          - Zachowany jeden plan AI na turę, grafiki kart i grafitowo-złoty styl.
           - Naprawiono pusty środek aplikacji i panele ze zbyt wąskim tekstem.
           - Główna rekomendacja, karta i przycisk analizy mieszczą się w szerokości okna bez poziomego przepełnienia.
           - Nowy interfejs graficzny: grafit, stonowane złoto i czytelniejsza nawigacja.
