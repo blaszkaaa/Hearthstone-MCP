@@ -25,7 +25,8 @@ var designDocument = System.Xml.Linq.XDocument.Load(
 var designNamespace = System.Xml.Linq.XNamespace.Get(
     "http://schemas.microsoft.com/winfx/2006/xaml");
 var namedControls = designDocument.Descendants()
-    .Attributes(designNamespace + "Name").Select(a => a.Value).ToArray();
+    .SelectMany(element => element.Attributes(designNamespace + "Name"))
+    .Select(attribute => attribute.Value).ToArray();
 Check(namedControls.Length == namedControls.Distinct(StringComparer.Ordinal).Count(),
     "WPF named controls remain unique after UI redesign");
 Check(namedControls.Contains("HdtPluginSettingsCard"),
