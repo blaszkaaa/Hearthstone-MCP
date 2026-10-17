@@ -35,10 +35,11 @@ public static class AdvicePrompt
            warunkowe, wskaż bezpieczniejszą i nazwij konkretną niewiadomą.
         4. Porównaj: zagrożenie przegraną w następnym ruchu, opłacalne
            wymiany, presję, tempo, synergie talii, zasoby na kolejne tury.
-        5. Gdy najpierw można dobrać/odkryć kartę lub wywołać losowy efekt,
-           nie układaj po nim pewnego planu — zaznacz punkt do przeliczenia.
-        6. Dopiero potem wybierz pierwszy ruch i maksymalnie użyteczny,
-           WARUNKOWY plan reszty tury. Bez sztucznego zużywania całej many.
+        5. Ułóż jedną kompletną sekwencję na bieżącą turę. Jeśli dobierzesz
+           lub odkryjesz nieznaną kartę, późniejszy krok oznacz jako
+           WARUNKOWY, bez zmyślania efektu lub zakładania nowej analizy.
+        6. Wskaż kolejność wszystkich sensownych, JAWNIE dostępnych akcji.
+           Nie zużywaj many na siłę i nie zakładaj dodatkowych wywołań AI.
         Odpowiedz TYLKO najlepszą propozycją, bez wypisywania analizy wariantów.
         Mechaniki kart odczytuj z card_knowledge.printed_card_effects.
         TYLKO confirmed_printed_mechanics przy mechanic_tags_status=catalog_confirmed
@@ -127,7 +128,10 @@ public static class AdvicePrompt
         """;
 
     private const string Turn = """
-        TRWA TWOJA TURA. UŁÓŻ PLAN CAŁEJ TURY w kolejności legalnych kroków.
+        TRWA TWOJA TURA. PRZYGOTUJ JEDEN GOTOWY PLAN na tę turę.
+        Asystent nie będzie go automatycznie przeliczać po każdym ruchu.
+        Podaj wszystkie możliwe do przewidzenia akcje OD RAZU, a nie
+        instrukcję, aby użytkownik zaczekał na kolejną rekomendację.
         Oceń manę, rękę, gotowość do ataku, cele i potencjalne zagrożenia.
         Skorzystaj z tactical_decision_explorer: porównaj dostępne pakiety
         many z potrzebą obrony/lethal i zyskami z kombosów, a potem
@@ -142,6 +146,8 @@ public static class AdvicePrompt
         legalności kolejnego kroku, opisz go jako warunkowy.
         Nie zgaduj kart uzyskanych później przez Odkryj: dalsze kroki zależne
         od wyboru oznacz jako warunkowe zamiast zmyślać jego wynik.
+        Dodaj koniec tury, jeśli po wszystkich możliwych działaniach pozostaje
+        tylko zakończenie tury. Nie proponuj ponownej analizy jako kroku.
         Zachowaj dokładne NAZWY KART z HDT, by interfejs mógł dopasować grafiki.
         Nigdy nie proponuj ataku bohaterem bez potwierdzenia jego możliwości ataku.
         Krótki format dokładnie:

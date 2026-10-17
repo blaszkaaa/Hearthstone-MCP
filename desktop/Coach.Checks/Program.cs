@@ -1398,6 +1398,77 @@ try
     Check(!GameSnapshot.Read(path, now).ChoiceActive,
         "active flag with zero options must not block normal turn analysis");
 
+    var manuallyPlannedTurn = new AnalysisScheduler();
+    manuallyPlannedTurn.MarkTurnPlanned(standard);
+    Check(!manuallyPlannedTurn.ShouldAnalyze(standard, now.AddSeconds(5), false, true) &&
+          manuallyPlannedTurn.LastDecision == "plan_ready_for_turn",
+        "manually prepared plan cannot be scheduled again by the first auto poll");
+
+    // A completed turn plan must remain fixed even when the hand, mana or
+    // Discover offers change. The user asked for one sequence, not an AI call
+    // after every action. Manual re-analysis stays available in the UI.
+    var onePlanScheduler = new AnalysisScheduler();
+    Check(!onePlanScheduler.ShouldAnalyze(standard, now, false, true),
+        "one-plan scheduler settles first");
+    Check(onePlanScheduler.ShouldAnalyze(standard, now.AddSeconds(7), false, true),
+        "one initial turn plan is scheduled");
+    onePlanScheduler.MarkTurnPlanned(standard);
+    Check(onePlanScheduler.CompletedPlanTurn == 9, "plan locked to current turn");
+    File.WriteAllText(path, JsonSerializer.Serialize(new {
+        schema_version = 1, captured_at_utc = now.ToString("O"),
+        in_game = true, turn = 9, my_turn = true,
+        choice_tracking_supported = true, choice_active = false,
+        player = new {
+            card_class = "MAGE", mana_available = 1,
+            hand = new[] {
+                new { card_id = "CS2_029", name = "Fireball", cost = 4 },
+                new { card_id = "CS2_031", name = "Ice Lance", cost = 1 }
+            },
+            board = Array.Empty<object>()
+        }, opponent = sample.opponent
+    }));
+    var onePlanChangedHand = GameSnapshot.Read(path, now);
+    Check(VisualTurnPlan.BuildHand(onePlanChangedHand).Count == 2 &&
+          VisualTurnPlan.BuildHand(onePlanChangedHand)[0].CardId == "CS2_029",
+        "dashboard hand visuals use actual HDT card identifiers");
+    Check(!onePlanScheduler.ShouldAnalyze(onePlanChangedHand,
+        now.AddSeconds(18), false, true) &&
+        onePlanScheduler.LastDecision == "plan_ready_for_turn",
+        "spending mana or drawing cards cannot start a new automatic plan");
+    File.WriteAllText(path, JsonSerializer.Serialize(new {
+        schema_version = 1, captured_at_utc = now.ToString("O"),
+        in_game = true, turn = 9, my_turn = true,
+        choice_tracking_supported = true, choice_active = true,
+        choices = sample.choices, player = sample.player, opponent = sample.opponent
+    }));
+    var onePlanDiscover = GameSnapshot.Read(path, now);
+    Check(!onePlanScheduler.ShouldAnalyze(onePlanDiscover,
+        now.AddSeconds(20), false, true) &&
+        onePlanScheduler.LastDecision == "plan_ready_for_turn",
+        "Discover does not silently replace the complete plan");
+    File.WriteAllText(path, JsonSerializer.Serialize(new {
+        schema_version = 1, captured_at_utc = now.ToString("O"),
+        in_game = true, turn = 10, my_turn = true,
+        choice_tracking_supported = true, choice_active = false,
+        player = sample.player, opponent = sample.opponent
+    }));
+    var onePlanNextTurn = GameSnapshot.Read(path, now);
+    Check(!onePlanScheduler.ShouldAnalyze(onePlanNextTurn,
+        now.AddSeconds(21), false, true) &&
+        onePlanScheduler.CompletedPlanTurn == -1,
+        "following turn unlocks the planner");
+    Check(onePlanScheduler.ShouldAnalyze(onePlanNextTurn,
+        now.AddSeconds(29), false, true),
+        "one fresh plan starts next turn");
+    onePlanScheduler.MarkTurnPlanned(onePlanNextTurn);
+    File.WriteAllText(path, JsonSerializer.Serialize(new {
+        schema_version = 1, captured_at_utc = now.ToString("O"), in_game = false
+    }));
+    onePlanScheduler.ShouldAnalyze(GameSnapshot.Read(path, now),
+        now.AddSeconds(35), false, true);
+    Check(onePlanScheduler.CompletedPlanTurn == -1,
+        "returning to HDT menu clears the match plan lock");
+
     Console.WriteLine("Hearthstone Coach core checks: PASS");
 }
 finally { try { File.Delete(path); } catch { } }

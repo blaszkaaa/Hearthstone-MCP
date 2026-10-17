@@ -8,6 +8,8 @@ public sealed class AnalysisScheduler
     private DateTimeOffset _stableSince = DateTimeOffset.MinValue;
     private DateTimeOffset _lastRequest = DateTimeOffset.MinValue;
     private int _turn = -1, _turnRequests;
+    private int _completedPlanTurn = -1;
+    public int CompletedPlanTurn => _completedPlanTurn;
     private readonly Dictionary<string, int> _attempts = new(StringComparer.Ordinal);
     public string LastDecision { get; private set; } = "init";
     public static readonly TimeSpan TurnDelay = TimeSpan.FromSeconds(4);
@@ -20,6 +22,13 @@ public sealed class AnalysisScheduler
 
     public bool ShouldAnalyze(GameSnapshot snapshot, DateTimeOffset now, bool analyzing, bool enabled)
     {
+        if (!snapshot.InGame)
+        {
+            _completedPlanTurn = -1;
+            _turn = -1;
+            _analyzedKey = null;
+            _attempts.Clear();
+        }
         if (!snapshot.Actionable)
         {
             // Important: reset when opponent's turn or HDT temporarily disconnects.
@@ -31,11 +40,16 @@ public sealed class AnalysisScheduler
         }
         if (_turn != snapshot.Turn)
         {
+            _completedPlanTurn = -1;
             _turn = snapshot.Turn;
             _turnRequests = 0;
             _analyzedKey = null;
             _attempts.Clear();
         }
+        // A completed plan is immutable for the remainder of this turn, even
+        // after drawing a card, spending mana or opening a Discover popup.
+        if (_completedPlanTurn == snapshot.Turn && !snapshot.MulliganActive)
+        { LastDecision = "plan_ready_for_turn"; return false; }
         if (_seenKey != snapshot.DecisionKey || _seenPhase != snapshot.Phase)
         {
             _seenKey = snapshot.DecisionKey;
@@ -62,6 +76,18 @@ public sealed class AnalysisScheduler
         MarkAnalyzed(snapshot, now);
         LastDecision = "triggered_" + snapshot.Phase;
         return true;
+    }
+
+    public void MarkTurnPlanned(GameSnapshot snapshot)
+    {
+        if (!snapshot.InGame || snapshot.MulliganActive || snapshot.ChoiceActive)
+            return;
+        // Manual plan generation can happen before automatic polling starts.
+        // Remember its turn so a subsequent poll cannot undo the plan lock.
+        _turn = snapshot.Turn;
+        _completedPlanTurn = snapshot.Turn;
+        _analyzedKey = snapshot.DecisionKey;
+        LastDecision = "turn_plan_completed";
     }
 
     public void MarkAnalyzed(GameSnapshot snapshot, DateTimeOffset now)

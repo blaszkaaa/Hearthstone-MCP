@@ -28,6 +28,8 @@ public partial class MainWindow : Window
     private int _shownHistoryRevision = -1;
     private readonly CardArtCache _cardImages = new();
     private readonly ObservableCollection<CardVisualItem> _planRows = new();
+    private readonly ObservableCollection<CardVisualItem> _handRows = new();
+    private string? _handSignature;
     private readonly ObservableCollection<CardVisualItem> _choiceRows = new();
     private readonly ObservableCollection<CardVisualItem> _mulliganRows = new();
     private int _turnPlanTurn = -1;
@@ -61,6 +63,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         PlanItems.ItemsSource = _planRows;
+        HandItems.ItemsSource = _handRows;
         ChoiceItems.ItemsSource = _choiceRows;
         MulliganItems.ItemsSource = _mulliganRows;
         HistoryMatchList.ItemsSource = _historyRows;
@@ -395,7 +398,7 @@ public partial class MainWindow : Window
         MoveText.Text = !_snapshot.InGame ? "Czekam na mecz" :
             _snapshot.MulliganActive ? "Co zostawić na ręce?" :
             _snapshot.ChoiceActive ? "Wybieram najlepszą kartę..." :
-            _snapshot.MyTurn ? "Sprawdzam następny ruch..." : "Czekam na Twoją turę";
+            _snapshot.MyTurn ? "Przygotowuję plan na tę turę..." : "Czekam na Twoją turę";
         AdviceText.Text = "";
         TargetPanel.Visibility = Visibility.Collapsed;
         NextPanel.Visibility = Visibility.Collapsed;
@@ -442,6 +445,76 @@ public partial class MainWindow : Window
             _snapshot.ChoiceActive ? $"Wybory: {_snapshot.ChoicesCount}" :
             "Wybory: brak";
         UpdateChoiceVisuals(_snapshot);
+        UpdateDashboard();
+        UpdateVisibleHand(_snapshot);
+    }
+
+    private void UpdateDashboard()
+    {
+        DashboardHeading.Text = !_snapshot.InGame ? "Asystent rozgrywki" :
+            _snapshot.MulliganActive ? "Ręka początkowa" :
+            _snapshot.ChoiceActive ? "Wybór karty" :
+            _snapshot.MyTurn ? "Twoja tura" : "Tura przeciwnika";
+        DashboardSubheading.Text = _snapshot.MulliganActive
+            ? "Zostaw lub odrzuć karty według planu talii."
+            : _snapshot.ChoiceActive
+            ? "Odkryj nie zmienia ustalonego planu. Nieznane efekty są warunkowe."
+            : _snapshot.MyTurn
+            ? "Jeden plan na całą turę. Bez automatycznych zmian po każdym zagraniu."
+            : _snapshot.InGame
+            ? "Obserwuję widoczne zagrania rywala. Nowy plan powstanie w Twojej turze."
+            : "Uruchom Hearthstone i połącz HDT, aby zobaczyć analizę.";
+        DashboardGameState.Text = !_snapshot.Connected ? "Oczekiwanie na HDT" :
+            !_snapshot.InGame ? "Gotowy do gry" :
+            _snapshot.MulliganActive ? "Wybór ręki" :
+            _snapshot.ChoiceActive ? "Odkryj" :
+            _snapshot.MyTurn ? "Możesz zagrywać" : "Ruch rywala";
+        DashboardTurn.Text = _snapshot.InGame ? _snapshot.Turn.ToString() : "—";
+        DashboardMana.Text = _snapshot.InGame ? _snapshot.Mana?.ToString() ?? "?" : "—";
+        DashboardHandCount.Text = _snapshot.InGame ? _snapshot.HandCount.ToString() : "—";
+        bool ready = _snapshot.InGame && _turnPlanTurn == _snapshot.Turn &&
+            _scheduler.CompletedPlanTurn == _snapshot.Turn;
+        PlanStateText.Text = ready ? "Plan gotowy" :
+            _busy && !_snapshot.MulliganActive ? "Trwa analiza..." :
+            _snapshot.MulliganActive ? "Wybór ręki" :
+            _snapshot.MyTurn ? "Oczekuję na plan" :
+            _snapshot.InGame ? "Obserwuję przeciwnika" : "Czekam na mecz";
+        PlanStateDetail.Text = ready
+            ? "Cała sekwencja jest widoczna. Nie zmieni się automatycznie podczas tej tury."
+            : _snapshot.MyTurn
+            ? "AI układa kolejność wszystkich możliwych do przewidzenia zagrań."
+            : _snapshot.InGame
+            ? "W następnej Twojej turze pojawi się jeden nowy plan."
+            : "Plan zostanie przygotowany po rozpoczęciu Twojej tury.";
+        AnalyzeButton.Content = ready ? "Przelicz ręcznie" : "Przygotuj plan";
+    }
+
+    private void UpdateVisibleHand(GameSnapshot state)
+    {
+        HandPanel.Visibility = state.InGame && !state.MulliganActive
+            ? Visibility.Visible : Visibility.Collapsed;
+        if (!state.InGame || state.MulliganActive)
+        {
+            _handSignature = null;
+            _handRows.Clear();
+            return;
+        }
+        var cards = VisualTurnPlan.BuildHand(state);
+        HandPanelCount.Text = cards.Count + (cards.Count == 1 ? " karta" :
+            cards.Count is >= 2 and <= 4 ? " karty" : " kart");
+        // Only rebuild WPF elements when the hand itself changes, not when
+        // HDT updates the board, opponent metadata or the turn history.
+        var signature = string.Join("|", cards.Select(c =>
+            c.Index + ":" + c.CardId + ":" + c.Name));
+        if (_handSignature == signature) return;
+        _handSignature = signature;
+        _handRows.Clear();
+        foreach (var card in cards)
+        {
+            var row = new CardVisualItem(card.Index, card.Name, card.CardId);
+            _handRows.Add(row);
+            _ = LoadCardArtAsync(row);
+        }
     }
 
     private void UpdateChoiceVisuals(GameSnapshot state)
@@ -464,7 +537,9 @@ public partial class MainWindow : Window
         _latestChoiceKey = null;
         _choiceRows.Clear();
         _mulliganRows.Clear();
-        ChoiceHeadline.Text = "Wybieram najlepszą kartę...";
+        ChoiceHeadline.Text = _scheduler.CompletedPlanTurn == state.Turn
+            ? "Wybierz zgodnie z warunkiem w planie"
+            : "Sprawdzam dostępne opcje...";
         foreach (var offered in VisualTurnPlan.BuildChoices(state, null))
         {
             var row = new CardVisualItem(offered.Index, offered.Name, offered.CardId);
@@ -643,13 +718,13 @@ public partial class MainWindow : Window
              _shownSnapshot.Phase != original.Phase);
         AiStatus.Text = previousAdviceOutdated ? "Poprzednia wskazówka nieaktualna" :
             original.MulliganActive ? "Analizuję rękę początkową..." :
-            original.ChoiceActive ? "Sprawdzam wybór kart..." : "Analizuję dostępne zagrania...";
+            original.ChoiceActive ? "Sprawdzam wybór kart..." : "Układam plan na całą turę...";
         // During a refresh keep the existing suggestion on screen; do not clear
         // it when starting or failing another request.
         if (_shownSnapshot is null)
         {
             MoveText.Text = original.MulliganActive ? "Co zostawić?" :
-                original.ChoiceActive ? "Wybieram najlepszą opcję..." : "Sprawdzam karty...";
+                original.ChoiceActive ? "Wybieram najlepszą opcję..." : "Przygotowuję kolejność zagrań...";
             TargetPanel.Visibility = Visibility.Collapsed;
             NextPanel.Visibility = Visibility.Collapsed;
             WhyPanel.Visibility = Visibility.Collapsed;
@@ -752,7 +827,16 @@ public partial class MainWindow : Window
                 if (original.MulliganActive)
                     ShowVisualMulligan(original, card);
                 else
+                {
                     ShowVisualPlan(original, card);
+                    // Lock the completed plan only AFTER it passed validation
+                    // and was actually rendered in the interface.
+                    _scheduler.MarkTurnPlanned(original);
+                    DiagnosticLog.Write("ai.turn_plan.locked", new {
+                        turn = original.Turn, steps = _planRows.Count,
+                        note = "no_auto_refresh_until_next_turn"
+                    });
+                }
                 MoveText.FontSize = original.MulliganActive ? 20 : 28;
                 MoveText.Text = card.Move;
                 if (original.MulliganActive) MoveText.Visibility = Visibility.Collapsed;
@@ -770,7 +854,7 @@ public partial class MainWindow : Window
                 _shownGuard.Reset();
                 if (original.MulliganActive) ChoiceHeadline.Text = "ZOSTAW / ODRZUĆ";
                 AiStatus.Text = original.MulliganActive ? "Zostaw / odrzuć karty" :
-                    original.ChoiceActive ? "Wybór Odkryj / kart" : "Gotowa rekomendacja";
+                    "Plan gotowy · bez automatycznych zmian";
                 DiagnosticLog.Write("ai.displayed", new { request = number, decision_key = original.DecisionKey, turn = original.Turn });
                 AdviceMeta.Text = $"Tura {original.Turn} • {DateTime.Now:HH:mm:ss} • {model.DisplayName}";
             }
@@ -843,8 +927,8 @@ public partial class MainWindow : Window
     private void AutoChanged(object sender, RoutedEventArgs e)
     {
         AdviceMeta.Text = AutoCheck.IsChecked == true ?
-            "Automatyczna analiza włączona • szybki wybór kart i ponawianie przy zmianach." :
-            "Automatyczna analiza wyłączona • możesz kliknąć „Analizuj teraz”.";
+            "Automatyczna analiza włączona • jeden plan na początek każdej Twojej tury." :
+            "Automatyczna analiza wyłączona • plan możesz przygotować przyciskiem ręcznym.";
     }
     private void TopmostChanged(object sender, RoutedEventArgs e) => Topmost = TopmostCheck.IsChecked == true;
     private async Task CheckForAppUpdateOnStartupAsync()

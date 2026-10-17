@@ -113,11 +113,12 @@ jobs:
           Wydanie gotowe do pobrania na komputer: HearthstoneCoach.exe lub pełne archiwum ZIP.
 
           ### Nowości
-          - AI zna listę kart aktywnej talii z Hearthstone Deck Tracker, gdy zgadza się klasa.
-          - Analiza widocznych zagrań rywala podczas jego tury; wnioski są wykorzystywane w kolejnych rekomendacjach.
-          - Historia meczów i kart oraz ulepszenia wyboru kart (mulligan i Discover).
-          - Ulepszone śledzenie aktualnych obrażeń Pochodni.
-          - Zawiera sprawdzoną bajt po bajcie wtyczkę HDT v0.6 jako zasób offline.
+          - Nowy interfejs graficzny: grafit, stonowane złoto i czytelniejsza nawigacja.
+          - Plan na tę turę: jedna pełna sekwencja zagrań zamiast nowych automatycznych porad po każdym ruchu.
+          - Nowy plan jest przygotowywany dopiero podczas kolejnej tury; przeliczenie w tej samej turze wymaga ręcznego kliknięcia.
+          - Widok ręki i planu wykorzystuje prawdziwe grafiki kart z HDT. Losowe i nieznane efekty są warunkowe.
+          - Historia meczów, mulligan, Odkryj i analiza zagrożeń podczas tury rywala pozostają dostępne.
+          - Zawiera wbudowaną wtyczkę HDT v0.7, zweryfikowaną bajt po bajcie.
 
           ### Instalacja
           1. Pobierz HearthstoneCoach.exe bezpośrednio albo $archiveName i rozpakuj ZIP.
