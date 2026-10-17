@@ -94,6 +94,55 @@ public partial class MainWindow : Window
             _shownHistoryRevision = -1;
             RefreshHistory();
         }
+        if (settings) SettingsPage.ScrollToTop();
+        else if (!history) MainPage.ScrollToTop();
+    }
+
+    private void OpenSettingsFromDashboard(object sender, RoutedEventArgs e) =>
+        NavigateClick(SettingsNavButton, e);
+
+    private void WindowShortcutKeyDown(object sender, KeyEventArgs e)
+    {
+        if ((Keyboard.Modifiers & ModifierKeys.Control) == 0) return;
+        var target = e.Key switch
+        {
+            Key.D1 or Key.NumPad1 => MainNavButton,
+            Key.D2 or Key.NumPad2 => SettingsNavButton,
+            Key.D3 or Key.NumPad3 => HistoryNavButton,
+            _ => null
+        };
+        if (target is null) return;
+        NavigateClick(target, new RoutedEventArgs());
+        e.Handled = true;
+    }
+
+    private bool? _historyNarrowLayout;
+
+    private void HistoryLayoutChanged(object sender, SizeChangedEventArgs e)
+    {
+        // At 860px window width the workspace has ~610px available. Never
+        // force a 250px match list beside an unreadably narrow card timeline.
+        var width = e.NewSize.Width;
+        if (width <= 0) return;
+        bool narrow = width < 760;
+        if (_historyNarrowLayout == narrow) return;
+        _historyNarrowLayout = narrow;
+
+        HistoryListColumn.Width = narrow
+            ? new GridLength(1, GridUnitType.Star) : new GridLength(250);
+        HistoryGapColumn.Width = new GridLength(narrow ? 0 : 14);
+        HistoryDetailsColumn.Width = narrow
+            ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
+        HistoryTopRow.Height = narrow ? GridLength.Auto :
+            new GridLength(1, GridUnitType.Star);
+        HistoryBottomRow.Height = narrow
+            ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+        System.Windows.Controls.Grid.SetColumn(HistoryDetailsCard, narrow ? 0 : 2);
+        System.Windows.Controls.Grid.SetRow(HistoryDetailsCard, narrow ? 1 : 0);
+        HistoryListPanel.MaxHeight = narrow ? 190 : double.PositiveInfinity;
+        HistoryListPanel.Margin = narrow ? new Thickness(0, 0, 0, 12) :
+            new Thickness(0);
+        DiagnosticLog.Write("ui.history.layout", new { width, narrow });
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
@@ -429,6 +478,7 @@ public partial class MainWindow : Window
         ConnectionTitle.Text = connected ? "HDT połączony" : "Brak połączenia";
         ConnectionTitle.Foreground = (Brush)FindResource(connected ? "Accent" : "White");
         ConnectionText.Text = _snapshot.Status;
+        ConnectionHelpPanel.Visibility = connected ? Visibility.Collapsed : Visibility.Visible;
         HeaderStatusText.Text = !connected ? "HDT rozłączony" :
             !_snapshot.InGame ? "HDT gotowy" :
             _snapshot.MulliganActive ? "Wybór ręki" :
