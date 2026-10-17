@@ -98,8 +98,14 @@ public partial class MainWindow : Window
         else if (!history) MainPage.ScrollToTop();
     }
 
-    private void OpenSettingsFromDashboard(object sender, RoutedEventArgs e) =>
+    private void OpenSettingsFromDashboard(object sender, RoutedEventArgs e)
+    {
         NavigateClick(SettingsNavButton, e);
+        // The settings page was collapsed during layout. Wait until visible
+        // before scrolling to the actual HDT update/install controls.
+        Dispatcher.BeginInvoke(new Action(() => HdtPluginSettingsCard.BringIntoView()),
+            DispatcherPriority.Loaded);
+    }
 
     private void WindowShortcutKeyDown(object sender, KeyEventArgs e)
     {
@@ -537,6 +543,12 @@ public partial class MainWindow : Window
             ? "W następnej Twojej turze pojawi się jeden nowy plan."
             : "Plan zostanie przygotowany po rozpoczęciu Twojej tury.";
         AnalyzeButton.Content = ready ? "Przelicz ręcznie" : "Przygotuj plan";
+        // Do not expose an apparently actionable button when the game is
+        // disconnected or the opponent is playing. The scheduler is unchanged.
+        if (!_busy) AnalyzeButton.IsEnabled = _snapshot.Actionable;
+        AnalyzeButton.ToolTip = _snapshot.Actionable
+            ? "Przygotuj plan dla aktualnej sytuacji w grze."
+            : "Plan można przygotować podczas swojej tury lub mulliganu.";
     }
 
     private void UpdateVisibleHand(GameSnapshot state)
