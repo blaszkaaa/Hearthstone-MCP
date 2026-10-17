@@ -927,8 +927,8 @@ public partial class MainWindow : Window
     private void AutoChanged(object sender, RoutedEventArgs e)
     {
         AdviceMeta.Text = AutoCheck.IsChecked == true ?
-            "Automatyczna analiza włączona • szybki wybór kart i ponawianie przy zmianach." :
-            "Automatyczna analiza wyłączona • możesz kliknąć „Analizuj teraz”.";
+            "Automatyczna analiza włączona • jeden plan na początek każdej Twojej tury." :
+            "Automatyczna analiza wyłączona • plan możesz przygotować przyciskiem ręcznym.";
     }
     private void TopmostChanged(object sender, RoutedEventArgs e) => Topmost = TopmostCheck.IsChecked == true;
     private async Task CheckForAppUpdateOnStartupAsync()
