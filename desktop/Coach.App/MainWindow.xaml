@@ -729,7 +729,7 @@
                             <CheckBox x:Name="AutoCheck" Content="Automatyczna analiza"
                                       IsChecked="True" Style="{StaticResource SwitchToggle}"
                                       Click="AutoChanged"/>
-                            <TextBlock Text="Nowe podpowiedzi po zmianie sytuacji na planszy."
+                            <TextBlock Text="Jeden plan na początek Twojej tury; bez automatycznego przeliczania po ruchach."
                                        Style="{StaticResource BodyMuted}" Margin="0,9,0,0"/>
                             <Border Height="1" Background="{StaticResource Stroke}" Margin="0,17,0,17"/>
                             <CheckBox x:Name="TopmostCheck" Content="Przypnij nad grą"
