@@ -82,6 +82,9 @@ public sealed class AnalysisScheduler
     {
         if (!snapshot.InGame || snapshot.MulliganActive || snapshot.ChoiceActive)
             return;
+        // Manual plan generation can happen before automatic polling starts.
+        // Remember its turn so a subsequent poll cannot undo the plan lock.
+        _turn = snapshot.Turn;
         _completedPlanTurn = snapshot.Turn;
         _analyzedKey = snapshot.DecisionKey;
         LastDecision = "turn_plan_completed";
