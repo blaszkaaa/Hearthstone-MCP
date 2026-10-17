@@ -18,6 +18,32 @@ Check(dashboardMarkup.Contains("x:Name=\"AnalyzeButton\"", StringComparison.Ordi
     dashboardMarkup.Contains("x:Name=\"HandItems\"", StringComparison.Ordinal),
     "plan, manual analysis and visible card art stay in the full-width dashboard");
 
+// UI regression: all XAML markup must parse, names must be unique, and
+// narrow history must have reflowable rows instead of fixed cramped columns.
+var designDocument = System.Xml.Linq.XDocument.Load(
+    Path.Combine("desktop", "Coach.App", "MainWindow.xaml"));
+var designNamespace = System.Xml.Linq.XNamespace.Get(
+    "http://schemas.microsoft.com/winfx/2006/xaml");
+var namedControls = designDocument.Descendants()
+    .Attributes(designNamespace + "Name").Select(a => a.Value).ToArray();
+Check(namedControls.Length == namedControls.Distinct(StringComparer.Ordinal).Count(),
+    "WPF named controls remain unique after UI redesign");
+Check(namedControls.Contains("HistoryListPanel") &&
+      namedControls.Contains("HistoryDetailsCard") &&
+      namedControls.Contains("HistoryTopRow") &&
+      namedControls.Contains("HistoryBottomRow") &&
+      namedControls.Contains("ConnectionHelpPanel"),
+    "responsive history and HDT onboarding have wired WPF controls");
+var designCodeBehind = File.ReadAllText(
+    Path.Combine("desktop", "Coach.App", "MainWindow.xaml.cs"));
+Check(designCodeBehind.Contains("width < 760", StringComparison.Ordinal) &&
+      designCodeBehind.Contains("Grid.SetRow(HistoryDetailsCard", StringComparison.Ordinal) &&
+      designCodeBehind.Contains("HistoryListPanel.MaxHeight", StringComparison.Ordinal),
+    "history reflows to stacked list and cards at narrower widths");
+Check(designCodeBehind.Contains("OpenSettingsFromDashboard", StringComparison.Ordinal) &&
+      designCodeBehind.Contains("WindowShortcutKeyDown", StringComparison.Ordinal),
+    "offline help and keyboard navigation are not dead UI controls");
+
 // Desktop release manifest must never redirect updates to arbitrary files or accept bad digests.
 var version = new string('a', 40);
 var checksum = new string('b', 64);
