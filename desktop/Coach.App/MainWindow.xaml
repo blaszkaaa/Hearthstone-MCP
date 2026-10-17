@@ -3,7 +3,7 @@
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Hearthstone AI Coach"
-        Width="1090" Height="760" MinWidth="850" MinHeight="590"
+        Width="1300" Height="825" MinWidth="1040" MinHeight="620"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None" ResizeMode="CanResize"
         Background="{StaticResource Background}" FontFamily="Segoe UI"
@@ -59,7 +59,7 @@
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="72"/>
+            <RowDefinition Height="59"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -68,9 +68,9 @@
                 BorderThickness="0,0,0,1" MouseLeftButtonDown="TitleDrag">
             <Border.Background>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                    <GradientStop Color="#172B2E" Offset="0"/>
-                    <GradientStop Color="#13232C" Offset="0.38"/>
-                    <GradientStop Color="#101A25" Offset="1"/>
+                    <GradientStop Color="#151617" Offset="0"/>
+                    <GradientStop Color="#161719" Offset="0.38"/>
+                    <GradientStop Color="#121314" Offset="1"/>
                 </LinearGradientBrush>
             </Border.Background>
             <Grid Margin="22,0,16,0">
@@ -85,13 +85,13 @@
 
                 <!-- Vector mark stays sharp at different Windows DPI settings. -->
                 <Border Grid.Column="0" Width="40" Height="40" CornerRadius="12"
-                        Background="#1E443B" BorderBrush="#37695A" BorderThickness="1"
+                        Background="#342D24" BorderBrush="#5A4A35" BorderThickness="1"
                         VerticalAlignment="Center">
                     <Grid>
                         <Path Width="23" Height="23" Stretch="Uniform"
                               Fill="{StaticResource Accent}"
                               Data="M12,1 L14.8,8.2 22,11 14.8,13.8 12,21 9.2,13.8 2,11 9.2,8.2 Z"/>
-                        <Ellipse Width="3" Height="3" Fill="#C9FFEB"
+                        <Ellipse Width="3" Height="3" Fill="#F2D39D"
                                  VerticalAlignment="Top" HorizontalAlignment="Right"
                                  Margin="0,7,6,0"/>
                     </Grid>
@@ -104,24 +104,24 @@
                         <TextBlock Text="  AI Coach" FontSize="16" FontWeight="SemiBold"
                                    Foreground="{StaticResource Accent}" VerticalAlignment="Center"/>
                         <Border Margin="11,0,0,0" Padding="7,3" CornerRadius="6"
-                                BorderBrush="#376255" BorderThickness="1"
-                                Background="#1B3B33" VerticalAlignment="Center">
+                                BorderBrush="#5B4B34" BorderThickness="1"
+                                Background="#2E2922" VerticalAlignment="Center">
                             <TextBlock Text="BETA" FontSize="9" FontWeight="SemiBold"
                                        Foreground="{StaticResource Accent}"/>
                         </Border>
                     </StackPanel>
-                    <TextBlock Text="Asystent rozgrywki na żywo" FontSize="11"
+                    <TextBlock Text="Planowanie rozgrywki" FontSize="11"
                                Foreground="{StaticResource Muted}" Margin="0,4,0,0"/>
                 </StackPanel>
 
                 <!-- Live game state (names are used by MainWindow.xaml.cs). -->
                 <Border x:Name="HeaderStateBadge" Grid.Column="3"
                         Background="{StaticResource NeutralTint}" CornerRadius="11"
-                        BorderBrush="#35524D" BorderThickness="1"
+                        BorderBrush="#4F4536" BorderThickness="1"
                         Padding="11,7" VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <Border Width="27" Height="27" CornerRadius="8"
-                                Background="#23443E" VerticalAlignment="Center">
+                                Background="#332D26" VerticalAlignment="Center">
                             <Ellipse x:Name="HeaderIndicator" Width="8" Height="8"
                                      Fill="{StaticResource Muted}" VerticalAlignment="Center"
                                      HorizontalAlignment="Center"/>
@@ -159,10 +159,10 @@
             </Grid>
         </Border>
 
-        <Grid Grid.Row="1" Margin="22,22,22,18">
+        <Grid Grid.Row="1" Margin="15,15,15,12">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="278"/>
-                <ColumnDefinition Width="21"/>
+                <ColumnDefinition Width="200"/>
+                <ColumnDefinition Width="16"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
@@ -172,7 +172,7 @@
                               HorizontalScrollBarVisibility="Disabled"
                               CanContentScroll="False">
                     <StackPanel>
-                        <TextBlock Text="NAWIGACJA" Style="{StaticResource Kicker}" Margin="2,2,0,12"/>
+                        <TextBlock Text="PRZESTRZEŃ ROBOCZA" Style="{StaticResource Kicker}" Margin="2,2,0,12"/>
                         <Button x:Name="MainNavButton" Content="⌂   Główna"
                                 Style="{StaticResource SecondaryButton}"
                                 Background="{StaticResource AccentTint}" Foreground="{StaticResource Accent}"
@@ -244,51 +244,42 @@
             </Border>
 
             <!-- Main content -->
-            <ScrollViewer x:Name="MainPage" Grid.Column="2" VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollBarVisibility="Disabled">
-                <StackPanel Margin="0,2,9,2">
-                    <TextBlock Text="ASYSTENT GRY"
-                               Foreground="{StaticResource Accent}" FontSize="11"
-                               FontWeight="SemiBold" Margin="2,0,0,8"/>
-                    <TextBlock Text="Co teraz zagrać?"
-                               FontWeight="Bold" FontSize="25" Margin="0,0,0,6"
-                               TextWrapping="Wrap"/>
-                    <TextBlock Text="Konkretny ruch na pierwszym miejscu. Reszta — tylko gdy potrzebna."
-                               FontSize="12" Foreground="{StaticResource Muted}"
-                               Margin="1,0,0,19" TextWrapping="Wrap"/>
-
-                    
-                    <!-- Deck intelligence: available in HDT menu before mulligan. -->
-                    <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,15">
-                        <StackPanel>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel>
-                                    <TextBlock Text="STRATEGIA MOJEJ TALII" Style="{StaticResource Kicker}"
-                                               Foreground="{StaticResource Accent}" Margin="0,0,0,5"/>
-                                    <TextBlock x:Name="DeckStrategyName" Text="Aktywna talia HDT"
-                                               FontSize="15" FontWeight="SemiBold"/>
-                                </StackPanel>
-                                <TextBlock x:Name="DeckStrategyStatus" Grid.Column="1"
-                                           Foreground="{StaticResource Muted}" FontSize="11"
-                                           VerticalAlignment="Center" Text="Oczekiwanie na talię"
-                                           Margin="12,0,0,0"/>
-                            </Grid>
-                            <ScrollViewer MaxHeight="145" VerticalScrollBarVisibility="Auto"
-                                          HorizontalScrollBarVisibility="Disabled"
-                                          Margin="0,10,0,0">
-                                <TextBlock x:Name="DeckStrategyText"
-                                           Text="Wybierz aktywną talię w Hearthstone Deck Tracker. Asystent przeanalizuje jej synergie jeszcze przed meczem."
-                                           Style="{StaticResource BodyMuted}" TextWrapping="Wrap"
-                                           LineHeight="19"/>
-                            </ScrollViewer>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Mulligan: independent horizontal card strip. -->
+            <ScrollViewer x:Name="MainPage" Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+  <StackPanel Margin="0,3,9,12">
+    <TextBlock Text="ASYSTENT / ROZGRYWKA" Style="{StaticResource Kicker}" Foreground="{StaticResource Accent}" Margin="0,0,0,7"/>
+    <TextBlock x:Name="DashboardHeading" Text="Twoja tura" FontWeight="Bold" FontSize="27" Margin="0,0,0,5"/>
+    <TextBlock x:Name="DashboardSubheading" Text="Jeden plan na całą turę. Kolejna analiza dopiero po rozpoczęciu następnej."
+               Style="{StaticResource BodyMuted}" FontSize="12" Margin="0,0,0,16"/>
+    <Border Style="{StaticResource Card}" Padding="14" Margin="0,0,0,14">
+    <Grid>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
+      </Grid.ColumnDefinitions>
+      <StackPanel>
+        <TextBlock Text="STATUS MECZU" Style="{StaticResource Kicker}"/>
+        <TextBlock x:Name="DashboardGameState" Text="Oczekiwanie na mecz" FontSize="14" FontWeight="SemiBold" Margin="0,5,0,0"/>
+      </StackPanel>
+      <StackPanel Grid.Column="1" Margin="15,0,0,0">
+        <TextBlock Text="TURA" Style="{StaticResource Kicker}"/>
+        <TextBlock x:Name="DashboardTurn" FontSize="17" FontWeight="SemiBold" Margin="0,5,0,0" Text="—"/>
+      </StackPanel>
+      <StackPanel Grid.Column="2" Margin="22,0,0,0">
+        <TextBlock Text="MANA" Style="{StaticResource Kicker}"/>
+        <TextBlock x:Name="DashboardMana" FontSize="17" FontWeight="SemiBold" Margin="0,5,0,0" Text="—"/>
+      </StackPanel>
+      <StackPanel Grid.Column="3" Margin="22,0,0,0">
+        <TextBlock Text="RĘKA" Style="{StaticResource Kicker}"/>
+        <TextBlock x:Name="DashboardHandCount" FontSize="17" FontWeight="SemiBold" Margin="0,5,0,0" Text="—"/>
+      </StackPanel>
+    </Grid>
+</Border>
+    <Grid>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" MinWidth="380"/>
+        <ColumnDefinition Width="232"/>
+      </Grid.ColumnDefinitions>
+      <StackPanel Grid.Column="0" Margin="0,0,14,0">
+        <!-- Mulligan: independent horizontal card strip. -->
                     <Border x:Name="MulliganPanel" Style="{StaticResource Card}"
                             Padding="18" Margin="0,0,0,15" Visibility="Collapsed">
                         <StackPanel>
@@ -371,14 +362,8 @@
                             </ScrollViewer>
                         </StackPanel>
                     </Border>
-                    <Border Style="{StaticResource Card}" Padding="21" MinHeight="180">
-                        <Border.Background>
-                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                <GradientStop Color="#1A332D" Offset="0"/>
-                                <GradientStop Color="#14222B" Offset="0.45"/>
-                                <GradientStop Color="#121D29" Offset="1"/>
-                            </LinearGradientBrush>
-                        </Border.Background>
+        <Border Style="{StaticResource Card}" Padding="18" MinHeight="210" Margin="0,0,0,14">
+                        
                         <StackPanel>
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -393,7 +378,7 @@
                                                    HorizontalAlignment="Center"/>
                                     </Border>
                                     <StackPanel VerticalAlignment="Center">
-                                        <TextBlock Text="PLAN I REKOMENDACJE" Style="{StaticResource Kicker}"/>
+                                        <TextBlock Text="PLAN NA TĘ TURĘ" Style="{StaticResource Kicker}"/>
                                         <TextBlock x:Name="AiStatus" Text="Oczekiwanie na rozgrywkę"
                                                    Foreground="{StaticResource Accent}"
                                                    FontSize="11" Margin="0,3,0,0"/>
@@ -401,7 +386,7 @@
                                 </StackPanel>
                                 <Border Grid.Column="1" Background="{StaticResource AccentTint}"
                                         CornerRadius="8" Padding="10,6" VerticalAlignment="Top">
-                                    <TextBlock Text="AI COACH" Foreground="{StaticResource Accent}"
+                                    <TextBlock Text="RAZ NA TURĘ" Foreground="{StaticResource Accent}"
                                                FontSize="10" FontWeight="SemiBold"/>
                                 </Border>
                             </Grid>
@@ -415,7 +400,7 @@
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Row="0" Grid.Column="0">
                                     <TextBlock x:Name="MoveText" Text="Czekam na swoją turę"
-                                               Foreground="{StaticResource White}" FontSize="26"
+                                               Foreground="{StaticResource White}" FontSize="23"
                                                FontWeight="Bold" TextWrapping="Wrap"
                                                Margin="0,8,0,12" LineHeight="34"/>
 
@@ -427,13 +412,13 @@
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
                                                     <Border Background="{StaticResource Panel2}"
-                                                            CornerRadius="12" Padding="10" Margin="0,0,0,9">
+                                                            CornerRadius="10" Padding="12,10" Margin="0,0,0,7">
                                                         <Grid>
                                                             <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="92"/>
+                                                                <ColumnDefinition Width="83"/>
                                                                 <ColumnDefinition Width="*"/>
                                                             </Grid.ColumnDefinitions>
-                                                            <Grid Width="84" Height="116" HorizontalAlignment="Left">
+                                                            <Grid Width="72" Height="100" HorizontalAlignment="Left">
                                                                 <Border Background="{StaticResource NeutralTint}"
                                                                         CornerRadius="7" BorderBrush="{StaticResource Stroke}"
                                                                         BorderThickness="1">
@@ -466,7 +451,7 @@
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
-                                        <TextBlock Text="Kolejne akcje są planem warunkowym — reaguj na zmiany planszy."
+                                        <TextBlock Text="Kolejność jest ustalona na początku tury. Kroki zależne od losowych efektów są warunkowe."
                                                    Style="{StaticResource BodyMuted}" FontSize="10"
                                                    Margin="2,3,0,9"/>
                                     </StackPanel>
@@ -584,29 +569,131 @@
                                        TextWrapping="Wrap" Margin="0,15,0,0"/>
                         </StackPanel>
                     </Border>
-
-                    <Border Style="{StaticResource Card}" Margin="0,18,0,0" Padding="21">
+        <Border x:Name="HandPanel" Style="{StaticResource Card}" Padding="16" Margin="0,0,0,14" Visibility="Collapsed">
+  <StackPanel>
+    <Grid Margin="0,0,0,11">
+      <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <StackPanel>
+        <TextBlock Text="TWOJA RĘKA" FontSize="15" FontWeight="SemiBold"/>
+        <TextBlock Text="Karty widoczne w Hearthstone · grafiki z identyfikatorów HDT" Style="{StaticResource BodyMuted}" Margin="0,4,0,0"/>
+      </StackPanel>
+      <TextBlock x:Name="HandPanelCount" Grid.Column="1" VerticalAlignment="Center" Foreground="{StaticResource Muted}" FontSize="12"/>
+    </Grid>
+    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+      <ItemsControl x:Name="HandItems">
+        <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Border Width="116" Padding="9" Margin="0,0,10,5" Background="{StaticResource Panel2}"
+                    BorderBrush="{StaticResource Stroke}" BorderThickness="1" CornerRadius="10">
+              <StackPanel>
+                <Grid Height="133" Width="94" HorizontalAlignment="Center">
+                  <Border Background="{StaticResource NeutralTint}" CornerRadius="8">
+                    <TextBlock Text="{Binding Placeholder}" HorizontalAlignment="Center"
+                               VerticalAlignment="Center" Foreground="{StaticResource Muted}"/>
+                  </Border>
+                  <Image Source="{Binding Art}" Stretch="Uniform">
+                    <Image.ToolTip>
+                      <ToolTip><Image Source="{Binding Art}" Width="250" Stretch="Uniform"/></ToolTip>
+                    </Image.ToolTip>
+                  </Image>
+                </Grid>
+                <TextBlock Text="{Binding Caption}" TextAlignment="Center" TextWrapping="Wrap"
+                           FontSize="11" FontWeight="SemiBold" Margin="0,7,0,0"
+                           MaxHeight="39" ToolTip="{Binding Caption}"/>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+  </StackPanel>
+</Border>
+      </StackPanel>
+      <StackPanel Grid.Column="1">
+        <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,14">
+   <StackPanel>
+     <Grid>
+       <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+       <TextBlock Text="Stan planu" FontSize="15" FontWeight="SemiBold"/>
+       <Border Grid.Column="1" Padding="7,4" CornerRadius="6" Background="{StaticResource NeutralTint}">
+         <TextBlock Text="JEDEN PLAN" FontSize="9" FontWeight="SemiBold" Foreground="{StaticResource Accent}"/>
+       </Border>
+     </Grid>
+     <TextBlock x:Name="PlanStateText" Text="Czekam na Twoją turę" FontSize="13" FontWeight="SemiBold"
+                Foreground="{StaticResource Accent}" Margin="0,16,0,5" TextWrapping="Wrap"/>
+     <TextBlock x:Name="PlanStateDetail" Text="W trakcie Twojej tury pojawi się kompletna kolejność zagrań."
+                Style="{StaticResource BodyMuted}" LineHeight="19"/>
+     <Border Background="{StaticResource Stroke}" Height="1" Margin="0,16,0,13"/>
+     <Grid>
+       <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+       <TextBlock Text="Automatyczne przeliczanie" Style="{StaticResource BodyMuted}"/>
+       <TextBlock Grid.Column="1" Text="Wyłączone" Foreground="{StaticResource Accent}"
+                  FontWeight="SemiBold" FontSize="11"/>
+     </Grid>
+     <TextBlock Text="Nowa analiza dopiero w kolejnej Twojej turze. Przycisk ręczny nie działa automatycznie."
+                Style="{StaticResource BodyMuted}" Margin="0,12,0,0" FontSize="11"/>
+   </StackPanel>
+</Border>
+        <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,14">
+   <StackPanel>
+     <TextBlock Text="Jeśli sytuacja się zmieni" FontSize="14" FontWeight="SemiBold"/>
+     <TextBlock Text="Plan nie zmienia się po każdym zagraniu. Efekty losowe i nieznane karty są oznaczane jako warunkowe."
+                Style="{StaticResource BodyMuted}" Margin="0,10,0,0" LineHeight="19"/>
+     <TextBlock Text="W razie potrzeby możesz ręcznie przeliczyć plan."
+                Foreground="{StaticResource Accent}" FontSize="11" TextWrapping="Wrap" Margin="0,12,0,0"/>
+   </StackPanel>
+</Border>
+        <!-- Deck intelligence: available in HDT menu before mulligan. -->
+                    <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,14">
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="TWOJA TALIA" Style="{StaticResource Kicker}"
+                                               Foreground="{StaticResource Accent}" Margin="0,0,0,5"/>
+                                    <TextBlock x:Name="DeckStrategyName" Text="Aktywna talia HDT"
+                                               FontSize="15" FontWeight="SemiBold"/>
+                                </StackPanel>
+                                <TextBlock x:Name="DeckStrategyStatus" Grid.Column="1"
+                                           Foreground="{StaticResource Muted}" FontSize="11"
+                                           VerticalAlignment="Center" Text="Oczekiwanie na talię"
+                                           Margin="12,0,0,0"/>
+                            </Grid>
+                            <ScrollViewer MaxHeight="190" VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled"
+                                          Margin="0,10,0,0">
+                                <TextBlock x:Name="DeckStrategyText"
+                                           Text="Wybierz aktywną talię w Hearthstone Deck Tracker. Asystent przeanalizuje jej synergie jeszcze przed meczem."
+                                           Style="{StaticResource BodyMuted}" TextWrapping="Wrap"
+                                           LineHeight="19"/>
+                            </ScrollViewer>
+                        </StackPanel>
+                    </Border>
+        <Border Style="{StaticResource Card}" Margin="0,0,0,14" Padding="16">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <StackPanel VerticalAlignment="Center" Margin="0,0,15,0">
-                                <TextBlock Text="SZYBKA ANALIZA" Style="{StaticResource Kicker}"/>
-                                <TextBlock Text="Analizuj AI" FontSize="16" FontWeight="SemiBold" Margin="0,6,0,0"/>
-                                <TextBlock Text="Model i pozostałe opcje zmienisz w Ustawieniach."
+                                <TextBlock Text="ANALIZA NA ŻĄDANIE" Style="{StaticResource Kicker}"/>
+                                <TextBlock Text="Plan rozgrywki" FontSize="16" FontWeight="SemiBold" Margin="0,6,0,0"/>
+                                <TextBlock Text="Nowy plan powstaje automatycznie na początku tury. Możesz też ręcznie poprosić o przeliczenie."
                                            Style="{StaticResource BodyMuted}" Margin="0,6,0,0"/>
                             </StackPanel>
                             <Button Grid.Column="1" x:Name="AnalyzeButton"
                                     MinWidth="164" Style="{StaticResource PrimaryButton}"
-                                    Content="✦  Analizuj AI" Click="AnalyzeClick"
+                                    Content="Przygotuj plan" Click="AnalyzeClick"
                                     VerticalAlignment="Center"/>
                         </Grid>
                     </Border>
-
-                    <Border CornerRadius="11" BorderBrush="{StaticResource Stroke}"
+        <Border CornerRadius="11" BorderBrush="{StaticResource Stroke}"
                             BorderThickness="1" Background="#111B27"
-                            Padding="15,13" Margin="0,16,0,0">
+                            Padding="13,12" Margin="0,0,0,12">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
@@ -620,8 +707,10 @@
                                        TextWrapping="Wrap" VerticalAlignment="Center"/>
                         </Grid>
                     </Border>
-                </StackPanel>
-            </ScrollViewer>
+      </StackPanel>
+    </Grid>
+  </StackPanel>
+</ScrollViewer>
 
             <!-- Configuration page: the controls remain alive when navigating, preserving state. -->
             <ScrollViewer x:Name="SettingsPage" Grid.Column="2" Visibility="Collapsed"
