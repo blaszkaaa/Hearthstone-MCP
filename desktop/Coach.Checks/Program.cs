@@ -28,6 +28,8 @@ var namedControls = designDocument.Descendants()
     .Attributes(designNamespace + "Name").Select(a => a.Value).ToArray();
 Check(namedControls.Length == namedControls.Distinct(StringComparer.Ordinal).Count(),
     "WPF named controls remain unique after UI redesign");
+Check(namedControls.Contains("HdtPluginSettingsCard"),
+    "offline onboarding has a real plugin installation target");
 Check(namedControls.Contains("HistoryListPanel") &&
       namedControls.Contains("HistoryDetailsCard") &&
       namedControls.Contains("HistoryTopRow") &&
