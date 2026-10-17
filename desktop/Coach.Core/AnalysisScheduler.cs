@@ -23,7 +23,12 @@ public sealed class AnalysisScheduler
     public bool ShouldAnalyze(GameSnapshot snapshot, DateTimeOffset now, bool analyzing, bool enabled)
     {
         if (!snapshot.InGame)
+        {
             _completedPlanTurn = -1;
+            _turn = -1;
+            _analyzedKey = null;
+            _attempts.Clear();
+        }
         if (!snapshot.Actionable)
         {
             // Important: reset when opponent's turn or HDT temporarily disconnects.
@@ -41,6 +46,10 @@ public sealed class AnalysisScheduler
             _analyzedKey = null;
             _attempts.Clear();
         }
+        // A completed plan is immutable for the remainder of this turn, even
+        // after drawing a card, spending mana or opening a Discover popup.
+        if (_completedPlanTurn == snapshot.Turn && !snapshot.MulliganActive)
+        { LastDecision = "plan_ready_for_turn"; return false; }
         if (_seenKey != snapshot.DecisionKey || _seenPhase != snapshot.Phase)
         {
             _seenKey = snapshot.DecisionKey;
@@ -49,10 +58,6 @@ public sealed class AnalysisScheduler
             LastDecision = "settling_new_" + snapshot.Phase;
             return false;
         }
-        // A completed plan is immutable for the remainder of this turn, even
-        // after drawing a card, spending mana or opening a Discover popup.
-        if (_completedPlanTurn == snapshot.Turn && !snapshot.MulliganActive)
-        { LastDecision = "plan_ready_for_turn"; return false; }
         if (!enabled) { LastDecision = "disabled"; return false; }
         if (analyzing) { LastDecision = "busy"; return false; }
         var delay = snapshot.MulliganActive ? MulliganDelay :
